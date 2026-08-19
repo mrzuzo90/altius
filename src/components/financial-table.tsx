@@ -40,7 +40,7 @@ export function FinancialTable({
           <tr className="border-border/60 bg-muted/30 border-b">
             <th
               scope="col"
-              className="bg-muted/30 text-muted-foreground sticky left-0 z-20 min-w-[260px] px-3 py-2 text-left text-xs font-medium backdrop-blur-sm"
+              className="altius-sticky-head text-muted-foreground sticky left-0 z-20 w-[150px] min-w-[150px] px-3 py-2 text-left text-xs font-medium sm:w-[280px] sm:min-w-[280px]"
             >
               Concepto
             </th>
@@ -48,7 +48,7 @@ export function FinancialTable({
               <th
                 key={p.key}
                 scope="col"
-                className="text-muted-foreground min-w-[104px] px-3 py-2 text-right text-xs font-medium whitespace-nowrap"
+                className="text-muted-foreground min-w-[88px] px-3 py-2 text-right text-xs font-medium whitespace-nowrap sm:min-w-[104px]"
               >
                 {p.label}
               </th>
@@ -64,7 +64,7 @@ export function FinancialTable({
                 style={{ animationDelay: `${Math.min(i * 12, 240)}ms` }}
                 className={cn(
                   "animate-in fade-in-0 fill-mode-backwards duration-300",
-                  "border-border/40 group border-b last:border-0",
+                  "altius-row border-border/40 group border-b last:border-0",
                   "hover:bg-muted/40 transition-colors",
                   row.line.emphasis === "total" && "bg-muted/20 font-semibold",
                   row.line.emphasis === "subtotal" && "font-medium",
@@ -73,8 +73,9 @@ export function FinancialTable({
               >
                 <th
                   scope="row"
+                  title={row.line.label}
                   className={cn(
-                    "bg-background group-hover:bg-muted/40 sticky left-0 z-10 px-3 py-1.5 text-left font-normal whitespace-nowrap transition-colors",
+                    "altius-sticky-cell sticky left-0 z-10 w-[150px] min-w-[150px] max-w-[150px] truncate px-3 py-1.5 text-left font-normal whitespace-nowrap transition-colors sm:w-[280px] sm:min-w-[280px] sm:max-w-none",
                     row.line.emphasis === "total" && "font-semibold",
                     row.line.emphasis === "subtotal" && "font-medium",
                   )}

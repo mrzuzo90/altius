@@ -37,17 +37,25 @@ export const INCOME_STATEMENT: LineDef[] = [
     concepts: ["CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold", "CostOfServices"] },
   { id: "grossProfit", label: "Beneficio bruto", kind: "duration", unit: "USD", emphasis: "subtotal",
     computed: "grossProfit", concepts: ["GrossProfit"] },
+  // El orden importa y no es el intuitivo. JNJ usa la variante "Excluding" para
+  // su I+D operativa (17.232 M$ en 2024) y reserva ResearchAndDevelopmentExpense
+  // para cargos por I+D adquirida (1.841 M$). Con el orden inverso, la tabla
+  // mostraba 109 M$ de I+D para una farmacéutica que gasta unos 17.000.
   { id: "researchAndDevelopment", label: "Investigación y desarrollo", kind: "duration", unit: "USD", indent: 1,
-    concepts: ["ResearchAndDevelopmentExpense",
-               "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"] },
+    concepts: ["ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+               "ResearchAndDevelopmentExpense"] },
   { id: "sellingGeneralAdmin", label: "Gastos generales, comerciales y administrativos", kind: "duration", unit: "USD", indent: 1,
     concepts: ["SellingGeneralAndAdministrativeExpense", "GeneralAndAdministrativeExpense"] },
   { id: "operatingExpenses", label: "Total gastos de explotación", kind: "duration", unit: "USD", emphasis: "subtotal",
     concepts: ["OperatingExpenses", "CostsAndExpenses"] },
   { id: "operatingIncome", label: "Resultado de explotación", kind: "duration", unit: "USD", emphasis: "subtotal",
     concepts: ["OperatingIncomeLoss"] },
+  // InterestExpenseNonoperating es la etiqueta moderna de la línea de la cuenta
+  // de resultados: en Tesla coincide al céntimo con InterestExpense donde ambas
+  // existen (191 y 156 M$) y es la única que continúa después. InterestExpense
+  // queda de reserva para quien, como Apple, no usa la variante nonoperating.
   { id: "interestExpense", label: "Gasto financiero", kind: "duration", unit: "USD", indent: 1,
-    concepts: ["InterestExpense", "InterestExpenseNonoperating", "InterestIncomeExpenseNet"] },
+    concepts: ["InterestExpenseNonoperating", "InterestExpense", "InterestIncomeExpenseNet"] },
   { id: "otherNonOperating", label: "Otros resultados no de explotación", kind: "duration", unit: "USD", indent: 1,
     concepts: ["NonoperatingIncomeExpense", "OtherNonoperatingIncomeExpense"] },
   { id: "pretaxIncome", label: "Resultado antes de impuestos", kind: "duration", unit: "USD", emphasis: "subtotal",

@@ -245,3 +245,28 @@ describe("integridad contable del balance", () => {
     expect(leer("equity")).toBe(63_367_000_000);
   });
 });
+
+describe("prioridad de conceptos donde varios candidatos compiten", () => {
+  const anual = (facts: CompanyFacts, id: string, fy: string) => {
+    const st = normalizeStatement(facts, INCOME_STATEMENT, "annual", 12);
+    return st.rows.find((r) => r.line.id === id)?.cells[fy]?.value ?? null;
+  };
+
+  it("toma la I+D operativa de JNJ y no los cargos por I+D adquirida", () => {
+    // ResearchAndDevelopmentExpense vale 1.841 M$ en 2024 (I+D adquirida);
+    // la I+D real de JNJ son 17.232 M$ y vive en la variante "Excluding".
+    expect(anual(JNJ, "researchAndDevelopment", "FY2024")).toBe(17_232_000_000);
+    expect(anual(JNJ, "researchAndDevelopment", "FY2025")).toBe(14_665_000_000);
+  });
+
+  it("no rompe la I+D de quien solo usa el concepto genérico", () => {
+    expect(anual(AAPL, "researchAndDevelopment", "FY2025")).toBe(34_550_000_000);
+  });
+
+  it("resuelve el gasto financiero con la etiqueta de la cuenta de resultados", () => {
+    expect(anual(TSLA, "interestExpense", "FY2023")).toBe(156_000_000);
+    expect(anual(JNJ, "interestExpense", "FY2024")).toBe(755_000_000);
+    // Apple no usa la variante nonoperating: debe caer en la de reserva.
+    expect(anual(AAPL, "interestExpense", "FY2023")).toBe(3_933_000_000);
+  });
+});

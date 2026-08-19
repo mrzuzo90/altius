@@ -156,3 +156,16 @@
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
+
+/* Celdas fijas de la tabla financiera.
+   El fondo DEBE ser opaco: con un color semitransparente, las cifras que pasan
+   por debajo al desplazar horizontalmente se transparentan sobre la etiqueta. */
+.altius-sticky-cell {
+  background-color: var(--background);
+}
+.altius-row:hover .altius-sticky-cell {
+  background-color: color-mix(in oklab, var(--muted) 40%, var(--background));
+}
+.altius-sticky-head {
+  background-color: color-mix(in oklab, var(--muted) 30%, var(--background));
+}
