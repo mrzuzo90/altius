@@ -94,11 +94,27 @@ export const BALANCE_SHEET: LineDef[] = [
     concepts: ["LongTermDebtNoncurrent", "LongTermDebt"] },
   { id: "totalLiabilities", label: "Total pasivo", kind: "instant", unit: "USD", emphasis: "total",
     concepts: ["Liabilities"] },
+  // El patrimonio se desglosa para que el balance cuadre. Tesla, por ejemplo,
+  // tiene minoritarios y participaciones rescatables: con solo StockholdersEquity
+  // el activo no coincidía con pasivo más patrimonio por 975 millones.
+  { id: "redeemableNci", label: "Participaciones rescatables", kind: "instant", unit: "USD", indent: 1,
+    concepts: ["RedeemableNoncontrollingInterestEquityCarryingAmount",
+               "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests"] },
+  // Bonos convertibles y similares clasificados como patrimonio temporal. Tesla
+  // llevaba 51 millones aquí en 2020, y sin esta línea el balance no cerraba.
+  { id: "temporaryEquityParent", label: "Patrimonio temporal de la dominante", kind: "instant", unit: "USD", indent: 1,
+    concepts: ["TemporaryEquityCarryingAmountAttributableToParent"] },
   { id: "retainedEarnings", label: "Reservas acumuladas", kind: "instant", unit: "USD", indent: 1,
     concepts: ["RetainedEarningsAccumulatedDeficit"] },
-  { id: "equity", label: "Patrimonio neto", kind: "instant", unit: "USD", emphasis: "total",
-    concepts: ["StockholdersEquity",
-               "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"] },
+  { id: "equityParent", label: "Patrimonio de la dominante", kind: "instant", unit: "USD", indent: 1,
+    concepts: ["StockholdersEquity"] },
+  { id: "minorityInterest", label: "Intereses minoritarios", kind: "instant", unit: "USD", indent: 1,
+    concepts: ["MinorityInterest"] },
+  { id: "equity", label: "Patrimonio neto total", kind: "instant", unit: "USD", emphasis: "total",
+    concepts: ["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+               "StockholdersEquity"] },
+  { id: "liabilitiesAndEquity", label: "Total pasivo y patrimonio neto", kind: "instant", unit: "USD", emphasis: "total",
+    concepts: ["LiabilitiesAndStockholdersEquity"] },
 ];
 
 export const CASH_FLOW: LineDef[] = [

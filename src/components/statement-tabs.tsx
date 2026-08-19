@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinancialTable } from "./financial-table";
 import { SCALES, type Scale } from "@/lib/format";
@@ -58,16 +57,14 @@ export function StatementTabs({
 
       {bundle.blocks.map((b) => (
         <TabsContent key={b.id} value={b.id}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${b.id}-${frequency}-${scale}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <FinancialTable periods={b.periods} rows={b.rows} scale={scale} />
-            </motion.div>
-          </AnimatePresence>
+          {/* La `key` fuerza el remontaje al cambiar de frecuencia o escala,
+              lo que vuelve a disparar la animación CSS de entrada. */}
+          <div
+            key={`${b.id}-${frequency}-${scale}`}
+            className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+          >
+            <FinancialTable periods={b.periods} rows={b.rows} scale={scale} />
+          </div>
         </TabsContent>
       ))}
     </Tabs>

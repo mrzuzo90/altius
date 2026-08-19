@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { formatValue, type Scale } from "@/lib/format";
 import type { Cell, LineSeries, Period } from "@/lib/sec/normalize";
@@ -12,6 +11,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * La primera columna queda fija al hacer scroll horizontal, que es lo que hace
  * usable una tabla de doce periodos en una pantalla estrecha. Las celdas
  * derivadas por Altius se marcan para que no se confundan con lo reportado.
+ *
+ * La entrada se anima con CSS y no con JavaScript, a propósito: una animación
+ * que arranca desde opacidad cero deja la tabla invisible si el script falla o
+ * tarda, y unos estados financieros no pueden depender de eso para verse.
  */
 export function FinancialTable({
   periods,
@@ -56,12 +59,11 @@ export function FinancialTable({
           {rows.map((row, i) => {
             const vacia = periods.every((p) => row.cells[p.key]?.value == null);
             return (
-              <motion.tr
+              <tr
                 key={row.line.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.18, delay: Math.min(i * 0.012, 0.25) }}
+                style={{ animationDelay: `${Math.min(i * 12, 240)}ms` }}
                 className={cn(
+                  "animate-in fade-in-0 fill-mode-backwards duration-300",
                   "border-border/40 group border-b last:border-0",
                   "hover:bg-muted/40 transition-colors",
                   row.line.emphasis === "total" && "bg-muted/20 font-semibold",
@@ -83,7 +85,7 @@ export function FinancialTable({
                 {periods.map((p) => (
                   <Celda key={p.key} cell={row.cells[p.key]} unit={row.line.unit} scale={scale} />
                 ))}
-              </motion.tr>
+              </tr>
             );
           })}
         </tbody>

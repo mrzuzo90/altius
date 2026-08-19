@@ -210,3 +210,38 @@ describe("ausencia de dato", () => {
     expect(celda?.value).not.toBe(0);
   });
 });
+
+describe("integridad contable del balance", () => {
+  it("el activo cuadra con pasivo más patrimonio en las tres empresas", () => {
+    for (const [nombre, facts] of [["AAPL", AAPL], ["TSLA", TSLA], ["JNJ", JNJ]] as const) {
+      const st = normalizeStatement(facts, BALANCE_SHEET, "annual", 6);
+      const leer = (id: string, key: string) =>
+        st.rows.find((r) => r.line.id === id)?.cells[key]?.value ?? null;
+
+      for (const p of st.periods) {
+        const activo = leer("totalAssets", p.key);
+        const pasivo = leer("totalLiabilities", p.key);
+        const patrimonio = leer("equity", p.key);
+        const rescatables = leer("redeemableNci", p.key) ?? 0;
+        const temporal = leer("temporaryEquityParent", p.key) ?? 0;
+        if (activo === null || pasivo === null || patrimonio === null) continue;
+
+        const suma = pasivo + patrimonio + rescatables + temporal;
+        // Tolerancia de un millón por los redondeos de la propia presentación.
+        expect(
+          Math.abs(activo - suma),
+          `${nombre} ${p.key}: activo ${activo} frente a ${suma}`,
+        ).toBeLessThan(1_000_000);
+      }
+    }
+  });
+
+  it("incluye los minoritarios en el patrimonio total, no solo la matriz", () => {
+    // Tesla 2023: matriz 62.634 M$ + minoritarios 733 M$ = 63.367 M$.
+    const st = normalizeStatement(TSLA, BALANCE_SHEET, "annual", 6);
+    const leer = (id: string) => st.rows.find((r) => r.line.id === id)!.cells["FY2023"]?.value;
+    expect(leer("equityParent")).toBe(62_634_000_000);
+    expect(leer("minorityInterest")).toBe(733_000_000);
+    expect(leer("equity")).toBe(63_367_000_000);
+  });
+});

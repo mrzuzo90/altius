@@ -123,9 +123,16 @@ export function secFetchText(url: string, ttlSeconds: number): Promise<string> {
   return fetchCached<string>(url, ttlSeconds, (res) => res.text());
 }
 
-/** `320193` → `"0000320193"`. Requerido por data.sec.gov/api y /submissions. */
+/**
+ * `320193` → `"0000320193"`. Requerido por data.sec.gov/api y /submissions.
+ *
+ * Se eliminan primero los ceros a la izquierda para que la función sea
+ * idempotente: sin eso, un CIK ya relleno que llegue por la URL de una API se
+ * volvería a rellenar y produciría una ruta de más de diez dígitos y un 404.
+ */
 export function padCik(cik: string | number): string {
-  return String(cik).replace(/\D/g, "").padStart(10, "0");
+  const digitos = String(cik).replace(/\D/g, "").replace(/^0+/, "");
+  return digitos.padStart(10, "0");
 }
 
 /** `"0000320193"` → `"320193"`. Requerido por las rutas de www.sec.gov/Archives. */
