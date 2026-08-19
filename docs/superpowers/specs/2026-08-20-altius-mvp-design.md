@@ -25,6 +25,7 @@ Todo dato mostrado debe ser trazable a un documento público. Reglas duras que g
 | Estilos | Tailwind + shadcn/ui, base `slate`, dark por defecto | Densidad informativa con componentes accesibles |
 | Gráficos | Recharts | Series temporales, buena integración con React 19 |
 | Animación | Framer Motion | Micro-interacciones en carga y transición de tablas |
+| LLM | Google Gemini `gemini-2.5-pro` por REST | Contexto de 1M tokens, nivel gratuito, sin dependencia de SDK |
 | Tests | Vitest | Rápido, TS nativo |
 | Caché | Interfaz `CacheStore` + adaptador filesystem | Supabase no disponible aún; el adaptador Postgres queda escrito |
 
@@ -67,9 +68,13 @@ Series del MVP:
 
 El SEC no publica precios; esta es la fuente pública gratuita con menor fricción de despliegue. Limitación aceptada y documentada: cobertura fuera de EE. UU./Europa más débil y sin SLA. La UI degrada con elegancia si la serie no está disponible — el resto del perfil sigue funcionando.
 
-### 3.4 Anthropic (copiloto MD&A)
+### 3.4 Google Gemini (copiloto MD&A)
 
-`claude-sonnet-5`. Ventana de contexto suficiente para un MD&A completo (30–80k tokens típicos). Sin `ANTHROPIC_API_KEY` el sistema degrada a un resumen extractivo determinista, nunca a texto generado sin fuente.
+`gemini-2.5-pro` vía REST `generativelanguage.googleapis.com/v1beta`. Ventana de contexto de 1M tokens, muy holgada para un MD&A completo (30–80k tokens típicos), y nivel gratuito generoso en Google AI Studio.
+
+**Decisión de implementación:** se invoca por `fetch` contra el endpoint REST, sin SDK. El contrato `v1beta` es estable y documentado, mientras que los SDK de Google han cambiado de nombre y de forma varias veces (`@google/generative-ai` → `@google/genai`). Cero dependencias que se rompan, y el proveedor queda tras una interfaz de una sola función por si más adelante quieres cambiar de modelo.
+
+Sin `GEMINI_API_KEY` el sistema degrada a un resumen extractivo determinista, nunca a texto generado sin fuente.
 
 ---
 
@@ -169,7 +174,8 @@ Cada fuente falla de forma independiente y ninguna tumba la página:
 - **403 del SEC** → mensaje explícito señalando el `User-Agent` como causa, no un error genérico.
 - **Empresa sin XBRL** (extranjeras que presentan 20-F, o registros muy antiguos) → aviso claro de que no hay datos estructurados disponibles.
 - **Stooq caído o sin cobertura** → el perfil se renderiza sin gráfico de precio.
-- **Sin `ANTHROPIC_API_KEY`** → resumen extractivo, con aviso de que no es generado por IA.
+- **Sin `GEMINI_API_KEY`** → resumen extractivo, con aviso explícito de que no está generado por IA.
+- **Cuota de Gemini agotada (429)** → degrada al resumen extractivo en lugar de romper la página.
 
 ---
 
@@ -205,7 +211,7 @@ Verificación visual con el navegador integrado en escritorio y móvil antes de 
 | Variable | Obligatoria | Para qué |
 |---|---|---|
 | `SEC_USER_AGENT` | **Sí, antes de desplegar** | Nombre y email real. Sin ella la SEC devuelve 403 |
-| `ANTHROPIC_API_KEY` | Solo para el copiloto | Resumen del MD&A |
+| `GEMINI_API_KEY` | Solo para el copiloto | Resumen del MD&A. Se obtiene gratis en aistudio.google.com/apikey |
 | `FRED_API_KEY` | No | Conmuta al API JSON; sin ella se usa el CSV público |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Activa el adaptador Postgres de caché |
 
