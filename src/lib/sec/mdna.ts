@@ -26,6 +26,8 @@ export function htmlToText(html: string): string {
     .replace(/&#8220;|&#8221;|&ldquo;|&rdquo;/gi, '"')
     .replace(/&[a-z]+;/gi, " ")
     .replace(/[ \t ]+/g, " ")
+    // Un salto seguido de espacio rompe la comparación de párrafos.
+    .replace(/ *\n */g, "\n")
     .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim();
 }
