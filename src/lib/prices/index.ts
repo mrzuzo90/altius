@@ -16,6 +16,10 @@ export type { PricePoint, PriceSeries, PriceResult } from "./types";
  * Para un terminal de análisis fundamental el compromiso es favorable: importa
  * la tendencia plurianual junto a los estados financieros, no el tick del día.
  *
+ * Se pide la variante AJUSTADA, que también es gratuita —solo la diaria ajustada
+ * pasó a ser de pago—. Sin ajustar, cada split dibuja un desplome que nunca
+ * ocurrió: NVIDIA aparecería hoy por debajo de su precio de 2021.
+ *
  * Sin proveedor configurado no se inventa nada ni se cae la página: se devuelve
  * un resultado negativo tipado y el perfil se renderiza sin gráfico.
  *
@@ -29,14 +33,14 @@ export async function getPriceSeries(ticker: string): Promise<PriceResult> {
 
   const symbol = ticker.trim().toUpperCase();
   const cache = getCacheStore();
-  const cacheKey = `prices:alphavantage:weekly:${symbol}`;
+  const cacheKey = `prices:alphavantage:weekly-adjusted:${symbol}`;
 
   const cached = await cache.get<PriceResult>(cacheKey);
   if (cached?.ok) return cached;
 
   try {
     const url =
-      `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY` +
+      `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY_ADJUSTED` +
       `&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(key)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {

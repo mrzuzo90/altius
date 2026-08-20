@@ -47,7 +47,13 @@ export function parseAlphaVantage(payload: AlphaVantagePayload): ParseResult {
 
   const points: PricePoint[] = [];
   for (const [date, campos] of Object.entries(serie)) {
-    const bruto = campos["4. close"] ?? campos["5. adjusted close"];
+    // El cierre AJUSTADO manda sobre el crudo. El crudo no incorpora splits, y
+    // eso no es un matiz: la semana del split 10:1 de NVIDIA de junio de 2024,
+    // el cierre crudo pasa de 1.208,88 a 120,68 dólares. Dibujado sin ajustar,
+    // el gráfico muestra un desplome del noventa por ciento que nunca ocurrió,
+    // y deja a NVIDIA cotizando por debajo de su precio de 2021 cuando en
+    // realidad se ha multiplicado por doce.
+    const bruto = campos["5. adjusted close"] ?? campos["4. close"];
     const close = Number.parseFloat(bruto ?? "");
     if (Number.isFinite(close)) points.push({ date, close });
   }

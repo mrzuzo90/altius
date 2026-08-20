@@ -54,6 +54,33 @@ describe("parseAlphaVantage", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("prefiere el cierre ajustado, porque el crudo ignora los splits", () => {
+    // Datos reales de NVIDIA. El split 10:1 de junio de 2024 hace que el cierre
+    // crudo de esa semana sea 1.208,88 y el ajustado 120,68. Tomando el crudo,
+    // el gráfico dibuja un desplome del 90 % que nunca sucedió.
+    const r = parseAlphaVantage({
+      "Weekly Adjusted Time Series": {
+        "2024-06-07": { "4. close": "1208.8800", "5. adjusted close": "120.6800" },
+        "2026-08-19": { "4. close": "217.5600", "5. adjusted close": "217.5600" },
+      },
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.points[0]).toEqual({ date: "2024-06-07", close: 120.68 });
+      // Sin ajustar, el histórico dejaría a NVIDIA por debajo de su precio
+      // actual pese a haberse multiplicado por doce desde 2021.
+      expect(r.points[0].close).toBeLessThan(r.points[1].close);
+    }
+  });
+
+  it("recae en el cierre crudo si el proveedor no da ajustado", () => {
+    const r = parseAlphaVantage({
+      "Weekly Time Series": { "2024-01-02": { "4. close": "185.64" } },
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.points[0].close).toBe(185.64);
+  });
+
   it("detecta el bloqueo de outputsize=full, que llega como Information", () => {
     const r = parseAlphaVantage({
       Information: "The outputsize=full parameter value is a premium feature",
