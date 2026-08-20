@@ -13,53 +13,56 @@ export function MdnaSummary({
   chars: number;
 }) {
   return (
-    <div className="space-y-5">
-      <div className="border-border/60 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border px-4 py-3 text-xs">
-        <span className="text-muted-foreground">
-          Fuente: <span className="text-foreground">{filing.form}</span> presentado el{" "}
-          <span className="text-foreground">{formatDate(filing.filingDate)}</span>
+    <div className="space-y-6">
+      <div className="border-mist flex flex-wrap items-center gap-x-8 gap-y-2 border-y py-4 text-[13px]">
+        <span className="text-slate">
+          Fuente <span className="text-graphite">{filing.form}</span> presentado el{" "}
+          <span className="text-graphite">{formatDate(filing.filingDate)}</span>
         </span>
-        <span className="text-muted-foreground">
-          {chars.toLocaleString("es-ES")} caracteres de MD&A analizados
+        <span className="text-slate">
+          {chars.toLocaleString("es-ES")} caracteres analizados
         </span>
         <a
           href={filing.documentUrl}
           target="_blank"
           rel="noreferrer noopener"
-          className="ml-auto underline underline-offset-4"
+          className="font-display text-graphite link-ember ml-auto text-[14px] tracking-[-0.02em]"
         >
           Leer el informe original
         </a>
       </div>
 
       {body.notice ? (
-        <div className="border-derived/40 bg-derived/5 text-derived flex items-start gap-2 rounded-lg border px-4 py-3 text-xs">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+        <div className="bg-ivory card-asymmetric text-steel flex items-start gap-3 px-6 py-4 text-[13px]">
+          <AlertTriangle className="text-brass mt-0.5 size-4 shrink-0" />
           <p className="text-pretty">{body.notice}</p>
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Bloque
           icono={<TrendingUp className="size-4" />}
+          indice="01"
           titulo="Impulsores de ingresos"
           puntos={body.drivers}
         />
         <Bloque
           icono={<AlertTriangle className="size-4" />}
+          indice="02"
           titulo="Riesgos operativos"
           puntos={body.risks}
         />
         <Bloque
           icono={<Gauge className="size-4" />}
+          indice="03"
           titulo="Tono de la directiva"
           puntos={body.tone ? [body.tone] : []}
         />
       </div>
 
-      <p className="text-muted-foreground text-[11px] text-pretty">
+      <p className="text-slate max-w-3xl text-[13px] leading-[1.5] text-pretty">
         {body.source === "gemini"
-          ? "Resumen generado por Gemini a partir exclusivamente del texto del apartado MD&A del informe. No incorpora conocimiento externo ni hechos posteriores a la presentación."
+          ? "Resumen generado por Gemini a partir exclusivamente del texto del apartado de análisis de la dirección. No incorpora conocimiento externo ni hechos posteriores a la presentación del informe."
           : "Frases seleccionadas literalmente del informe, sin intervención de un modelo de lenguaje."}
       </p>
     </div>
@@ -68,28 +71,33 @@ export function MdnaSummary({
 
 function Bloque({
   icono,
+  indice,
   titulo,
   puntos,
 }: {
   icono: React.ReactNode;
+  indice: string;
   titulo: string;
   puntos: string[];
 }) {
   return (
-    <section className="border-border/60 rounded-lg border p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-medium">
-        <span className="text-muted-foreground">{icono}</span>
+    <section className="bg-ash card-asymmetric p-8">
+      <div className="flex items-center gap-3">
+        <span className="text-brass">{icono}</span>
+        <span className="font-display text-brass text-[13px] tracking-[-0.02em]">{indice}</span>
+      </div>
+      <h2 className="font-display text-graphite mt-3 text-[20px] leading-[1.15] tracking-[-0.4px]">
         {titulo}
       </h2>
       {puntos.length === 0 ? (
-        <p className="text-muted-foreground/70 text-sm">
+        <p className="text-slate mt-4 text-[15px]">
           El informe no aporta material suficiente para este apartado.
         </p>
       ) : (
-        <ul className="space-y-2.5">
+        <ul className="mt-5 space-y-4">
           {puntos.map((p, i) => (
-            <li key={i} className="text-muted-foreground flex gap-2.5 text-sm text-pretty">
-              <span className="bg-muted-foreground/40 mt-2 size-1 shrink-0 rounded-full" />
+            <li key={i} className="text-steel flex gap-3 text-[15px] leading-[1.5] text-pretty">
+              <span className="bg-ember mt-2.5 size-1 shrink-0 rounded-full" />
               {p}
             </li>
           ))}

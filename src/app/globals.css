@@ -48,73 +48,84 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+/* ===================================================================== */
+/*  Ventriloc — observatorio editorial sobre papel cálido                */
+/*                                                                       */
+/*  Sistema monocromo al 95 %. El naranja Ember es puntuación funcional:  */
+/*  subrayados de enlace, acentos de gráfico y marcas de dato derivado.   */
+/*  Nunca es un fondo de botón.                                          */
+/* ===================================================================== */
+
+@theme {
+  --color-graphite: #202020;
+  --color-canvas-white: #ffffff;
+  --color-ash: #efefef;
+  --color-fog: #f5f5f5;
+  --color-ivory: #ebe6dd;
+  --color-steel: #4d4d4d;
+  --color-slate: #828282;
+  --color-mist: #e8e8e8;
+  --color-ember: #ff682c;
+  --color-brass: #816729;
+
+  --font-display: var(--font-polysans);
+  --font-sans: var(--font-inter);
+
+  --text-caption: 14px;
+  --text-subheading: 18px;
+  --text-heading: 32px;
+  --text-heading-lg: 40px;
+  --text-display: 66px;
+
+  --radius-cards: 8px;
+  --radius-widget: 20px;
+  --radius-pill: 200px;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+:root {
+  /* Tokens semánticos de shadcn mapeados al sistema Ventriloc, para que los
+     componentes existentes hereden la paleta sin reescribirlos uno a uno. */
+  --background: #ffffff;
+  --foreground: #202020;
+  --card: #ffffff;
+  --card-foreground: #202020;
+  --popover: #ffffff;
+  --popover-foreground: #202020;
+  --primary: #202020;
+  --primary-foreground: #ffffff;
+  --secondary: #efefef;
+  --secondary-foreground: #202020;
+  --muted: #efefef;
+  --muted-foreground: #4d4d4d;
+  --accent: #efefef;
+  --accent-foreground: #202020;
+  --destructive: #ff682c;
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #202020;
+
+  /* Los gráficos solo admiten los dos acentos cálidos del sistema. */
+  --chart-1: #ff682c;
+  --chart-2: #816729;
+  --chart-3: #4d4d4d;
+  --chart-4: #828282;
+  --chart-5: #202020;
+
+  --sidebar: #efefef;
+  --sidebar-foreground: #202020;
+  --sidebar-primary: #202020;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #202020;
+  --sidebar-border: #e8e8e8;
+  --sidebar-ring: #202020;
+
+  --radius: 8px;
+
+  /* Acentos propios de Altius */
+  --derived: #816729;
+  --grid: #e8e8e8;
 }
 
 @layer base {
@@ -123,32 +134,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter);
   }
-  html {
-    @apply font-sans;
+  /* PolySans se usa SIEMPRE en peso 400: el susurro es la firma del sistema,
+     y engordarlo destruye la contención editorial. El tracking negativo
+     compensa el peso ligero en tamaños de display. */
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-polysans);
+    font-weight: 400;
+    letter-spacing: -0.02em;
   }
-}
-/* ---- Altius ---------------------------------------------------------- */
-
-@theme inline {
-  --color-positive: var(--positive);
-  --color-negative: var(--negative);
-  --color-derived: var(--derived);
-  --color-grid: var(--grid);
-}
-
-:root {
-  --positive: oklch(0.62 0.15 155);
-  --negative: oklch(0.62 0.19 22);
-  --derived: oklch(0.68 0.13 75);
-  --grid: oklch(0.92 0 0);
-}
-
-.dark {
-  --positive: oklch(0.74 0.16 158);
-  --negative: oklch(0.7 0.18 22);
-  --derived: oklch(0.78 0.13 78);
-  --grid: oklch(0.28 0 0);
 }
 
 /* Cifras alineadas verticalmente en las tablas financieras. */
@@ -161,11 +156,26 @@
    El fondo DEBE ser opaco: con un color semitransparente, las cifras que pasan
    por debajo al desplazar horizontalmente se transparentan sobre la etiqueta. */
 .altius-sticky-cell {
-  background-color: var(--background);
+  background-color: var(--color-canvas-white);
 }
 .altius-row:hover .altius-sticky-cell {
-  background-color: color-mix(in oklab, var(--muted) 40%, var(--background));
+  background-color: var(--color-fog);
 }
 .altius-sticky-head {
-  background-color: color-mix(in oklab, var(--muted) 30%, var(--background));
+  background-color: var(--color-ash);
+}
+
+/* Tarjeta con radio asimétrico: la firma estructural del sistema. La esquina
+   suave arriba a la izquierda empuja la mirada hacia abajo y hacia la derecha. */
+.card-asymmetric {
+  border-radius: 6px 0 0 0;
+}
+
+/* Enlace con subrayado Ember. Reservado a los uno o dos enlaces más
+   importantes de cada página. */
+.link-ember {
+  text-decoration: underline;
+  text-decoration-color: var(--color-ember);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }

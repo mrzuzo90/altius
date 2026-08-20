@@ -2,13 +2,13 @@
 
 export default function ErrorTicker({ error, reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="mx-auto max-w-lg px-4 py-24 text-center">
-      <h1 className="text-xl font-semibold">No se han podido cargar los datos</h1>
-      <p className="text-muted-foreground mt-2 text-sm text-pretty">{error.message}</p>
+    <div className="mx-auto max-w-xl px-5 py-32 text-center">
+      <h1 className="font-display text-graphite text-[40px] leading-[1.2] tracking-[-0.8px]">No se han podido cargar los datos</h1>
+      <p className="text-steel mt-5 text-[17px] leading-[1.5] text-pretty">{error.message}</p>
       <button
         type="button"
         onClick={reset}
-        className="border-border/60 hover:bg-muted mt-6 rounded-md border px-3 py-1.5 text-sm transition-colors"
+        className="bg-graphite font-display mt-8 px-5 py-2.5 text-[16px] leading-none tracking-[-0.02em] text-white transition-opacity hover:opacity-85"
       >
         Reintentar
       </button>

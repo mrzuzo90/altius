@@ -1,35 +1,52 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { href: "/", label: "Observatorio" },
+  { href: "/macro", label: "Macro" },
+];
 
 export function SiteHeader() {
+  const pathname = usePathname();
+
   return (
-    <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="flex items-baseline gap-2">
-          <span className="text-lg font-semibold tracking-tight">Altius</span>
-          <span className="text-muted-foreground hidden text-[11px] tracking-wide sm:inline">
-            análisis fundamental
-          </span>
+    <header className="bg-canvas-white sticky top-0 z-40">
+      <div className="mx-auto flex h-20 max-w-[1200px] items-center gap-5 px-5">
+        <Link href="/" className="font-display text-graphite text-[22px] tracking-[-0.02em]">
+          Altius
         </Link>
 
-        <nav className="text-muted-foreground flex items-center gap-4 text-sm">
-          <Link href="/macro" className="hover:text-foreground transition-colors">
-            Macro
-          </Link>
+        {/* Píldora de navegación: Ash, radio completo, sin sombra. */}
+        <nav className="bg-ash mx-auto hidden items-center gap-5 rounded-[200px] px-[18px] py-2 sm:flex">
+          {NAV.map((n) => {
+            const activo = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={cn(
+                  "font-display text-[15px] tracking-[-0.02em] transition-colors",
+                  activo ? "text-graphite" : "text-slate hover:text-graphite",
+                )}
+              >
+                {n.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("altius:open-search"))}
-          className="border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground ml-auto flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors"
+          className="bg-graphite font-display ml-auto flex items-center gap-2 px-5 py-2.5 text-[15px] leading-none tracking-[-0.02em] text-white transition-opacity hover:opacity-85"
         >
           <Search className="size-3.5" />
           <span className="hidden sm:inline">Buscar empresa</span>
-          <kbd className="border-border/60 bg-background hidden rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline">
-            ⌘K
-          </kbd>
+          <kbd className="hidden font-sans text-[11px] opacity-60 sm:inline">⌘K</kbd>
         </button>
       </div>
     </header>

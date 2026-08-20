@@ -19,17 +19,23 @@ export function StatementTabs({
   const [scale, setScale] = useState<Scale>("millions");
 
   return (
-    <Tabs defaultValue="income" className="gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <TabsList>
+    <Tabs defaultValue="income" className="gap-5">
+      <div className="flex flex-wrap items-center gap-4">
+        {/* La píldora se desborda a 375 px y recortaba la última pestaña.
+            Se le da scroll propio en lugar de dejar que corte el contenido. */}
+        <TabsList className="bg-ash max-w-full justify-start overflow-x-auto rounded-[200px] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {bundle.blocks.map((b) => (
-            <TabsTrigger key={b.id} value={b.id}>
+            <TabsTrigger
+              key={b.id}
+              value={b.id}
+              className="font-display shrink-0 rounded-[200px] px-4 text-[14px] tracking-[-0.02em]"
+            >
               {b.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-3">
           <Conmutador
             valor={frequency}
             opciones={[
@@ -49,7 +55,7 @@ export function StatementTabs({
         </div>
       </div>
 
-      <p className="text-muted-foreground text-xs">
+      <p className="text-steel max-w-3xl text-[13px] leading-[1.5]">
         Cifras en {SCALES[scale].label} de dólares salvo datos por acción. Las celdas subrayadas con
         puntos las calcula Altius; el resto procede literalmente del XBRL de la SEC. Una raya
         significa que la empresa no reporta ese concepto.
@@ -81,17 +87,15 @@ function Conmutador({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="border-border/60 bg-muted/30 inline-flex rounded-md border p-0.5">
+    <div className="bg-ash inline-flex rounded-[200px] p-1">
       {opciones.map((o) => (
         <button
           key={o.v}
           type="button"
           onClick={() => onChange(o.v)}
           className={cn(
-            "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-            valor === o.v
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            "font-display rounded-[200px] px-3.5 py-1.5 text-[13px] tracking-[-0.02em] transition-colors",
+            valor === o.v ? "bg-canvas-white text-graphite" : "text-slate hover:text-graphite",
           )}
         >
           {o.t}

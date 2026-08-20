@@ -16,15 +16,15 @@ export function DataSourceBadge({
   href?: string;
 }) {
   const contenido = (
-    <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium">
-      <span className="bg-positive/80 size-1.5 rounded-full" aria-hidden />
+    <span className="border-mist text-steel inline-flex items-center gap-2 rounded-[20px] border px-3 py-1 text-[12px]">
+      <span className="bg-ember size-1.5 rounded-full" aria-hidden />
       {source}
-      {asOf ? <span className="opacity-60">· {asOf}</span> : null}
+      {asOf ? <span className="text-slate">· {asOf}</span> : null}
     </span>
   );
 
   const envuelto = href ? (
-    <a href={href} target="_blank" rel="noreferrer noopener" className="hover:text-foreground transition-colors">
+    <a href={href} target="_blank" rel="noreferrer noopener" className="hover:opacity-70 transition-opacity">
       {contenido}
     </a>
   ) : (
@@ -35,7 +35,7 @@ export function DataSourceBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{envuelto}</TooltipTrigger>
-      <TooltipContent className="max-w-xs text-xs">{detail}</TooltipContent>
+      <TooltipContent className="max-w-xs text-[12px]">{detail}</TooltipContent>
     </Tooltip>
   );
 }

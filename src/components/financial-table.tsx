@@ -10,7 +10,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  *
  * La primera columna queda fija al hacer scroll horizontal, que es lo que hace
  * usable una tabla de doce periodos en una pantalla estrecha. Las celdas
- * derivadas por Altius se marcan para que no se confundan con lo reportado.
+ * derivadas por Altius se marcan en Brass para que no se confundan con lo
+ * reportado.
+ *
+ * Los negativos van entre paréntesis y NO en color: una tabla financiera tiene
+ * decenas de negativos, y pintarlos de naranja rompería la regla de mantener la
+ * página monocroma al noventa y cinco por ciento.
  *
  * La entrada se anima con CSS y no con JavaScript, a propósito: una animación
  * que arranca desde opacidad cero deja la tabla invisible si el script falla o
@@ -27,20 +32,20 @@ export function FinancialTable({
 }) {
   if (periods.length === 0) {
     return (
-      <p className="text-muted-foreground px-4 py-10 text-center text-sm">
+      <p className="text-slate px-4 py-14 text-center text-[15px]">
         La SEC no publica datos XBRL estructurados para esta combinación.
       </p>
     );
   }
 
   return (
-    <div className="border-border/60 relative overflow-x-auto rounded-lg border">
-      <table className="tabular w-full border-collapse text-sm">
+    <div className="border-mist bg-canvas-white relative overflow-x-auto rounded-[20px] border">
+      <table className="tabular w-full border-collapse text-[14px]">
         <thead>
-          <tr className="border-border/60 bg-muted/30 border-b">
+          <tr className="border-mist border-b">
             <th
               scope="col"
-              className="altius-sticky-head text-muted-foreground sticky left-0 z-20 w-[150px] min-w-[150px] px-3 py-2 text-left text-xs font-medium sm:w-[280px] sm:min-w-[280px]"
+              className="altius-sticky-head text-steel sticky left-0 z-20 w-[150px] min-w-[150px] px-4 py-3 text-left text-[12px] font-medium sm:w-[300px] sm:min-w-[300px]"
             >
               Concepto
             </th>
@@ -48,7 +53,7 @@ export function FinancialTable({
               <th
                 key={p.key}
                 scope="col"
-                className="text-muted-foreground min-w-[88px] px-3 py-2 text-right text-xs font-medium whitespace-nowrap sm:min-w-[104px]"
+                className="bg-ash text-steel font-display min-w-[92px] px-4 py-3 text-right text-[13px] tracking-[-0.02em] whitespace-nowrap sm:min-w-[110px]"
               >
                 {p.label}
               </th>
@@ -64,10 +69,9 @@ export function FinancialTable({
                 style={{ animationDelay: `${Math.min(i * 12, 240)}ms` }}
                 className={cn(
                   "animate-in fade-in-0 fill-mode-backwards duration-300",
-                  "altius-row border-border/40 group border-b last:border-0",
-                  "hover:bg-muted/40 transition-colors",
-                  row.line.emphasis === "total" && "bg-muted/20 font-semibold",
-                  row.line.emphasis === "subtotal" && "font-medium",
+                  "altius-row border-mist group border-b last:border-0",
+                  "hover:bg-fog transition-colors",
+                  row.line.emphasis === "total" && "bg-fog/60",
                   vacia && "opacity-45",
                 )}
               >
@@ -75,16 +79,22 @@ export function FinancialTable({
                   scope="row"
                   title={row.line.label}
                   className={cn(
-                    "altius-sticky-cell sticky left-0 z-10 w-[150px] min-w-[150px] max-w-[150px] truncate px-3 py-1.5 text-left font-normal whitespace-nowrap transition-colors sm:w-[280px] sm:min-w-[280px] sm:max-w-none",
-                    row.line.emphasis === "total" && "font-semibold",
+                    "altius-sticky-cell text-graphite sticky left-0 z-10 w-[150px] min-w-[150px] max-w-[150px] truncate px-4 py-2 text-left text-[14px] font-normal whitespace-nowrap transition-colors sm:w-[300px] sm:min-w-[300px] sm:max-w-none",
+                    row.line.emphasis === "total" && "font-display tracking-[-0.02em]",
                     row.line.emphasis === "subtotal" && "font-medium",
                   )}
-                  style={{ paddingLeft: `${0.75 + (row.line.indent ?? 0) * 0.85}rem` }}
+                  style={{ paddingLeft: `${1 + (row.line.indent ?? 0) * 0.85}rem` }}
                 >
                   {row.line.label}
                 </th>
                 {periods.map((p) => (
-                  <Celda key={p.key} cell={row.cells[p.key]} unit={row.line.unit} scale={scale} />
+                  <Celda
+                    key={p.key}
+                    cell={row.cells[p.key]}
+                    unit={row.line.unit}
+                    scale={scale}
+                    total={row.line.emphasis === "total"}
+                  />
                 ))}
               </tr>
             );
@@ -99,10 +109,12 @@ function Celda({
   cell,
   unit,
   scale,
+  total,
 }: {
   cell: Cell | undefined;
   unit: LineSeries["line"]["unit"];
   scale: Scale;
+  total: boolean;
 }) {
   const value = cell?.value ?? null;
   const texto = formatValue(value, unit, scale);
@@ -110,9 +122,10 @@ function Celda({
   const contenido = (
     <span
       className={cn(
-        value === null && "text-muted-foreground/50",
-        value !== null && value < 0 && "text-negative",
-        cell?.derived && "decoration-derived/60 underline decoration-dotted underline-offset-4",
+        "text-graphite",
+        total && "font-display tracking-[-0.02em]",
+        value === null && "text-slate/60",
+        cell?.derived && "decoration-brass/70 underline decoration-dotted underline-offset-4",
       )}
     >
       {texto}
@@ -120,13 +133,13 @@ function Celda({
   );
 
   return (
-    <td className="px-3 py-1.5 text-right whitespace-nowrap">
+    <td className="px-4 py-2 text-right whitespace-nowrap">
       {cell?.derived ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <button type="button" className="cursor-help">{contenido}</button>
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-xs">
+          <TooltipContent className="max-w-xs text-[12px]">
             Valor calculado por Altius, no reportado directamente en el informe.
           </TooltipContent>
         </Tooltip>

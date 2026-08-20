@@ -6,10 +6,11 @@ import { formatDate } from "@/lib/format";
 export const revalidate = 86400;
 export const metadata = { title: "Macro" };
 
+/* Solo los dos acentos cálidos del sistema; el resto de series van en grafito. */
 const COLORES: Record<string, string> = {
-  CPIAUCSL: "var(--color-chart-2)",
-  FEDFUNDS: "var(--color-chart-1)",
-  UNRATE: "var(--color-chart-4)",
+  CPIAUCSL: "var(--color-ember)",
+  FEDFUNDS: "var(--color-brass)",
+  UNRATE: "var(--color-graphite)",
 };
 
 const IDS: FredSeriesId[] = ["CPIAUCSL", "FEDFUNDS", "UNRATE"];
@@ -30,11 +31,11 @@ export default async function MacroPage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div className="mx-auto max-w-[1200px] px-5 py-16">
+      <div className="mb-10 flex flex-wrap items-end gap-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Panel macroeconómico</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <h1 className="font-display text-graphite text-[40px] leading-[1.2] tracking-[-0.8px]">Panel macroeconómico</h1>
+          <p className="text-steel mt-3 max-w-xl text-[18px] leading-[1.5]">
             Series oficiales de la Reserva Federal de San Luis, sin transformar salvo donde se indica.
           </p>
         </div>
@@ -53,32 +54,32 @@ export default async function MacroPage() {
           const ultimoYoy = yoy?.at(-1);
 
           return (
-            <section key={id} className="border-border/60 rounded-lg border p-5">
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-medium">{meta.label}</h2>
+            <section key={id} className="bg-canvas-white border-mist rounded-[20px] border p-8">
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-graphite text-[18px] tracking-[-0.02em]">{meta.label}</h2>
                 <a
                   href={`https://fred.stlouisfed.org/series/${id}`}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="text-muted-foreground hover:text-foreground font-mono text-[11px] transition-colors"
+                  className="text-brass font-display text-[12px] tracking-[-0.02em] transition-opacity hover:opacity-70"
                 >
                   {id}
                 </a>
               </div>
 
               {error ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">{error}</p>
+                <p className="text-slate py-10 text-center text-[15px]">{error}</p>
               ) : !ultimo ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">Sin observaciones.</p>
+                <p className="text-slate py-10 text-center text-[15px]">Sin observaciones.</p>
               ) : (
                 <>
-                  <div className="mb-3 flex items-baseline gap-2">
-                    <span className="tabular text-2xl font-semibold">
+                  <div className="mb-5 flex items-baseline gap-3">
+                    <span className="tabular font-display text-graphite text-[40px] leading-[1.2] tracking-[-0.8px]">
                       {ultimoYoy
                         ? `${ultimoYoy.value >= 0 ? "+" : "−"}${Math.abs(ultimoYoy.value).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`
                         : ultimo.value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}
                     </span>
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-slate text-[13px]">
                       {ultimoYoy ? "interanual" : meta.unit} · {formatDate(ultimo.date)}
                     </span>
                   </div>
@@ -87,7 +88,7 @@ export default async function MacroPage() {
                     unidad={yoy ? "%" : meta.unit}
                     color={COLORES[id]}
                   />
-                  <p className="text-muted-foreground mt-3 text-[11px] text-pretty">
+                  <p className="text-steel mt-4 text-[13px] leading-[1.5] text-pretty">
                     {meta.description}
                     {yoy ? " Se representa la variación interanual del índice." : ""}
                   </p>

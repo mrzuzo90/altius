@@ -39,11 +39,11 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
     <>
       <CompanyHeader profile={profile} ticker={ticker} active="/" />
 
-      <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-8 sm:px-6 lg:grid-cols-3">
+      <div className="mx-auto grid max-w-[1200px] gap-x-12 gap-y-12 px-5 py-14 lg:grid-cols-3">
         <section className="lg:col-span-2 space-y-8">
           {ultimo10K ? (
             <div>
-              <h2 className="mb-3 text-sm font-medium">A qué se dedica</h2>
+              <h2 className="font-display text-graphite mb-5 text-[24px] leading-[1.15] tracking-[-0.48px]">A qué se dedica</h2>
               <Suspense fallback={<DescripcionCargando />}>
                 <Descripcion filing={ultimo10K} />
               </Suspense>
@@ -51,8 +51,8 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           ) : null}
 
           <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-medium">Cotización diaria</h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización diaria</h2>
             {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
           </div>
 
@@ -65,9 +65,9 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
         </section>
 
         <aside className="space-y-5">
-          <div className="border-border/60 rounded-lg border p-5">
-            <h2 className="mb-3 text-sm font-medium">Identidad</h2>
-            <dl className="space-y-2 text-sm">
+          <div className="bg-ash card-asymmetric p-8">
+            <h2 className="font-display text-graphite mb-5 text-[18px] tracking-[-0.02em]">Identidad</h2>
+            <dl className="space-y-3 text-[14px]">
               <Fila t="Razón social" v={profile.name} />
               <Fila t="Sector" v={profile.sector} />
               <Fila t="Industria" v={profile.sicDescription || "—"} />
@@ -81,7 +81,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                       href={profile.website}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="underline underline-offset-2"
+                      className="link-ember"
                     >
                       {profile.website.replace(/^https?:\/\//, "")}
                     </a>
@@ -89,15 +89,15 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                 />
               ) : null}
             </dl>
-            <p className="text-muted-foreground mt-4 text-[11px] text-pretty">
+            <p className="text-slate mt-5 text-[12px] leading-[1.5] text-pretty">
               Tal y como consta en el registro de la SEC.
             </p>
           </div>
 
           {ultimo10K ? (
-            <div className="border-border/60 rounded-lg border p-5">
-              <h2 className="mb-3 text-sm font-medium">Último informe anual</h2>
-              <dl className="space-y-2 text-sm">
+            <div className="bg-ash card-asymmetric p-8">
+              <h2 className="font-display text-graphite mb-5 text-[18px] tracking-[-0.02em]">Último informe anual</h2>
+              <dl className="space-y-3 text-[14px]">
                 <Fila t="Formulario" v={ultimo10K.form} />
                 <Fila t="Presentado" v={formatDate(ultimo10K.filingDate)} />
                 <Fila t="Cierre" v={formatDate(ultimo10K.reportDate)} />
@@ -106,16 +106,16 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                 href={ultimo10K.documentUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="mt-3 inline-block text-xs underline underline-offset-4"
+                className="font-display text-graphite link-ember mt-5 inline-block text-[14px] tracking-[-0.02em]"
               >
                 Abrir el documento en EDGAR
               </a>
             </div>
           ) : null}
 
-          <div className="border-border/60 rounded-lg border p-5">
-            <h2 className="text-sm font-medium">Continuar</h2>
-            <div className="mt-3 space-y-2">
+          <div className="bg-ash card-asymmetric p-8">
+            <h2 className="font-display text-graphite text-[18px] tracking-[-0.02em]">Continuar</h2>
+            <div className="mt-5 space-y-3">
               <Enlace href={`/ticker/${ticker}/financials`} texto="Estados financieros" />
               <Enlace href={`/ticker/${ticker}/ai`} texto="Resumen del informe" />
             </div>
@@ -141,7 +141,7 @@ async function Descripcion({ filing }: { filing: FilingRef }) {
 
   if (!texto) {
     return (
-      <p className="text-muted-foreground text-sm text-pretty">
+      <p className="text-steel mx-auto max-w-md text-[15px] leading-[1.5] text-pretty">
         No se ha podido aislar el apartado &laquo;Item 1. Business&raquo; de este informe. Altius no
         redacta descripciones propias: mostraría prosa que ningún documento respalda.
       </p>
@@ -149,16 +149,16 @@ async function Descripcion({ filing }: { filing: FilingRef }) {
   }
 
   return (
-    <div className="border-border/60 rounded-lg border p-5">
+    <div className="bg-ash card-asymmetric p-8">
       <p className="text-muted-foreground text-sm leading-relaxed text-pretty">{texto}</p>
-      <p className="text-muted-foreground/70 mt-3 text-[11px]">
+      <p className="text-slate mt-6 text-[12px]">
         Texto literal del apartado Item 1 del {filing.form} presentado el{" "}
         {formatDate(filing.filingDate)}.{" "}
         <a
           href={filing.documentUrl}
           target="_blank"
           rel="noreferrer noopener"
-          className="underline underline-offset-2"
+          className="link-ember"
         >
           Ver el original
         </a>
@@ -169,7 +169,7 @@ async function Descripcion({ filing }: { filing: FilingRef }) {
 
 function DescripcionCargando() {
   return (
-    <div className="border-border/60 rounded-lg border p-5">
+    <div className="bg-ash card-asymmetric p-8">
       <Skeleton className="h-3.5 w-full" />
       <Skeleton className="mt-2 h-3.5 w-[92%]" />
       <Skeleton className="mt-2 h-3.5 w-[78%]" />
@@ -190,8 +190,8 @@ function SinPrecio({ resultado }: { resultado: Awaited<ReturnType<typeof getDail
           : resultado.message;
 
   return (
-    <div className="border-border/60 bg-muted/20 rounded-lg border border-dashed p-8 text-center">
-      <p className="text-muted-foreground text-sm text-pretty">{mensaje}</p>
+    <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-14 text-center">
+      <p className="text-steel mx-auto max-w-md text-[15px] leading-[1.5] text-pretty">{mensaje}</p>
     </div>
   );
 }
@@ -199,7 +199,7 @@ function SinPrecio({ resultado }: { resultado: Awaited<ReturnType<typeof getDail
 function Fila({ t, v }: { t: string; v: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-muted-foreground shrink-0">{t}</dt>
+      <dt className="text-slate shrink-0">{t}</dt>
       <dd className="text-right">{v}</dd>
     </div>
   );
@@ -209,7 +209,7 @@ function Enlace({ href, texto }: { href: string; texto: string }) {
   return (
     <Link
       href={href}
-      className="border-border/60 hover:bg-muted/40 flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors"
+      className="border-mist hover:bg-fog font-display flex items-center justify-between border px-4 py-3 text-[15px] tracking-[-0.02em] transition-colors"
     >
       {texto}
       <ArrowRight className="size-3.5" />

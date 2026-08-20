@@ -32,9 +32,9 @@ export default async function CopilotoPage({ params }: { params: Promise<{ ticke
   return (
     <>
       <CompanyHeader profile={profile} ticker={ticker} active="/ai" />
-      <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6">
-        <h2 className="mb-1 text-sm font-medium">Análisis de la dirección</h2>
-        <p className="text-muted-foreground mb-6 max-w-2xl text-sm text-pretty">
+      <div className="mx-auto max-w-[1200px] px-5 py-12">
+        <h2 className="font-display text-graphite text-[32px] leading-[1.19] tracking-[-0.64px]">Análisis de la dirección</h2>
+        <p className="text-steel mt-4 mb-9 max-w-2xl text-[18px] leading-[1.5] text-pretty">
           Resumen del apartado &laquo;Management&rsquo;s Discussion and Analysis&raquo; del último
           informe anual, elaborado únicamente a partir del texto de ese apartado.
         </p>
@@ -73,8 +73,8 @@ async function Contenido({
 
 function Aviso({ texto }: { texto: string }) {
   return (
-    <div className="border-border/60 bg-muted/20 rounded-lg border border-dashed p-10 text-center">
-      <p className="text-muted-foreground text-sm text-pretty">{texto}</p>
+    <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-16 text-center">
+      <p className="text-steel mx-auto max-w-lg text-[15px] leading-[1.5] text-pretty">{texto}</p>
     </div>
   );
 }

@@ -34,24 +34,22 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-baseline gap-3">
-        <span className="tabular text-2xl font-semibold">
+        <span className="tabular font-display text-graphite text-[40px] leading-[1.2] tracking-[-0.8px]">
           {ultimo.toLocaleString("es-ES", { style: "currency", currency: "USD" })}
         </span>
-        <span className={cn("tabular text-sm font-medium", sube ? "text-positive" : "text-negative")}>
+        <span className="tabular text-steel text-[14px]">
           {sube ? "+" : "−"}
           {Math.abs(variacion).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % en el periodo
         </span>
-        <div className="border-border/60 bg-muted/30 ml-auto inline-flex rounded-md border p-0.5">
+        <div className="bg-ash ml-auto inline-flex rounded-[200px] p-1">
           {RANGOS.map((r) => (
             <button
               key={r.id}
               type="button"
               onClick={() => setRango(r.id)}
               className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                rango === r.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                "font-display rounded-[200px] px-3.5 py-1.5 text-[13px] tracking-[-0.02em] transition-colors",
+                rango === r.id ? "bg-canvas-white text-graphite" : "text-slate hover:text-graphite",
               )}
             >
               {r.label}
@@ -65,13 +63,13 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
           <AreaChart data={datos} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="grad-precio" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--color-ember)" stopOpacity={0.16} />
+                <stop offset="100%" stopColor="var(--color-ember)" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              tick={{ fontSize: 11, fill: "var(--color-slate)" }}
               tickLine={false}
               axisLine={false}
               minTickGap={48}
@@ -79,7 +77,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             />
             <YAxis
               domain={["auto", "auto"]}
-              tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+              tick={{ fontSize: 11, fill: "var(--color-slate)" }}
               tickLine={false}
               axisLine={false}
               width={54}
@@ -87,12 +85,12 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-popover)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
+                background: "var(--color-canvas-white)",
+                border: "1px solid var(--color-mist)",
+                borderRadius: 8, boxShadow: "none",
                 fontSize: 12,
               }}
-              labelStyle={{ color: "var(--color-muted-foreground)" }}
+              labelStyle={{ color: "var(--color-slate)" }}
               formatter={(v) => [
                 Number(v).toLocaleString("es-ES", { style: "currency", currency: "USD" }),
                 "Cierre",
@@ -101,7 +99,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             <Area
               type="monotone"
               dataKey="close"
-              stroke="var(--color-chart-1)"
+              stroke="var(--color-ember)"
               strokeWidth={1.6}
               fill="url(#grad-precio)"
               isAnimationActive={false}
@@ -110,7 +108,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-muted-foreground mt-2 text-[11px]">Cierres diarios · {source}</p>
+      <p className="text-slate mt-3 text-[12px]">Cierres diarios · {source}</p>
     </div>
   );
 }

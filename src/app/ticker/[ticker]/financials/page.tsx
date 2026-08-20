@@ -34,9 +34,9 @@ export default async function FinancialsPage({
     <>
       <CompanyHeader profile={bundle.profile} ticker={ticker} active="/financials" />
 
-      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <h2 className="text-sm font-medium">Estados financieros</h2>
+      <div className="mx-auto max-w-[1200px] px-5 py-12">
+        <div className="mb-8 flex flex-wrap items-center gap-4">
+          <h2 className="font-display text-graphite text-[32px] leading-[1.19] tracking-[-0.64px]">Estados financieros</h2>
           <DataSourceBadge
             source="SEC EDGAR"
             asOf={bundle.latestPeriodEnd ? formatDate(bundle.latestPeriodEnd) : undefined}
@@ -48,8 +48,8 @@ export default async function FinancialsPage({
         {hasUsableData(bundle) ? (
           <FinancialsClient bundle={bundle} ticker={ticker} frequency={frequency} />
         ) : (
-          <div className="border-border/60 bg-muted/20 rounded-lg border border-dashed p-10 text-center">
-            <p className="text-muted-foreground text-sm text-pretty">
+          <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-16 text-center">
+            <p className="text-steel mx-auto max-w-lg text-[15px] leading-[1.5] text-pretty">
               La SEC no publica datos XBRL estructurados para esta empresa. Suele ocurrir con
               emisores extranjeros que presentan formulario 20-F y con registros anteriores a la
               obligatoriedad del XBRL.
