@@ -171,6 +171,36 @@ describe("derivación del cuarto trimestre", () => {
     const fila = st.rows.find((r) => r.line.id === "totalAssets")!;
     expect(fila.cells["2023Q4"]?.derived ?? false).toBe(false);
   });
+
+  it("la procedencia de Q4 declara las cuatro entradas reales: el ejercicio completo y los tres trimestres", () => {
+    // No basta con marcar la celda como derivada: la procedencia tiene que
+    // mostrar de dónde sale la resta, no repetir el propio resultado de Q4
+    // etiquetado como si fuera el ejercicio completo.
+    const st = normalizeStatement(AAPL, INCOME_STATEMENT, "quarterly", 16);
+    const fila = st.rows.find((r) => r.line.id === "revenue")!;
+    const q4 = fila.cells["2023Q4"];
+
+    expect(q4?.provenance.kind).toBe("derived");
+    if (q4?.provenance.kind !== "derived") throw new Error("procedencia inesperada");
+
+    expect(q4.provenance.formula).toBe("Ejercicio completo − Q1 − Q2 − Q3");
+    expect(q4.provenance.inputs).toHaveLength(4);
+    for (const entrada of q4.provenance.inputs) {
+      expect(entrada.source.kind).toBe("reported");
+    }
+
+    const porEtiqueta = Object.fromEntries(q4.provenance.inputs.map((i) => [i.label, i.value]));
+    // Mismas cifras que el test anterior: 383.285 − (117.154 + 94.836 + 81.797) = 89.498 M$
+    expect(porEtiqueta["Ejercicio completo"]).toBe(383_285_000_000);
+    expect(porEtiqueta["Q1"]).toBe(117_154_000_000);
+    expect(porEtiqueta["Q2"]).toBe(94_836_000_000);
+    expect(porEtiqueta["Q3"]).toBe(81_797_000_000);
+
+    // La fórmula cuadra con el valor mostrado.
+    expect(q4.value).toBe(
+      porEtiqueta["Ejercicio completo"] - porEtiqueta["Q1"] - porEtiqueta["Q2"] - porEtiqueta["Q3"],
+    );
+  });
 });
 
 describe("convención de signos", () => {

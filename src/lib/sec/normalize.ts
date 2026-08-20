@@ -174,24 +174,28 @@ function recolectar(
   return salida;
 }
 
+/** Los cuatro hechos reales que sostienen una resta de Q4: el ejercicio completo y los tres trimestres. */
+type FuentesQ4 = { anual: Resuelto; q1: Resuelto; q2: Resuelto; q3: Resuelto };
+
 function derivarQ4(
   bruto: Map<PeriodKey, Resuelto>,
   anual: Map<PeriodKey, Resuelto>,
-): Map<PeriodKey, Resuelto> {
-  const salida = new Map(bruto);
+): { resultado: Map<PeriodKey, Resuelto>; fuentes: Map<PeriodKey, FuentesQ4> } {
+  const resultado = new Map(bruto);
+  const fuentes = new Map<PeriodKey, FuentesQ4>();
   const ejercicios = new Set(
     [...anual.keys()].map((k) => Number.parseInt(k.replace("FY", ""), 10)),
   );
   for (const fy of ejercicios) {
     const claveQ4 = `${fy}Q4`;
-    if (salida.has(claveQ4)) continue;
+    if (resultado.has(claveQ4)) continue;
     const total = anual.get(`FY${fy}`);
     const q1 = bruto.get(`${fy}Q1`);
     const q2 = bruto.get(`${fy}Q2`);
     const q3 = bruto.get(`${fy}Q3`);
     // Sin los cuatro componentes no hay resta posible, y estimar sería inventar.
     if (!total || !q1 || !q2 || !q3) continue;
-    salida.set(claveQ4, {
+    resultado.set(claveQ4, {
       value: total.value - q1.value - q2.value - q3.value,
       end: total.end,
       start: q1.start,
@@ -201,8 +205,12 @@ function derivarQ4(
       accn: total.accn,
       unit: total.unit,
     });
+    // Se conservan los cuatro hechos de origen: la procedencia de Q4 tiene que
+    // citar el ejercicio completo y los tres trimestres, no el propio
+    // resultado de la resta bajo la etiqueta de "ejercicio completo".
+    fuentes.set(claveQ4, { anual: total, q1, q2, q3 });
   }
-  return salida;
+  return { resultado, fuentes };
 }
 
 export function normalizeStatement(
@@ -217,6 +225,8 @@ export function normalizeStatement(
   const porLinea = new Map<string, Map<PeriodKey, Resuelto>>();
   /** Periodos derivados (Q4) por línea, para marcarlos en la interfaz. */
   const derivados = new Map<string, Set<PeriodKey>>();
+  /** Los cuatro hechos de origen de cada Q4 derivado, por línea, para su procedencia. */
+  const fuentesQ4 = new Map<string, Map<PeriodKey, FuentesQ4>>();
   const finPorPeriodo = new Map<PeriodKey, { end: string; fy: number; q: number }>();
 
   for (const linea of lines) {
@@ -241,8 +251,9 @@ export function normalizeStatement(
         }
       }
       const conQ4 = derivarQ4(acumulado, anual);
-      for (const key of conQ4.keys()) if (!acumulado.has(key)) derivadosLinea.add(key);
-      for (const [k, v] of conQ4) acumulado.set(k, v);
+      for (const key of conQ4.resultado.keys()) if (!acumulado.has(key)) derivadosLinea.add(key);
+      for (const [k, v] of conQ4.resultado) acumulado.set(k, v);
+      fuentesQ4.set(linea.id, conQ4.fuentes);
     }
 
     porLinea.set(linea.id, acumulado);
@@ -272,19 +283,20 @@ export function normalizeStatement(
   const leer = (id: string, key: PeriodKey): number | null =>
     porLinea.get(id)?.get(key)?.value ?? null;
 
+  const resueltoAProvenance = (r: Resuelto): Provenance => ({
+    kind: "reported",
+    concept: r.concept,
+    unit: r.unit,
+    periodStart: r.start,
+    periodEnd: r.end,
+    form: r.form,
+    filed: r.filed,
+    accn: r.accn,
+  });
+
   const leerFuente = (id: string, key: PeriodKey): Provenance => {
     const r = porLinea.get(id)?.get(key);
-    if (!r) return ABSENT;
-    return {
-      kind: "reported",
-      concept: r.concept,
-      unit: r.unit,
-      periodStart: r.start,
-      periodEnd: r.end,
-      form: r.form,
-      filed: r.filed,
-      accn: r.accn,
-    };
+    return r ? resueltoAProvenance(r) : ABSENT;
   };
 
   const rows: LineSeries[] = lines.map((linea) => {
@@ -299,13 +311,23 @@ export function normalizeStatement(
       let derived = derivadosLinea.has(p.key);
       let provenance: Provenance = bruto ? leerFuente(linea.id, p.key) : ABSENT;
 
-      // Q4 se obtiene restando, no leyendo: la procedencia lo dice.
+      // Q4 se obtiene restando, no leyendo: la procedencia lo dice, con los
+      // cuatro hechos reales que sostienen la resta, no el resultado de la
+      // resta etiquetado como si fuera uno de sus propios sumandos.
       if (derived && bruto) {
-        provenance = {
-          kind: "derived",
-          formula: "Ejercicio completo − Q1 − Q2 − Q3",
-          inputs: [{ label: "Ejercicio completo", value: bruto.value, source: leerFuente(linea.id, p.key) }],
-        };
+        const fq4 = fuentesQ4.get(linea.id)?.get(p.key);
+        if (fq4) {
+          provenance = {
+            kind: "derived",
+            formula: "Ejercicio completo − Q1 − Q2 − Q3",
+            inputs: [
+              { label: "Ejercicio completo", value: fq4.anual.value, source: resueltoAProvenance(fq4.anual) },
+              { label: "Q1", value: fq4.q1.value, source: resueltoAProvenance(fq4.q1) },
+              { label: "Q2", value: fq4.q2.value, source: resueltoAProvenance(fq4.q2) },
+              { label: "Q3", value: fq4.q3.value, source: resueltoAProvenance(fq4.q3) },
+            ],
+          };
+        }
       }
 
       // Las dos únicas magnitudes que Altius calcula, y solo cuando la empresa
