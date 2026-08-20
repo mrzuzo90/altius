@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "", label: "Perfil" },
   { href: "/financials", label: "Estados financieros" },
+  { href: "/valuation", label: "Valoración" },
   { href: "/ai", label: "Copiloto" },
 ];
 

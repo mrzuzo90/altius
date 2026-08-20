@@ -117,6 +117,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
             <h2 className="font-display text-graphite text-[18px] tracking-[-0.02em]">Continuar</h2>
             <div className="mt-5 space-y-3">
               <Enlace href={`/ticker/${ticker}/financials`} texto="Estados financieros" />
+              <Enlace href={`/ticker/${ticker}/valuation`} texto="Múltiplos y valoración" />
               <Enlace href={`/ticker/${ticker}/ai`} texto="Resumen del informe" />
             </div>
           </div>
