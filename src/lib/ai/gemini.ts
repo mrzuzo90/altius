@@ -10,8 +10,23 @@ export type MdnaBody = {
   notice?: string;
 };
 
-const MODELO = "gemini-2.5-pro";
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
+/**
+ * Modelo por defecto.
+ *
+ * No es un "pro" por una razón concreta y comprobada: en el nivel gratuito del
+ * API los modelos pro devuelven 429 con `limit: 0`, es decir, cuota cero. Los
+ * `gemini-2.5-*` además responden 404 a las cuentas nuevas. `gemini-3.6-flash`
+ * es el que la propia respuesta de error de Google recomienda, tiene ventana de
+ * un millón de tokens —de sobra para un MD&A— y sí trae cuota gratuita.
+ *
+ * Se puede cambiar sin tocar código con la variable GEMINI_MODEL.
+ */
+const MODELO_POR_DEFECTO = "gemini-3.6-flash";
+
+function endpoint(): string {
+  const modelo = process.env.GEMINI_MODEL?.trim() || MODELO_POR_DEFECTO;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
+}
 
 /**
  * Esquema de respuesta. Gemini admite un subconjunto de OpenAPI y devuelve JSON
@@ -58,6 +73,51 @@ export function extractiveSummary(texto: string, notice: string): MdnaBody {
   };
 }
 
+type GeminiPart = { text?: string; thought?: boolean };
+type GeminiResponse = { candidates?: { content?: { parts?: GeminiPart[] } }[] };
+
+/**
+ * Extrae el texto de la respuesta.
+ *
+ * Los modelos con razonamiento pueden devolver varias `parts`, y las de
+ * pensamiento vienen marcadas con `thought: true`. Coger `parts[0].text` a
+ * ciegas funciona hasta que el modelo decide devolver el razonamiento primero,
+ * y entonces se intenta parsear como JSON algo que no lo es.
+ */
+export function textoDeRespuesta(json: GeminiResponse): string | null {
+  const parts = json.candidates?.[0]?.content?.parts ?? [];
+  const util = parts
+    .filter((p) => p.thought !== true && typeof p.text === "string")
+    .map((p) => p.text!)
+    .join("");
+  return util.trim() ? util : null;
+}
+
+/** Traduce el fallo del API a algo que el usuario pueda accionar. */
+async function describirFallo(res: Response): Promise<string> {
+  let mensaje = "";
+  try {
+    const cuerpo = (await res.json()) as { error?: { message?: string } };
+    mensaje = cuerpo.error?.message ?? "";
+  } catch {
+    // Sin cuerpo legible; nos quedamos con el código.
+  }
+
+  if (res.status === 429) {
+    return "Cuota de Gemini agotada. Se muestran frases literales del informe.";
+  }
+  if (res.status === 404 && /no longer available/i.test(mensaje)) {
+    return (
+      "El modelo configurado ya no está disponible para esta cuenta. Ajusta " +
+      "GEMINI_MODEL. Mientras tanto se muestran frases literales del informe."
+    );
+  }
+  if (res.status === 400 || res.status === 403) {
+    return "Gemini ha rechazado la petición; revisa GEMINI_API_KEY. Se muestran frases literales.";
+  }
+  return `Gemini devolvió ${res.status}. Se muestran frases literales del informe.`;
+}
+
 export async function summarizeMdna(
   texto: string,
   empresa: string,
@@ -72,7 +132,7 @@ export async function summarizeMdna(
   }
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpoint(), {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
@@ -88,14 +148,11 @@ export async function summarizeMdna(
     });
 
     if (!res.ok) {
-      const detalle = res.status === 429 ? "Cuota de Gemini agotada." : `Gemini devolvió ${res.status}.`;
-      return extractiveSummary(texto, `${detalle} Se muestran frases literales del informe.`);
+      return extractiveSummary(texto, await describirFallo(res));
     }
 
-    const json = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const bruto = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    const json = (await res.json()) as GeminiResponse;
+    const bruto = textoDeRespuesta(json);
     if (!bruto) {
       return extractiveSummary(texto, "Gemini no devolvió contenido. Se muestran frases literales.");
     }
