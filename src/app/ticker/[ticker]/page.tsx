@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { findLatestFiling, getCompanyProfile } from "@/lib/sec/submissions";
-import { getDailyPrices } from "@/lib/prices";
+import { getPriceSeries } from "@/lib/prices";
 import { CompanyHeader } from "@/components/company-header";
 import { PriceChart } from "@/components/price-chart";
 import { DataSourceBadge } from "@/components/data-source-badge";
@@ -32,7 +32,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
   const [profile, ultimo10K, precios] = await Promise.all([
     getCompanyProfile(hit.cik),
     findLatestFiling(hit.cik, ["10-K"]),
-    getDailyPrices(ticker),
+    getPriceSeries(ticker),
   ]);
 
   return (
@@ -52,7 +52,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
 
           <div>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización diaria</h2>
+            <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización semanal</h2>
             {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
           </div>
 
@@ -178,7 +178,7 @@ function DescripcionCargando() {
   );
 }
 
-function SinPrecio({ resultado }: { resultado: Awaited<ReturnType<typeof getDailyPrices>> }) {
+function SinPrecio({ resultado }: { resultado: Awaited<ReturnType<typeof getPriceSeries>> }) {
   if (resultado.ok) return null;
   const mensaje =
     resultado.reason === "no-provider"

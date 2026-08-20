@@ -5,7 +5,7 @@ import { parseFredCsv, yoyChange } from "@/lib/fred/client";
 describe("parseAlphaVantage", () => {
   it("extrae los cierres y los ordena de más antiguo a más reciente", () => {
     const r = parseAlphaVantage({
-      "Time Series (Daily)": {
+      "Weekly Time Series": {
         "2024-01-03": { "1. open": "184.2", "4. close": "184.25" },
         "2024-01-02": { "1. open": "187.1", "4. close": "185.64" },
       },
@@ -33,7 +33,33 @@ describe("parseAlphaVantage", () => {
 
   it("no revienta ante una respuesta vacía", () => {
     expect(parseAlphaVantage({}).ok).toBe(false);
-    expect(parseAlphaVantage({ "Time Series (Daily)": {} }).ok).toBe(false);
+    expect(parseAlphaVantage({ "Weekly Time Series": {} }).ok).toBe(false);
+  });
+
+  it("localiza la serie sea diaria, semanal o mensual", () => {
+    // La clave cambia según el endpoint, y el plan gratuito obliga a usar el
+    // semanal porque el histórico completo del diario es de pago.
+    for (const clave of ["Time Series (Daily)", "Weekly Time Series", "Monthly Time Series"]) {
+      const r = parseAlphaVantage({ [clave]: { "2024-01-02": { "4. close": "185.64" } } });
+      expect(r.ok, clave).toBe(true);
+      if (r.ok) expect(r.points).toEqual([{ date: "2024-01-02", close: 185.64 }]);
+    }
+  });
+
+  it("ignora la sección de metadatos al buscar la serie", () => {
+    const r = parseAlphaVantage({
+      "Meta Data": { "1. Information": "Weekly Prices" },
+      "Weekly Time Series": { "2024-01-05": { "4. close": "181.18" } },
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("detecta el bloqueo de outputsize=full, que llega como Information", () => {
+    const r = parseAlphaVantage({
+      Information: "The outputsize=full parameter value is a premium feature",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("rate-limited");
   });
 });
 

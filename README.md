@@ -46,6 +46,7 @@ macro funcionan sin credenciales.
 | `SEC_USER_AGENT` | **Sí** | Nombre y email reales. Sin ella, la SEC devuelve 403 |
 | `GEMINI_API_KEY` | No | Activa el copiloto. Clave gratuita en [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Sin ella, el resumen es extractivo y se marca como tal |
 | `ALPHAVANTAGE_API_KEY` | No | Activa el gráfico de cotización. Clave gratuita en [alphavantage.co](https://www.alphavantage.co/support/#api-key). Su plan gratuito permite 25 peticiones diarias |
+| `GEMINI_MODEL` | No | Modelo de Gemini. Por defecto `gemini-3.6-flash` |
 | `FRED_API_KEY` | No | Conmuta al API JSON de FRED. Sin ella se usa el CSV público, que da los mismos datos |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Activa la caché compartida en Postgres |
 
@@ -55,10 +56,18 @@ macro funcionan sin credenciales.
 |---|---|---|
 | [SEC EDGAR](https://www.sec.gov/edgar) | Estados financieros, perfil de empresa, texto de los informes | No, pero exige User-Agent |
 | [FRED](https://fred.stlouisfed.org/) | IPC, tipo de los fondos federales, tasa de paro | No |
-| [Alpha Vantage](https://www.alphavantage.co/) | Cotización diaria de cierre | Sí, gratuita |
+| [Alpha Vantage](https://www.alphavantage.co/) | Cotización semanal de cierre | Sí, gratuita |
 | [Google Gemini](https://ai.google.dev/) | Resumen del MD&A | Sí, gratuita |
 
-**Sobre las cotizaciones:** el diseño original usaba Stooq, que servía CSV sin
+**Sobre las cotizaciones:** se usa la serie **semanal**, no la diaria. En el plan
+gratuito de Alpha Vantage el histórico completo del endpoint diario es una
+función de pago, y sin ella quedan unas cien sesiones —cinco meses—, lo que
+vacía de sentido cualquier rango de años. La serie semanal sí devuelve el
+histórico entero: veintisiete años en el caso de Apple. Para un terminal de
+fundamentales el compromiso es favorable, porque importa la tendencia plurianual
+junto a las cuentas, no el tick del día.
+
+El diseño original usaba Stooq, que servía CSV sin
 registro. Desde 2026 responde con un reto de prueba de trabajo en JavaScript
 para bloquear el acceso automatizado, y sortearlo sería evadir una medida
 antibot deliberada del sitio. Por eso la capa de precios está tras una interfaz
@@ -107,7 +116,7 @@ a periodo, quedan diez ejercicios contiguos.
 npm test
 ```
 
-Ochenta pruebas sobre fixtures reales de Apple, Tesla y Johnson & Johnson.
+Noventa y cuatro pruebas sobre fixtures reales de Apple, Tesla y Johnson & Johnson.
 Además de las cifras concretas, se comprueban dos invariantes:
 
 - El activo total iguala pasivo más patrimonio en las tres empresas y en todos

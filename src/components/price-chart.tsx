@@ -108,7 +108,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-slate mt-3 text-[12px]">Cierres diarios · {source}</p>
+      <p className="text-slate mt-3 text-[12px]">Cierres semanales · {source}</p>
     </div>
   );
 }
