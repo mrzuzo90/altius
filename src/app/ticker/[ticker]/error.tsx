@@ -8,7 +8,7 @@ export default function ErrorTicker({ error, reset }: { error: Error; reset: () 
       <button
         type="button"
         onClick={reset}
-        className="bg-graphite font-display mt-8 px-5 py-2.5 text-[16px] leading-none tracking-[-0.02em] text-white transition-opacity hover:opacity-85"
+        className="bg-graphite text-canvas-white font-display mt-8 px-5 py-2.5 text-[16px] leading-none tracking-[-0.02em] transition-opacity hover:opacity-85"
       >
         Reintentar
       </button>

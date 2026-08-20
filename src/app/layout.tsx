@@ -23,22 +23,47 @@ const inter = Inter({
   weight: ["400", "500", "600"],
 });
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 export const metadata: Metadata = {
   title: { default: "Altius", template: "%s · Altius" },
   description:
     "Observatorio de análisis fundamental construido sobre datos públicos de la SEC, la Reserva Federal y Gemini.",
 };
 
+const themeInitScript = `
+(function() {
+  try {
+    var saved = localStorage.getItem('altius-theme');
+    var isDark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${polysans.variable} ${inter.variable} h-full antialiased`}>
-      <body className="bg-canvas-white text-graphite flex min-h-full flex-col">
-        <TooltipProvider delayDuration={200}>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-          <CommandPalette />
-        </TooltipProvider>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={`${polysans.variable} ${inter.variable} h-full antialiased`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="bg-canvas-white text-graphite flex min-h-full flex-col transition-colors duration-200">
+        <ThemeProvider>
+          <TooltipProvider delayDuration={200}>
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+            <CommandPalette />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -46,29 +46,20 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-graphite: var(--graphite);
+  --color-canvas-white: var(--canvas-white);
+  --color-ash: var(--ash);
+  --color-fog: var(--fog);
+  --color-ivory: var(--ivory);
+  --color-steel: var(--steel);
+  --color-slate: var(--slate);
+  --color-mist: var(--mist);
+  --color-ember: var(--ember);
+  --color-brass: var(--brass);
 }
 
-
-/* ===================================================================== */
-/*  Ventriloc — observatorio editorial sobre papel cálido                */
-/*                                                                       */
-/*  Sistema monocromo al 95 %. El naranja Ember es puntuación funcional:  */
-/*  subrayados de enlace, acentos de gráfico y marcas de dato derivado.   */
-/*  Nunca es un fondo de botón.                                          */
-/* ===================================================================== */
-
 @theme {
-  --color-graphite: #202020;
-  --color-canvas-white: #ffffff;
-  --color-ash: #efefef;
-  --color-fog: #f5f5f5;
-  --color-ivory: #ebe6dd;
-  --color-steel: #4d4d4d;
-  --color-slate: #828282;
-  --color-mist: #e8e8e8;
-  --color-ember: #ff682c;
-  --color-brass: #816729;
-
   --font-display: var(--font-polysans);
   --font-sans: var(--font-inter);
 
@@ -84,8 +75,17 @@
 }
 
 :root {
-  /* Tokens semánticos de shadcn mapeados al sistema Ventriloc, para que los
-     componentes existentes hereden la paleta sin reescribirlos uno a uno. */
+  --graphite: #202020;
+  --canvas-white: #ffffff;
+  --ash: #efefef;
+  --fog: #f5f5f5;
+  --ivory: #ebe6dd;
+  --steel: #4d4d4d;
+  --slate: #828282;
+  --mist: #e8e8e8;
+  --ember: #ff682c;
+  --brass: #816729;
+
   --background: #ffffff;
   --foreground: #202020;
   --card: #ffffff;
@@ -105,7 +105,6 @@
   --input: #e8e8e8;
   --ring: #202020;
 
-  /* Los gráficos solo admiten los dos acentos cálidos del sistema. */
   --chart-1: #ff682c;
   --chart-2: #816729;
   --chart-3: #4d4d4d;
@@ -122,10 +121,58 @@
   --sidebar-ring: #202020;
 
   --radius: 8px;
-
-  /* Acentos propios de Altius */
   --derived: #816729;
   --grid: #e8e8e8;
+}
+
+.dark {
+  --graphite: #f3f3f3;
+  --canvas-white: #171717;
+  --ash: #222222;
+  --fog: #282828;
+  --ivory: #2a251e;
+  --steel: #b8b8b8;
+  --slate: #8e8e8e;
+  --mist: #2e2e2e;
+  --ember: #ff7a45;
+  --brass: #d8b248;
+
+  --background: #111111;
+  --foreground: #f3f3f3;
+  --card: #171717;
+  --card-foreground: #f3f3f3;
+  --popover: #171717;
+  --popover-foreground: #f3f3f3;
+  --primary: #f3f3f3;
+  --primary-foreground: #111111;
+  --secondary: #222222;
+  --secondary-foreground: #f3f3f3;
+  --muted: #222222;
+  --muted-foreground: #b8b8b8;
+  --accent: #222222;
+  --accent-foreground: #f3f3f3;
+  --destructive: #ff7a45;
+  --border: #2e2e2e;
+  --input: #2e2e2e;
+  --ring: #f3f3f3;
+
+  --chart-1: #ff7a45;
+  --chart-2: #d8b248;
+  --chart-3: #b8b8b8;
+  --chart-4: #8e8e8e;
+  --chart-5: #f3f3f3;
+
+  --sidebar: #171717;
+  --sidebar-foreground: #f3f3f3;
+  --sidebar-primary: #f3f3f3;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #222222;
+  --sidebar-accent-foreground: #f3f3f3;
+  --sidebar-border: #2e2e2e;
+  --sidebar-ring: #f3f3f3;
+
+  --derived: #d8b248;
+  --grid: #2e2e2e;
 }
 
 @layer base {

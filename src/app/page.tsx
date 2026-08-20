@@ -23,7 +23,7 @@ export default function Home() {
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <Link
               href="/ticker/AAPL/financials"
-              className="bg-graphite font-display px-5 py-2.5 text-[16px] leading-none tracking-[-0.02em] text-white transition-opacity hover:opacity-85"
+              className="bg-graphite text-canvas-white font-display px-5 py-2.5 text-[16px] leading-none tracking-[-0.02em] transition-opacity hover:opacity-85"
             >
               Ver un ejemplo
             </Link>
