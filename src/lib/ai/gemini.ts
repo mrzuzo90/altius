@@ -12,16 +12,15 @@ export type MdnaBody = {
 };
 
 /**
- * Modelo por defecto.
- *
- * Utiliza `gemini-2.5-flash` o `gemini-1.5-flash` con cuota gratuita en el API v1beta de Google.
- * Se puede cambiar sin tocar código con la variable de entorno GEMINI_MODEL.
+ * Modelos disponibles con cuota gratuita activa en Google AI Studio.
+ * Se prueba en orden de preferencia (`gemini-flash-latest` -> `gemini-flash-lite-latest`).
  */
-const MODELO_POR_DEFECTO = "gemini-2.5-flash";
+const MODELOS_CANDIDATOS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
 
-function endpoint(): string {
-  const modelo = process.env.GEMINI_MODEL?.trim() || MODELO_POR_DEFECTO;
-  return `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
+function endpoints(): string[] {
+  const custom = process.env.GEMINI_MODEL?.trim();
+  const list = custom ? [custom, ...MODELOS_CANDIDATOS.filter((m) => m !== custom)] : MODELOS_CANDIDATOS;
+  return list.map((m) => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`);
 }
 
 /**
@@ -104,14 +103,12 @@ async function describirFallo(res: Response): Promise<string> {
   }
   if (res.status === 503) {
     return (
-      "El modelo de Gemini está saturado y no ha respondido tras varios " +
-      "intentos. Se muestran frases literales del informe; vuelve a cargar en un rato."
+      "El modelo de Gemini está saturado temporalmente. Se muestran frases literales del informe."
     );
   }
   if (res.status === 404 && /no longer available/i.test(mensaje)) {
     return (
-      "El modelo configurado ya no está disponible para esta cuenta. Ajusta " +
-      "GEMINI_MODEL. Mientras tanto se muestran frases literales del informe."
+      "El modelo configurado ya no está disponible para esta cuenta. Se muestran frases literales del informe."
     );
   }
   if (res.status === 400 || res.status === 403) {
@@ -122,31 +119,33 @@ async function describirFallo(res: Response): Promise<string> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Códigos que merecen reintento: sobrecarga del modelo o límite por minuto. */
-const REINTENTABLES = new Set([429, 500, 502, 503, 504]);
-
 /**
- * Llama al API reintentando los fallos transitorios.
- *
- * Gemini devuelve 503 cuando el modelo está saturado, y ocurre de verdad: el
- * primer despliegue en producción degradó a extractivo por un 503 que, medido
- * acto seguido, no se reprodujo en cuatro intentos seguidos. Un único intento
- * convierte un hipo de unos segundos en un resumen degradado durante los treinta
- * días que dura la caché.
+ * Ejecuta la llamada a Gemini probando la lista de modelos compatibles.
  */
-async function pedirConReintentos(body: string, apiKey: string): Promise<Response> {
+async function pedirConModelos(body: string, apiKey: string): Promise<Response> {
+  const urls = endpoints();
   let ultima: Response | null = null;
-  for (let intento = 0; intento < 3; intento++) {
-    if (intento > 0) await sleep(2 ** intento * 700);
-    const res = await fetch(endpoint(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body,
-      cache: "no-store",
-    });
-    if (res.ok || !REINTENTABLES.has(res.status)) return res;
-    ultima = res;
+
+  for (const url of urls) {
+    for (let intento = 0; intento < 2; intento++) {
+      if (intento > 0) await sleep(500);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body,
+          cache: "no-store",
+        });
+        if (res.ok) return res;
+        ultima = res;
+        // Si es 404, salta de inmediato al siguiente modelo sin reintentar
+        if (res.status === 404) break;
+      } catch {
+        // Error de red, probar siguiente intento/modelo
+      }
+    }
   }
+
   return ultima!;
 }
 
@@ -158,44 +157,38 @@ export async function summarizeMdna(
   const cacheKey = `mdna:summary:${empresa.replace(/\W+/g, "_")}:${periodo}`;
   const cache = getCacheStore();
   const enCache = await cache.get<MdnaBody>(cacheKey);
-  if (enCache) return enCache;
+  if (enCache && enCache.source === "gemini") return enCache;
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    const res = extractiveSummary(
+    return extractiveSummary(
       texto,
       "No hay GEMINI_API_KEY configurada. Se muestran frases literales del informe, sin resumir.",
     );
-    await cache.set(cacheKey, res, TTL.filingDocument);
-    return res;
   }
 
   try {
-    const res = await pedirConReintentos(
-      JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_MDNA }] },
-        contents: [{ role: "user", parts: [{ text: userPromptMdna(empresa, periodo, texto) }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-          responseSchema: SCHEMA,
-        },
-      }),
-      apiKey,
-    );
+    const payload = JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_MDNA }] },
+      contents: [{ role: "user", parts: [{ text: userPromptMdna(empresa, periodo, texto) }] }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: SCHEMA,
+      },
+    });
 
-    if (!res.ok) {
-      const degradado = extractiveSummary(texto, await describirFallo(res));
-      await cache.set(cacheKey, degradado, TTL.filingDocument);
-      return degradado;
+    const res = await pedirConModelos(payload, apiKey);
+
+    if (!res || !res.ok) {
+      const msg = res ? await describirFallo(res) : "No se pudo contactar con Gemini.";
+      return extractiveSummary(texto, msg);
     }
 
     const json = (await res.json()) as GeminiResponse;
     const bruto = textoDeRespuesta(json);
     if (!bruto) {
-      const degradado = extractiveSummary(texto, "Gemini no devolvió contenido. Se muestran frases literales.");
-      await cache.set(cacheKey, degradado, TTL.filingDocument);
-      return degradado;
+      return extractiveSummary(texto, "Gemini no devolvió contenido. Se muestran frases literales.");
     }
 
     const parsed = JSON.parse(bruto) as Omit<MdnaBody, "source">;
@@ -205,11 +198,11 @@ export async function summarizeMdna(
       tone: parsed.tone ?? "",
       source: "gemini",
     };
+    // Solo cacheamos si el modelo redactó con éxito
     await cache.set(cacheKey, salida, TTL.filingDocument);
     return salida;
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Error desconocido";
-    const degradado = extractiveSummary(texto, `Fallo al contactar con Gemini (${msg}). Se muestran frases literales.`);
-    return degradado;
+    return extractiveSummary(texto, `Fallo al contactar con Gemini (${msg}). Se muestran frases literales.`);
   }
 }
