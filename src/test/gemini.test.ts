@@ -58,7 +58,10 @@ describe("extractiveSummary", () => {
     expect(texto).toContain(r.drivers[0]);
   });
 
-  it("no valora el tono cuando no hay modelo detrás", () => {
-    expect(extractiveSummary(texto, "x").tone).toContain("Sin clave de Gemini");
+  it("no atribuye la degradación a la falta de clave, que no es la única causa", () => {
+    // El fallo puede ser cuota, modelo retirado o saturación con clave válida.
+    const tone = extractiveSummary(texto, "x").tone;
+    expect(tone).not.toContain("Sin clave");
+    expect(tone).toContain("frases literales");
   });
 });

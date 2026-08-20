@@ -67,7 +67,7 @@ export function extractiveSummary(texto: string, notice: string): MdnaBody {
       /\b(risk|adverse|uncertain|decline|competition|disruption|tariff|litigation|volatil)\w*\b/i,
       3,
     ),
-    tone: "Sin clave de Gemini no se valora el tono: los puntos anteriores son frases literales del informe, sin interpretación.",
+    tone: "No se valora el tono: los puntos anteriores son frases literales del informe, sin interpretación por parte de un modelo.",
     source: "extractive",
     notice,
   };
@@ -106,6 +106,12 @@ async function describirFallo(res: Response): Promise<string> {
   if (res.status === 429) {
     return "Cuota de Gemini agotada. Se muestran frases literales del informe.";
   }
+  if (res.status === 503) {
+    return (
+      "El modelo de Gemini está saturado y no ha respondido tras varios " +
+      "intentos. Se muestran frases literales del informe; vuelve a cargar en un rato."
+    );
+  }
   if (res.status === 404 && /no longer available/i.test(mensaje)) {
     return (
       "El modelo configurado ya no está disponible para esta cuenta. Ajusta " +
@@ -116,6 +122,36 @@ async function describirFallo(res: Response): Promise<string> {
     return "Gemini ha rechazado la petición; revisa GEMINI_API_KEY. Se muestran frases literales.";
   }
   return `Gemini devolvió ${res.status}. Se muestran frases literales del informe.`;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Códigos que merecen reintento: sobrecarga del modelo o límite por minuto. */
+const REINTENTABLES = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * Llama al API reintentando los fallos transitorios.
+ *
+ * Gemini devuelve 503 cuando el modelo está saturado, y ocurre de verdad: el
+ * primer despliegue en producción degradó a extractivo por un 503 que, medido
+ * acto seguido, no se reprodujo en cuatro intentos seguidos. Un único intento
+ * convierte un hipo de unos segundos en un resumen degradado durante los treinta
+ * días que dura la caché.
+ */
+async function pedirConReintentos(body: string, apiKey: string): Promise<Response> {
+  let ultima: Response | null = null;
+  for (let intento = 0; intento < 3; intento++) {
+    if (intento > 0) await sleep(2 ** intento * 700);
+    const res = await fetch(endpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body,
+      cache: "no-store",
+    });
+    if (res.ok || !REINTENTABLES.has(res.status)) return res;
+    ultima = res;
+  }
+  return ultima!;
 }
 
 export async function summarizeMdna(
@@ -132,10 +168,8 @@ export async function summarizeMdna(
   }
 
   try {
-    const res = await fetch(endpoint(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
+    const res = await pedirConReintentos(
+      JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_MDNA }] },
         contents: [{ role: "user", parts: [{ text: userPromptMdna(empresa, periodo, texto) }] }],
         generationConfig: {
@@ -144,8 +178,8 @@ export async function summarizeMdna(
           responseSchema: SCHEMA,
         },
       }),
-      cache: "no-store",
-    });
+      apiKey,
+    );
 
     if (!res.ok) {
       return extractiveSummary(texto, await describirFallo(res));
