@@ -15,6 +15,10 @@ import { TTL } from "@/lib/cache/store";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FilingRef } from "@/lib/sec/types";
 
+import { buildStatements, hasUsableData } from "@/lib/sec/statements";
+import { evaluateQualityScorecard } from "@/lib/sec/quality";
+import { QualityScorecard } from "@/components/quality-scorecard";
+
 export const revalidate = 21600;
 
 export async function generateMetadata({ params }: { params: Promise<{ ticker: string }> }) {
@@ -29,18 +33,23 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
   const hit = await resolveTicker(ticker);
   if (!hit) notFound();
 
-  const [profile, ultimo10K, precios] = await Promise.all([
+  const [profile, ultimo10K, precios, bundle] = await Promise.all([
     getCompanyProfile(hit.cik),
     findLatestFiling(hit.cik, ["10-K"]),
     getPriceSeries(ticker),
+    buildStatements(hit.cik, "annual"),
   ]);
+
+  const scorecard = hasUsableData(bundle) ? evaluateQualityScorecard(bundle) : null;
 
   return (
     <>
       <CompanyHeader profile={profile} ticker={ticker} active="/" />
 
       <div className="mx-auto grid max-w-[1200px] gap-x-12 gap-y-12 px-5 py-14 lg:grid-cols-3">
-        <section className="lg:col-span-2 space-y-8">
+        <section className="lg:col-span-2 space-y-10">
+          {scorecard ? <QualityScorecard scorecard={scorecard} /> : null}
+
           {ultimo10K ? (
             <div>
               <h2 className="font-display text-graphite mb-5 text-[24px] leading-[1.15] tracking-[-0.48px]">A qué se dedica</h2>
@@ -51,16 +60,16 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           ) : null}
 
           <div>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización semanal</h2>
-            {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
-          </div>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización semanal</h2>
+              {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
+            </div>
 
-          {precios.ok ? (
-            <PriceChart points={precios.series.points} source={precios.series.source} />
-          ) : (
-            <SinPrecio resultado={precios} />
-          )}
+            {precios.ok ? (
+              <PriceChart points={precios.series.points} source={precios.series.source} />
+            ) : (
+              <SinPrecio resultado={precios} />
+            )}
           </div>
         </section>
 

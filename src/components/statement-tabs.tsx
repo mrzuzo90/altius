@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinancialTable } from "./financial-table";
-import { SCALES, type Scale } from "@/lib/format";
+import { SCALES, type Scale, formatValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Copy, Check } from "lucide-react";
 import type { StatementBundle } from "@/lib/sec/statements";
 
 export function StatementTabs({
@@ -16,10 +17,32 @@ export function StatementTabs({
   frequency: "annual" | "quarterly";
   onFrequencyChange: (f: "annual" | "quarterly") => void;
 }) {
+  const [tabActiva, setTabActiva] = useState<string>("income");
   const [scale, setScale] = useState<Scale>("millions");
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarTabla = useCallback(() => {
+    const block = bundle.blocks.find((b) => b.id === tabActiva) ?? bundle.blocks[0];
+    if (!block || block.periods.length === 0) return;
+
+    const cabecera = ["Concepto", ...block.periods.map((p) => p.label)].join("\t");
+    const filas = block.rows.map((r) => {
+      const valores = block.periods.map((p) => {
+        const val = r.cells[p.key]?.value;
+        if (val === null || val === undefined) return "";
+        return formatValue(val, r.line.unit, scale);
+      });
+      return [r.line.label, ...valores].join("\t");
+    });
+
+    const tsv = [cabecera, ...filas].join("\n");
+    navigator.clipboard.writeText(tsv);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }, [bundle, tabActiva, scale]);
 
   return (
-    <Tabs defaultValue="income" className="gap-5">
+    <Tabs value={tabActiva} onValueChange={setTabActiva} className="gap-5">
       <div className="flex flex-wrap items-center gap-4">
         {/* La píldora se desborda a 375 px y recortaba la última pestaña.
             Se le da scroll propio en lugar de dejar que corte el contenido. */}
@@ -36,6 +59,25 @@ export function StatementTabs({
         </TabsList>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={copiarTabla}
+            title="Copiar tabla para pegar en Excel o Google Sheets"
+            className="border-mist/60 bg-ash/60 hover:bg-ash text-slate hover:text-graphite font-display flex items-center gap-1.5 rounded-[200px] border px-3 py-1.5 text-[13px] tracking-[-0.02em] transition-colors"
+          >
+            {copiado ? (
+              <>
+                <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-emerald-700 dark:text-emerald-300">Copiada</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Copiar tabla</span>
+              </>
+            )}
+          </button>
+
           <Conmutador
             valor={frequency}
             opciones={[

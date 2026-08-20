@@ -21,6 +21,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * que arranca desde opacidad cero deja la tabla invisible si el script falla o
  * tarda, y unos estados financieros no pueden depender de eso para verse.
  */
+import { Sparkline } from "./sparkline";
+
 export function FinancialTable({
   periods,
   rows,
@@ -49,6 +51,12 @@ export function FinancialTable({
             >
               Concepto
             </th>
+            <th
+              scope="col"
+              className="bg-ash text-steel font-display w-[76px] min-w-[76px] px-2 py-3 text-center text-[12px] font-medium whitespace-nowrap"
+            >
+              Tendencia
+            </th>
             {periods.map((p) => (
               <th
                 key={p.key}
@@ -63,6 +71,7 @@ export function FinancialTable({
         <tbody>
           {rows.map((row, i) => {
             const vacia = periods.every((p) => row.cells[p.key]?.value == null);
+            const rowValues = periods.map((p) => row.cells[p.key]?.value ?? null);
             return (
               <tr
                 key={row.line.id}
@@ -87,6 +96,12 @@ export function FinancialTable({
                 >
                   {row.line.label}
                 </th>
+                <td className="px-2 py-2 text-center whitespace-nowrap">
+                  <Sparkline
+                    values={rowValues}
+                    color={row.line.emphasis === "total" ? "var(--color-ember)" : "auto"}
+                  />
+                </td>
                 {periods.map((p) => (
                   <Celda
                     key={p.key}
