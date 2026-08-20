@@ -20,6 +20,12 @@ describe("formatValue", () => {
     expect(formatValue(-0.5, "USD/shares")).toBe("(0,50)");
   });
 
+  it("formatea porcentajes sin escalar por millones y con símbolo %", () => {
+    expect(formatValue(44.52, "percent")).toBe("44,52 %");
+    expect(formatValue(-12.4, "percent")).toBe("(12,4 %)");
+    expect(formatValue(-12.45, "percent")).toBe("(12,45 %)");
+  });
+
   it("muestra raya ante un dato ausente, nunca un cero", () => {
     expect(formatValue(null, "USD")).toBe("—");
     expect(formatValue(undefined, "USD")).toBe("—");

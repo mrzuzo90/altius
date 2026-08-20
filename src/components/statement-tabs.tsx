@@ -56,9 +56,9 @@ export function StatementTabs({
       </div>
 
       <p className="text-steel max-w-3xl text-[13px] leading-[1.5]">
-        Cifras en {SCALES[scale].label} de dólares salvo datos por acción. Las celdas subrayadas con
-        puntos las calcula Altius; el resto procede literalmente del XBRL de la SEC. Una raya
-        significa que la empresa no reporta ese concepto.
+        Cifras en {SCALES[scale].label} de dólares salvo datos por acción y ratios porcentuales. Las
+        celdas subrayadas con puntos las calcula Altius; el resto procede literalmente del XBRL de la
+        SEC. Una raya significa que la empresa no reporta ese concepto.
       </p>
 
       {bundle.blocks.map((b) => (

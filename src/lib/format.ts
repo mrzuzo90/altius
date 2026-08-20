@@ -30,6 +30,11 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
 
+  if (unit === "percent") {
+    const t = es(1, 2).format(Math.abs(value));
+    return value < 0 ? `(${t} %)` : `${t} %`;
+  }
+
   if (unit === "USD/shares" || unit === "pure") {
     const t = es(2, 2).format(Math.abs(value));
     return value < 0 ? `(${t})` : t;

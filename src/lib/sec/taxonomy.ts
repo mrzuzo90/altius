@@ -12,7 +12,7 @@
  */
 
 export type LineKind = "duration" | "instant";
-export type LineUnit = "USD" | "shares" | "USD/shares" | "pure";
+export type LineUnit = "USD" | "shares" | "USD/shares" | "pure" | "percent";
 
 export type LineDef = {
   id: string;
@@ -26,7 +26,7 @@ export type LineDef = {
   emphasis?: "total" | "subtotal";
   indent?: number;
   /** Línea calculada por Altius, no reportada. Se marca en la interfaz. */
-  computed?: "grossProfit" | "freeCashFlow";
+  computed?: "grossProfit" | "freeCashFlow" | "ratio";
 };
 
 export const INCOME_STATEMENT: LineDef[] = [
@@ -96,6 +96,8 @@ export const BALANCE_SHEET: LineDef[] = [
     concepts: ["Assets"] },
   { id: "accountsPayable", label: "Acreedores comerciales", kind: "instant", unit: "USD", indent: 1,
     concepts: ["AccountsPayableCurrent"] },
+  { id: "shortTermDebt", label: "Deuda a corto plazo", kind: "instant", unit: "USD", indent: 1,
+    concepts: ["ShortTermBorrowings", "DebtCurrent", "CommercialPaper", "LinesOfCreditCurrent"] },
   { id: "currentLiabilities", label: "Pasivo corriente", kind: "instant", unit: "USD", emphasis: "subtotal",
     concepts: ["LiabilitiesCurrent"] },
   { id: "longTermDebt", label: "Deuda a largo plazo", kind: "instant", unit: "USD", indent: 1,
@@ -152,13 +154,51 @@ export const CASH_FLOW: LineDef[] = [
     computed: "freeCashFlow", concepts: [] },
 ];
 
+export const RATIOS_STATEMENT: LineDef[] = [
+  // Márgenes y rentabilidad operativa
+  { id: "grossMargin", label: "Margen bruto", kind: "duration", unit: "percent", emphasis: "subtotal",
+    computed: "ratio", concepts: [] },
+  { id: "ebitda", label: "EBITDA", kind: "duration", unit: "USD", emphasis: "subtotal",
+    computed: "ratio", concepts: [] },
+  { id: "ebitdaMargin", label: "Margen EBITDA", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+  { id: "operatingMargin", label: "Margen operativo (EBIT)", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+  { id: "netMargin", label: "Margen neto", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+  { id: "fcfMargin", label: "Margen FCF", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+
+  // Retornos sobre capital
+  { id: "roe", label: "Rentabilidad sobre patrimonio (ROE)", kind: "duration", unit: "percent", emphasis: "subtotal",
+    computed: "ratio", concepts: [] },
+  { id: "roa", label: "Rentabilidad sobre activos (ROA)", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+  { id: "roic", label: "Retorno sobre capital invertido (ROIC)", kind: "duration", unit: "percent", emphasis: "subtotal",
+    computed: "ratio", concepts: [] },
+  { id: "effectiveTaxRate", label: "Tipo impositivo efectivo", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+
+  // Eficiencia y dinámica de caja
+  { id: "fcfConversion", label: "Conversión de EBITDA en FCF", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+
+  // Crecimiento interanual
+  { id: "revenueGrowthYoY", label: "Crecimiento de ingresos YoY", kind: "duration", unit: "percent", emphasis: "subtotal",
+    computed: "ratio", concepts: [] },
+  { id: "epsGrowthYoY", label: "Crecimiento de BPA diluido YoY", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+  { id: "fcfGrowthYoY", label: "Crecimiento de FCF YoY", kind: "duration", unit: "percent", indent: 1,
+    computed: "ratio", concepts: [] },
+];
+
 export const STATEMENTS = {
   income: { id: "income", label: "Cuenta de resultados", lines: INCOME_STATEMENT },
   balance: { id: "balance", label: "Balance de situación", lines: BALANCE_SHEET },
   cashflow: { id: "cashflow", label: "Flujo de caja", lines: CASH_FLOW },
 } as const;
 
-export type StatementId = keyof typeof STATEMENTS;
+export type StatementId = keyof typeof STATEMENTS | "ratios";
 
 /** Todos los conceptos referenciados, para pruebas y para acotar las descargas. */
 export function allConcepts(): string[] {
