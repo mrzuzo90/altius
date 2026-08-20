@@ -39,7 +39,15 @@ export function rankTickers(raw: RawTickerFile, query: string, limit = 10): Tick
   }
 
   return scored
-    .sort((a, b) => b.s - a.s || a.hit.ticker.localeCompare(b.hit.ticker))
+    .sort(
+      (a, b) =>
+        b.s - a.s ||
+        // A igualdad de puntuación gana el nombre más corto: quien escribe
+        // "apple" busca Apple Inc., no Apple iSports Group. Desempatar por
+        // orden alfabético del ticker dejaba a Apple en segundo lugar.
+        a.hit.name.length - b.hit.name.length ||
+        a.hit.ticker.localeCompare(b.hit.ticker),
+    )
     .slice(0, limit)
     .map((x) => x.hit);
 }

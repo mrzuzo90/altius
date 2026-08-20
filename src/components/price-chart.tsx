@@ -17,7 +17,12 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
   const datos = useMemo(() => {
     const def = RANGOS.find((r) => r.id === rango)!;
     if (!Number.isFinite(def.dias)) return points;
-    const corte = Date.now() - def.dias * 86_400_000;
+    const ultimoPunto = points.at(-1);
+    if (!ultimoPunto) return points;
+    // El rango se mide desde la última observación y no desde el reloj: así el
+    // cálculo es puro, y si la serie llega con retraso «1 año» sigue siendo un
+    // año de datos en lugar de un tramo recortado por el hueco.
+    const corte = Date.parse(ultimoPunto.date) - def.dias * 86_400_000;
     return points.filter((p) => Date.parse(p.date) >= corte);
   }, [points, rango]);
 

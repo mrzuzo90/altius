@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -8,6 +9,11 @@ import { CompanyHeader } from "@/components/company-header";
 import { PriceChart } from "@/components/price-chart";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { formatDate } from "@/lib/format";
+import { secFetchText } from "@/lib/sec/client";
+import { extractBusinessSummary } from "@/lib/sec/mdna";
+import { TTL } from "@/lib/cache/store";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { FilingRef } from "@/lib/sec/types";
 
 export const revalidate = 21600;
 
@@ -34,7 +40,17 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
       <CompanyHeader profile={profile} ticker={ticker} active="/" />
 
       <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-8 sm:px-6 lg:grid-cols-3">
-        <section className="lg:col-span-2">
+        <section className="lg:col-span-2 space-y-8">
+          {ultimo10K ? (
+            <div>
+              <h2 className="mb-3 text-sm font-medium">A qué se dedica</h2>
+              <Suspense fallback={<DescripcionCargando />}>
+                <Descripcion filing={ultimo10K} />
+              </Suspense>
+            </div>
+          ) : null}
+
+          <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-medium">Cotización diaria</h2>
             {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
@@ -45,6 +61,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           ) : (
             <SinPrecio resultado={precios} />
           )}
+          </div>
         </section>
 
         <aside className="space-y-5">
@@ -73,8 +90,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
               ) : null}
             </dl>
             <p className="text-muted-foreground mt-4 text-[11px] text-pretty">
-              Datos de identidad tal y como constan en el registro de la SEC. Altius no redacta
-              descripciones de empresa: mostraría prosa que ningún documento respalda.
+              Tal y como consta en el registro de la SEC.
             </p>
           </div>
 
@@ -107,6 +123,58 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
         </aside>
       </div>
     </>
+  );
+}
+
+/**
+ * Descripción del negocio tomada literalmente del apartado "Item 1. Business"
+ * del último 10-K. Va en Suspense porque descargar el informe cuesta segundos y
+ * el resto del perfil no debe esperarlo.
+ */
+async function Descripcion({ filing }: { filing: FilingRef }) {
+  let texto: string | null = null;
+  try {
+    texto = extractBusinessSummary(await secFetchText(filing.documentUrl, TTL.filingDocument));
+  } catch {
+    texto = null;
+  }
+
+  if (!texto) {
+    return (
+      <p className="text-muted-foreground text-sm text-pretty">
+        No se ha podido aislar el apartado &laquo;Item 1. Business&raquo; de este informe. Altius no
+        redacta descripciones propias: mostraría prosa que ningún documento respalda.
+      </p>
+    );
+  }
+
+  return (
+    <div className="border-border/60 rounded-lg border p-5">
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty">{texto}</p>
+      <p className="text-muted-foreground/70 mt-3 text-[11px]">
+        Texto literal del apartado Item 1 del {filing.form} presentado el{" "}
+        {formatDate(filing.filingDate)}.{" "}
+        <a
+          href={filing.documentUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline underline-offset-2"
+        >
+          Ver el original
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function DescripcionCargando() {
+  return (
+    <div className="border-border/60 rounded-lg border p-5">
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="mt-2 h-3.5 w-[92%]" />
+      <Skeleton className="mt-2 h-3.5 w-[78%]" />
+      <Skeleton className="mt-4 h-2.5 w-56" />
+    </div>
   );
 }
 

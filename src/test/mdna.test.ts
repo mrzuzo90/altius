@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMdna, htmlToText } from "@/lib/sec/mdna";
+import { extractMdna, htmlToText, limpiarMobiliarioDePagina } from "@/lib/sec/mdna";
 
 const relleno = (n: number) =>
   Array.from(
@@ -78,3 +78,51 @@ describe("extractMdna", () => {
     expect(q!.text).not.toContain("FUERA");
   });
 });
+
+describe("limpieza del mobiliario de página", () => {
+  it("elimina los encabezados repetidos que los 10-K llevan en cada página", () => {
+    // Así es como aparece de verdad tras aplanar el HTML: en su propia línea.
+    const conRuido = [
+      "Net sales increased.",
+      "Apple Inc. | 2025 Form 10-K | 21",
+      "Tariffs were announced in 2025.",
+    ].join("\n");
+    const limpio = limpiarMobiliarioDePagina(conRuido);
+    expect(limpio).not.toContain("Form 10-K");
+    expect(limpio).not.toContain("| 21");
+    expect(limpio).toContain("Net sales increased.");
+    expect(limpio).toContain("Tariffs were announced in 2025.");
+  });
+
+  it("elimina los rótulos de índice y los números de página sueltos", () => {
+    const limpio = limpiarMobiliarioDePagina("Ingresos\nTable of Contents\n21\nsiguientes");
+    expect(limpio).not.toContain("Table of Contents");
+    expect(limpio.split("\n")).toEqual(["Ingresos", "siguientes"]);
+  });
+
+  it("no toca la prosa que menciona el formulario sin ser encabezado", () => {
+    const prosa = "This should be read in conjunction with Part II, Item 8 of this Form 10-K.";
+    expect(limpiarMobiliarioDePagina(prosa)).toBe(prosa);
+  });
+
+  it("deja intacto un texto sin mobiliario", () => {
+    const limpio = "Net sales increased during 2025 driven by higher demand.";
+    expect(limpiarMobiliarioDePagina(limpio)).toBe(limpio);
+  });
+});
+
+describe("decodificación de entidades", () => {
+  it("decodifica las entidades numéricas que usan los 10-K", () => {
+    // Antes, el orden de sustitución dejaba "&#174;" literal en el texto: se
+    // decodificaba &amp; primero y ninguna regla posterior tocaba las numéricas.
+    expect(htmlToText("<p>iPhone &#174; y iPhone Air&#8482;</p>")).toBe("iPhone ® y iPhone Air™");
+  });
+
+  it("decodifica entidades hexadecimales", () => {
+    expect(htmlToText("<p>caf&#xe9;</p>")).toBe("café");
+  });
+
+  it("conserva el ampersand real", () => {
+    expect(htmlToText("<p>Johnson &amp; Johnson</p>")).toBe("Johnson & Johnson");
+  });
+})

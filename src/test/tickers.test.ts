@@ -45,3 +45,23 @@ describe("rankTickers", () => {
     expect(buscar("a", 2)).toHaveLength(2);
   });
 });
+
+describe("relevancia entre nombres que comparten prefijo", () => {
+  const CON_HOMONIMOS = {
+    "0": { cik_str: 1134982, ticker: "AAPI", title: "Apple iSports Group, Inc." },
+    "1": { cik_str: 320193, ticker: "AAPL", title: "Apple Inc." },
+    "2": { cik_str: 1418121, ticker: "APLE", title: "Apple Hospitality REIT, Inc." },
+  };
+
+  it("antepone la empresa cuyo nombre coincide más ajustadamente", () => {
+    // Los tres empiezan por "Apple" y empatan a puntos. Desempatando por orden
+    // alfabético del ticker, Apple Inc. quedaba detrás de Apple iSports Group.
+    const r = rankTickers(CON_HOMONIMOS, "apple");
+    expect(r[0].ticker).toBe("AAPL");
+    expect(r.map((h) => h.ticker)).toEqual(["AAPL", "AAPI", "APLE"]);
+  });
+
+  it("la coincidencia exacta de ticker sigue mandando sobre el nombre", () => {
+    expect(rankTickers(CON_HOMONIMOS, "APLE")[0].ticker).toBe("APLE");
+  });
+});

@@ -23,8 +23,18 @@ export function CommandPalette() {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [consulta, setConsulta] = useState("");
-  const [hits, setHits] = useState<Hit[]>([]);
-  const [cargando, setCargando] = useState(false);
+  /** Los resultados se guardan junto a la consulta que los produjo. */
+  const [resultado, setResultado] = useState<{ q: string; hits: Hit[] }>({
+    q: "",
+    hits: [],
+  });
+
+  const q = consulta.trim();
+  // Derivado en render en lugar de sincronizado con setState dentro de un
+  // efecto: evita renders en cascada y, sobre todo, evita enseñar durante un
+  // instante los resultados de la consulta anterior.
+  const hits = resultado.q === q ? resultado.hits : [];
+  const cargando = q !== "" && resultado.q !== q;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,33 +53,26 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    const q = consulta.trim();
-    if (!q) {
-      setHits([]);
-      return;
-    }
-    setCargando(true);
+    if (!q) return;
     const control = new AbortController();
-    // Antirrebote: el índice de la SEC son 10.000 entradas y no hace falta
-    // consultarlo en cada pulsación.
+    // Antirrebote: el índice de la SEC son más de 10.000 entradas y no hace
+    // falta consultarlo en cada pulsación.
     const t = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
           signal: control.signal,
         });
         const json = (await res.json()) as { results?: Hit[] };
-        setHits(json.results ?? []);
+        setResultado({ q, hits: json.results ?? [] });
       } catch {
         // Petición cancelada al seguir escribiendo: no es un error.
-      } finally {
-        setCargando(false);
       }
     }, 160);
     return () => {
       clearTimeout(t);
       control.abort();
     };
-  }, [consulta]);
+  }, [q]);
 
   const ir = useCallback(
     (ticker: string) => {
@@ -89,14 +92,20 @@ export function CommandPalette() {
     >
       {/* El filtrado ya lo hace el índice de la SEC en el servidor; el filtro
           interno de cmdk volvería a filtrar y ocultaría resultados válidos. */}
-      <Command shouldFilter={false}>
+      {/* Se deja que cmdk filtre, en lugar de desactivarlo. Con el filtrado
+          interno apagado, la biblioteca tampoco gestionaba la selección ni la
+          tecla Intro: el ratón navegaba y el teclado no. Como el servidor ya
+          devuelve solo resultados relevantes y cada elemento lleva su ticker y
+          su nombre como valor, el filtro de cmdk no descarta ninguno y su
+          navegación por teclado vuelve a funcionar sola. */}
+      <Command>
         <CommandInput
           placeholder="Busca por ticker o nombre — AAPL, Johnson, Tesla…"
           value={consulta}
           onValueChange={setConsulta}
         />
         <CommandList>
-          {!consulta.trim() ? (
+          {!q ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               <Search className="mx-auto mb-2 size-5 opacity-40" />
               Más de 10.000 empresas registradas en la SEC.
@@ -107,12 +116,12 @@ export function CommandPalette() {
             </div>
           ) : (
             <>
-              <CommandEmpty>Sin resultados para «{consulta}».</CommandEmpty>
+              <CommandEmpty>Sin resultados para «{q}».</CommandEmpty>
               <CommandGroup heading="Empresas">
                 {hits.map((h) => (
                   <CommandItem
                     key={h.cik + h.ticker}
-                    value={h.ticker}
+                    value={`${h.ticker} ${h.name}`}
                     onSelect={() => ir(h.ticker)}
                     className="flex items-center gap-3"
                   >

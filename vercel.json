@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/ticker/[ticker]/ai/page.tsx": { "maxDuration": 120 },
+    "src/app/api/mdna/[cik]/route.ts": { "maxDuration": 120 }
+  }
+}
