@@ -3,12 +3,14 @@
 export function Sparkline({
   values,
   color = "var(--color-slate)",
+  reverse = false,
 }: {
   values: (number | null)[];
   color?: string;
+  reverse?: boolean;
 }) {
-  // Los valores llegan en orden inverso (más reciente primero); invertimos para orden cronológico
-  const validos = [...values].reverse().filter((v): v is number => v !== null && Number.isFinite(v));
+  const arr = reverse ? [...values].reverse() : [...values];
+  const validos = arr.filter((v): v is number => v !== null && Number.isFinite(v));
 
   if (validos.length < 2) {
     return <div className="w-[60px] text-center text-slate/40 text-[11px]">—</div>;

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { MARKET_LEADERS } from "@/lib/home/leaders-data";
-import { Sparkline } from "@/components/sparkline";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 export function TickerRibbon() {
@@ -35,9 +34,6 @@ export function TickerRibbon() {
                 {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
                 {isUp ? "+" : ""}{item.changePct.toFixed(2)}%
               </span>
-              <div className="w-12 h-4 hidden sm:block opacity-60 group-hover:opacity-100 transition-opacity">
-                <Sparkline values={item.trend} color={isUp ? "#34d399" : "#f87171"} />
-              </div>
             </Link>
           );
         })}

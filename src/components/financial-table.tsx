@@ -99,6 +99,7 @@ export function FinancialTable({
                 <td className="px-2 py-2 text-center whitespace-nowrap">
                   <Sparkline
                     values={rowValues}
+                    reverse
                     color={row.line.emphasis === "total" ? "#98a4f7" : "#646e87"}
                   />
                 </td>

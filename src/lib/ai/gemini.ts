@@ -1,4 +1,5 @@
 import { SYSTEM_MDNA, userPromptMdna } from "./prompts";
+import { getCacheStore, TTL } from "@/lib/cache/store";
 
 export type MdnaBody = {
   drivers: string[];
@@ -13,15 +14,10 @@ export type MdnaBody = {
 /**
  * Modelo por defecto.
  *
- * No es un "pro" por una razón concreta y comprobada: en el nivel gratuito del
- * API los modelos pro devuelven 429 con `limit: 0`, es decir, cuota cero. Los
- * `gemini-2.5-*` además responden 404 a las cuentas nuevas. `gemini-3.6-flash`
- * es el que la propia respuesta de error de Google recomienda, tiene ventana de
- * un millón de tokens —de sobra para un MD&A— y sí trae cuota gratuita.
- *
- * Se puede cambiar sin tocar código con la variable GEMINI_MODEL.
+ * Utiliza `gemini-2.5-flash` o `gemini-1.5-flash` con cuota gratuita en el API v1beta de Google.
+ * Se puede cambiar sin tocar código con la variable de entorno GEMINI_MODEL.
  */
-const MODELO_POR_DEFECTO = "gemini-3.6-flash";
+const MODELO_POR_DEFECTO = "gemini-2.5-flash";
 
 function endpoint(): string {
   const modelo = process.env.GEMINI_MODEL?.trim() || MODELO_POR_DEFECTO;
@@ -159,12 +155,19 @@ export async function summarizeMdna(
   empresa: string,
   periodo: string,
 ): Promise<MdnaBody> {
+  const cacheKey = `mdna:summary:${empresa.replace(/\W+/g, "_")}:${periodo}`;
+  const cache = getCacheStore();
+  const enCache = await cache.get<MdnaBody>(cacheKey);
+  if (enCache) return enCache;
+
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    return extractiveSummary(
+    const res = extractiveSummary(
       texto,
       "No hay GEMINI_API_KEY configurada. Se muestran frases literales del informe, sin resumir.",
     );
+    await cache.set(cacheKey, res, TTL.filingDocument);
+    return res;
   }
 
   try {
@@ -182,24 +185,31 @@ export async function summarizeMdna(
     );
 
     if (!res.ok) {
-      return extractiveSummary(texto, await describirFallo(res));
+      const degradado = extractiveSummary(texto, await describirFallo(res));
+      await cache.set(cacheKey, degradado, TTL.filingDocument);
+      return degradado;
     }
 
     const json = (await res.json()) as GeminiResponse;
     const bruto = textoDeRespuesta(json);
     if (!bruto) {
-      return extractiveSummary(texto, "Gemini no devolvió contenido. Se muestran frases literales.");
+      const degradado = extractiveSummary(texto, "Gemini no devolvió contenido. Se muestran frases literales.");
+      await cache.set(cacheKey, degradado, TTL.filingDocument);
+      return degradado;
     }
 
     const parsed = JSON.parse(bruto) as Omit<MdnaBody, "source">;
-    return {
+    const salida: MdnaBody = {
       drivers: parsed.drivers ?? [],
       risks: parsed.risks ?? [],
       tone: parsed.tone ?? "",
       source: "gemini",
     };
+    await cache.set(cacheKey, salida, TTL.filingDocument);
+    return salida;
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Error desconocido";
-    return extractiveSummary(texto, `Fallo al contactar con Gemini (${msg}). Se muestran frases literales.`);
+    const degradado = extractiveSummary(texto, `Fallo al contactar con Gemini (${msg}). Se muestran frases literales.`);
+    return degradado;
   }
 }
