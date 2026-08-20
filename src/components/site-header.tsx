@@ -16,14 +16,15 @@ export function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="bg-canvas-white border-mist/40 sticky top-0 z-40 border-b">
-      <div className="mx-auto flex h-20 max-w-[1200px] items-center gap-5 px-5">
-        <Link href="/" className="font-display text-graphite text-[22px] tracking-[-0.02em]">
-          Altius
+    <header className="bg-void-black/90 border-gunmetal sticky top-0 z-40 border-b backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-5">
+        <Link href="/" className="font-display flex items-center gap-2 text-[19px] font-medium text-white tracking-[-0.01em]">
+          <span className="size-2 rounded-full bg-periwinkle-glow shadow-[0_0_8px_rgba(152,164,247,0.8)]" />
+          <span>Altius</span>
         </Link>
 
-        {/* Píldora de navegación: Ash, radio completo, sin sombra. */}
-        <nav className="bg-ash mx-auto hidden items-center gap-5 rounded-[200px] px-[18px] py-2 sm:flex">
+        {/* Píldora de navegación Better Stack: Carbon Surface, Gunmetal border */}
+        <nav className="bg-carbon-surface border-gunmetal mx-auto hidden items-center gap-1 rounded-full border px-2 py-1 sm:flex">
           {NAV.map((n) => {
             const activo = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
             return (
@@ -31,8 +32,10 @@ export function SiteHeader() {
                 key={n.href}
                 href={n.href}
                 className={cn(
-                  "font-display text-[15px] tracking-[-0.02em] transition-colors",
-                  activo ? "text-graphite" : "text-slate hover:text-graphite",
+                  "font-display rounded-full px-4 py-1.5 text-[14px] font-medium transition-colors",
+                  activo
+                    ? "bg-gunmetal/80 text-white shadow-xs"
+                    : "text-muted-steel hover:text-frost",
                 )}
               >
                 {n.label}
@@ -45,11 +48,11 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event("altius:open-search"))}
-            className="bg-graphite text-canvas-white font-display flex items-center gap-2 px-5 py-2.5 text-[15px] leading-none tracking-[-0.02em] transition-opacity hover:opacity-85"
+            className="btn-primary-gradient font-display flex items-center gap-2 px-4 py-2 text-[14px] leading-none"
           >
             <Search className="size-3.5" />
             <span className="hidden sm:inline">Buscar empresa</span>
-            <kbd className="hidden font-sans text-[11px] opacity-60 sm:inline">⌘K</kbd>
+            <kbd className="hidden font-sans text-[11px] opacity-75 sm:inline">⌘K</kbd>
           </button>
 
           <ThemeToggle />

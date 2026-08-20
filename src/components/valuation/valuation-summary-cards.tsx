@@ -51,8 +51,8 @@ export function ValuationSummaryCards({ metrics }: { metrics: ValuationMetrics }
         />
       </div>
 
-      <div className="bg-ash card-asymmetric p-6">
-        <h3 className="font-display text-graphite mb-4 text-[16px] tracking-[-0.02em]">
+      <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+        <h3 className="font-display text-pure-white mb-4 text-[16px] font-medium tracking-tight">
           Estructura de Capital y Magnitudes
         </h3>
         <div className="grid gap-y-3 gap-x-8 text-[14px] sm:grid-cols-2 lg:grid-cols-4">
@@ -82,26 +82,26 @@ function TarjetaMultiplo({
   descripcion: string;
 }) {
   return (
-    <div className="bg-ash card-asymmetric flex flex-col justify-between p-6">
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border flex flex-col justify-between p-6">
       <div>
-        <span className="text-slate font-display text-[12px] uppercase tracking-wider">
+        <span className="text-muted-steel font-mono text-[11px] uppercase tracking-wider">
           {titulo}
         </span>
-        <div className="font-display text-graphite mt-2 text-[32px] tracking-[-0.03em]">
+        <div className="font-display text-pure-white mt-2 text-[32px] font-medium tracking-tight tabular">
           {valor}
         </div>
-        <p className="text-steel font-display mt-1 text-[13px] tracking-[-0.01em]">{subtitulo}</p>
+        <p className="text-frost font-display mt-1 text-[13px] tracking-tight">{subtitulo}</p>
       </div>
-      <p className="text-slate mt-4 text-[12px] leading-relaxed">{descripcion}</p>
+      <p className="text-muted-steel mt-4 text-[12px] leading-relaxed">{descripcion}</p>
     </div>
   );
 }
 
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="border-mist/60 flex items-center justify-between border-b pb-2">
-      <span className="text-slate">{etiqueta}</span>
-      <span className="font-display text-graphite font-medium">{valor}</span>
+    <div className="border-gunmetal/60 flex items-center justify-between border-b pb-2">
+      <span className="text-muted-steel">{etiqueta}</span>
+      <span className="font-display text-pure-white font-medium tabular">{valor}</span>
     </div>
   );
 }

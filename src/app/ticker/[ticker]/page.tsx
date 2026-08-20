@@ -73,9 +73,9 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           </div>
         </section>
 
-        <aside className="space-y-5">
-          <div className="bg-ash card-asymmetric p-8">
-            <h2 className="font-display text-graphite mb-5 text-[18px] tracking-[-0.02em]">Identidad</h2>
+        <aside className="space-y-6">
+          <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+            <h2 className="font-display text-pure-white mb-4 text-[16px] font-medium tracking-tight">Identidad</h2>
             <dl className="space-y-3 text-[14px]">
               <Fila t="Razón social" v={profile.name} />
               <Fila t="Sector" v={profile.sector} />
@@ -90,7 +90,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                       href={profile.website}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="link-ember"
+                      className="text-periwinkle-glow hover:underline"
                     >
                       {profile.website.replace(/^https?:\/\//, "")}
                     </a>
@@ -98,14 +98,14 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                 />
               ) : null}
             </dl>
-            <p className="text-slate mt-5 text-[12px] leading-[1.5] text-pretty">
+            <p className="text-muted-steel mt-4 text-[12px] leading-[1.5]">
               Tal y como consta en el registro de la SEC.
             </p>
           </div>
 
           {ultimo10K ? (
-            <div className="bg-ash card-asymmetric p-8">
-              <h2 className="font-display text-graphite mb-5 text-[18px] tracking-[-0.02em]">Último informe anual</h2>
+            <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+              <h2 className="font-display text-pure-white mb-4 text-[16px] font-medium tracking-tight">Último informe anual</h2>
               <dl className="space-y-3 text-[14px]">
                 <Fila t="Formulario" v={ultimo10K.form} />
                 <Fila t="Presentado" v={formatDate(ultimo10K.filingDate)} />
@@ -115,19 +115,19 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                 href={ultimo10K.documentUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="font-display text-graphite link-ember mt-5 inline-block text-[14px] tracking-[-0.02em]"
+                className="font-display text-periwinkle-glow hover:underline mt-4 inline-block text-[14px] font-medium tracking-tight"
               >
                 Abrir el documento en EDGAR
               </a>
             </div>
           ) : null}
 
-          <div className="bg-ash card-asymmetric p-8">
-            <h2 className="font-display text-graphite text-[18px] tracking-[-0.02em]">Continuar</h2>
-            <div className="mt-5 space-y-3">
+          <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+            <h2 className="font-display text-pure-white text-[16px] font-medium tracking-tight">Explorar</h2>
+            <div className="mt-4 space-y-2.5">
               <Enlace href={`/ticker/${ticker}/financials`} texto="Estados financieros" />
               <Enlace href={`/ticker/${ticker}/valuation`} texto="Múltiplos y valoración" />
-              <Enlace href={`/ticker/${ticker}/ai`} texto="Resumen del informe" />
+              <Enlace href={`/ticker/${ticker}/ai`} texto="Copiloto de informe 10-K" />
             </div>
           </div>
         </aside>
@@ -151,24 +151,33 @@ async function Descripcion({ filing }: { filing: FilingRef }) {
 
   if (!texto) {
     return (
-      <p className="text-steel mx-auto max-w-md text-[15px] leading-[1.5] text-pretty">
-        No se ha podido aislar el apartado &laquo;Item 1. Business&raquo; de este informe. Altius no
-        redacta descripciones propias: mostraría prosa que ningún documento respalda.
-      </p>
+      <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+        <p className="text-muted-steel text-[14px]">
+          No se ha podido aislar la descripción del negocio en este documento.
+        </p>
+        <a
+          href={filing.documentUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-periwinkle-glow hover:underline mt-3 inline-block text-[13px]"
+        >
+          Consultar el informe completo
+        </a>
+      </div>
     );
   }
 
   return (
-    <div className="bg-ash card-asymmetric p-8">
-      <p className="text-muted-foreground text-sm leading-relaxed text-pretty">{texto}</p>
-      <p className="text-slate mt-6 text-[12px]">
-        Texto literal del apartado Item 1 del {filing.form} presentado el{" "}
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+      <p className="text-frost text-[15px] leading-[1.6] text-pretty">{texto}</p>
+      <p className="text-muted-steel mt-4 text-[12px]">
+        Texto literal del apartado «Item 1. Business» del 10-K presentado el{" "}
         {formatDate(filing.filingDate)}.{" "}
         <a
           href={filing.documentUrl}
           target="_blank"
           rel="noreferrer noopener"
-          className="link-ember"
+          className="text-periwinkle-glow hover:underline"
         >
           Ver el original
         </a>
@@ -179,11 +188,11 @@ async function Descripcion({ filing }: { filing: FilingRef }) {
 
 function DescripcionCargando() {
   return (
-    <div className="bg-ash card-asymmetric p-8">
-      <Skeleton className="h-3.5 w-full" />
-      <Skeleton className="mt-2 h-3.5 w-[92%]" />
-      <Skeleton className="mt-2 h-3.5 w-[78%]" />
-      <Skeleton className="mt-4 h-2.5 w-56" />
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+      <Skeleton className="h-3.5 w-full bg-gunmetal" />
+      <Skeleton className="mt-2 h-3.5 w-[92%] bg-gunmetal" />
+      <Skeleton className="mt-2 h-3.5 w-[78%] bg-gunmetal" />
+      <Skeleton className="mt-4 h-2.5 w-56 bg-gunmetal" />
     </div>
   );
 }
@@ -200,17 +209,17 @@ function SinPrecio({ resultado }: { resultado: Awaited<ReturnType<typeof getPric
           : resultado.message;
 
   return (
-    <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-14 text-center">
-      <p className="text-steel mx-auto max-w-md text-[15px] leading-[1.5] text-pretty">{mensaje}</p>
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border border-dashed px-8 py-14 text-center">
+      <p className="text-frost mx-auto max-w-md text-[14px] leading-[1.6] text-pretty">{mensaje}</p>
     </div>
   );
 }
 
 function Fila({ t, v }: { t: string; v: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-slate shrink-0">{t}</dt>
-      <dd className="text-right">{v}</dd>
+    <div className="flex justify-between gap-4 border-b border-gunmetal/40 pb-2.5 last:border-0 last:pb-0">
+      <dt className="text-muted-steel shrink-0">{t}</dt>
+      <dd className="text-right text-pure-white font-medium">{v}</dd>
     </div>
   );
 }
@@ -219,10 +228,10 @@ function Enlace({ href, texto }: { href: string; texto: string }) {
   return (
     <Link
       href={href}
-      className="border-mist hover:bg-fog font-display flex items-center justify-between border px-4 py-3 text-[15px] tracking-[-0.02em] transition-colors"
+      className="border-gunmetal bg-void-black hover:border-steel-border/50 hover:text-pure-white text-frost font-display flex items-center justify-between rounded-xl border px-4 py-3 text-[14px] font-medium transition-colors"
     >
-      {texto}
-      <ArrowRight className="size-3.5" />
+      <span>{texto}</span>
+      <ArrowRight className="size-3.5 text-muted-steel" />
     </Link>
   );
 }

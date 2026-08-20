@@ -40,21 +40,28 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
   const margenSeguridad = projection.marginOfSafety;
   const cagr = projection.cagr5Y;
 
+  const currentMultiple = useMemo(() => {
+    if (targetMultipleType === "PE") return metrics.pe;
+    if (targetMultipleType === "EV_FCF") return metrics.evFcf;
+    if (targetMultipleType === "EV_EBITDA") return metrics.evEbitda;
+    return null;
+  }, [metrics, targetMultipleType]);
+
   return (
     <div className="space-y-8">
-      <div className="bg-ash card-asymmetric p-8">
-        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4 border-b border-mist/80 pb-4">
+      <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-8">
+        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4 border-b border-gunmetal pb-4">
           <div>
-            <h3 className="font-display text-graphite text-[20px] tracking-[-0.02em]">
+            <h3 className="font-display text-pure-white text-[20px] font-medium tracking-tight">
               Modelo de Proyección a 5 Años y Precio Objetivo
             </h3>
-            <p className="text-steel mt-1 text-[13px]">
+            <p className="text-frost mt-1 text-[13px]">
               Ajusta las hipótesis de crecimiento, rentabilidad operativa y múltiplo objetivo de salida.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-slate text-[12px]">Múltiplo de salida:</span>
-            <div className="bg-fog inline-flex rounded-full p-0.5 border border-mist">
+            <span className="text-muted-steel text-[12px]">Múltiplo de salida:</span>
+            <div className="bg-void-black border-gunmetal inline-flex rounded-full p-1 border">
               {(
                 [
                   { id: "PE", label: "PER" },
@@ -68,8 +75,8 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
                   onClick={() => setTargetMultipleType(tipo.id)}
                   className={`rounded-full px-3 py-1 text-[12px] font-display transition-colors ${
                     targetMultipleType === tipo.id
-                      ? "bg-canvas-white text-graphite shadow-sm"
-                      : "text-slate hover:text-graphite"
+                      ? "bg-gunmetal text-pure-white"
+                      : "text-muted-steel hover:text-frost"
                   }`}
                 >
                   {tipo.label}
@@ -82,8 +89,8 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex justify-between text-[13px]">
-              <span className="text-slate">Crecimiento ventas (YoY)</span>
-              <span className="font-display text-graphite font-semibold">{revenueGrowth} %</span>
+              <span className="text-muted-steel">Crecimiento ventas (YoY)</span>
+              <span className="font-display text-pure-white font-semibold tabular">{revenueGrowth} %</span>
             </div>
             <input
               type="range"
@@ -92,49 +99,51 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               step="1"
               value={revenueGrowth}
               onChange={(e) => setRevenueGrowth(Number(e.target.value))}
-              className="accent-graphite mt-2.5 w-full cursor-pointer"
+              className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-slate/70 text-[11px]">Histórico: ~{metrics.historicalRevenueGrowth?.toFixed(1) ?? "—"}%</span>
+            <span className="text-muted-steel/70 text-[11px]">Histórico LTM: ~{metrics.historicalRevenueGrowth?.toFixed(1) ?? "8"}%</span>
           </div>
 
           <div>
             <div className="flex justify-between text-[13px]">
-              <span className="text-slate">Margen EBIT objetivo</span>
-              <span className="font-display text-graphite font-semibold">{targetEbitMargin} %</span>
+              <span className="text-muted-steel">Margen EBIT (Año 5)</span>
+              <span className="font-display text-pure-white font-semibold tabular">{targetEbitMargin} %</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="60"
+              step="0.5"
+              value={targetEbitMargin}
+              onChange={(e) => setTargetEbitMargin(Number(e.target.value))}
+              className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
+            />
+            <span className="text-muted-steel/70 text-[11px]">Histórico LTM: ~{metrics.historicalEbitMargin?.toFixed(1) ?? "25"}%</span>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-muted-steel">Múltiplo objetivo</span>
+              <span className="font-display text-pure-white font-semibold tabular">{targetMultiple}x</span>
             </div>
             <input
               type="range"
               min="5"
               max="60"
-              step="1"
-              value={targetEbitMargin}
-              onChange={(e) => setTargetEbitMargin(Number(e.target.value))}
-              className="accent-graphite mt-2.5 w-full cursor-pointer"
-            />
-            <span className="text-slate/70 text-[11px]">Histórico: ~{metrics.historicalEbitMargin?.toFixed(1) ?? "—"}%</span>
-          </div>
-
-          <div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-slate">Múltiplo objetivo</span>
-              <span className="font-display text-graphite font-semibold">{targetMultiple}x</span>
-            </div>
-            <input
-              type="range"
-              min="5"
-              max="50"
-              step="1"
+              step="0.5"
               value={targetMultiple}
               onChange={(e) => setTargetMultiple(Number(e.target.value))}
-              className="accent-graphite mt-2.5 w-full cursor-pointer"
+              className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-slate/70 text-[11px]">Actual LTM: ~{metrics.pe?.toFixed(1) ?? "—"}x</span>
+            <span className="text-muted-steel/70 text-[11px]">
+              {currentMultiple !== null ? `Actual ${targetMultipleType}: ~${currentMultiple.toFixed(1)}x` : "Ajusta tu estimación"}
+            </span>
           </div>
 
           <div>
             <div className="flex justify-between text-[13px]">
-              <span className="text-slate">Tasa impositiva</span>
-              <span className="font-display text-graphite font-semibold">{taxRate} %</span>
+              <span className="text-muted-steel">Tasa impositiva (Tax Rate)</span>
+              <span className="font-display text-pure-white font-semibold tabular">{taxRate} %</span>
             </div>
             <input
               type="range"
@@ -143,70 +152,70 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               step="1"
               value={taxRate}
               onChange={(e) => setTaxRate(Number(e.target.value))}
-              className="accent-graphite mt-2.5 w-full cursor-pointer"
+              className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-slate/70 text-[11px]">Efectivo: ~{metrics.historicalTaxRate?.toFixed(1) ?? "21"}%</span>
+            <span className="text-muted-steel/70 text-[11px]">Efectivo: ~{metrics.historicalTaxRate?.toFixed(1) ?? "21"}%</span>
           </div>
         </div>
 
         {/* Panel de Resultados Clave de la Proyección */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3 border-t border-mist/80 pt-6">
-          <div className="bg-fog card-asymmetric p-5 border border-mist/60">
-            <span className="text-slate font-display text-[12px] uppercase tracking-wider">
+        <div className="mt-8 grid gap-4 sm:grid-cols-3 border-t border-gunmetal pt-6">
+          <div className="bg-void-black rounded-xl p-5 border border-gunmetal">
+            <span className="text-muted-steel font-mono text-[11px] uppercase tracking-wider">
               Precio Objetivo (Año 5)
             </span>
-            <div className="font-display text-graphite mt-1.5 text-[32px] tracking-[-0.03em]">
+            <div className="font-display text-pure-white mt-1.5 text-[32px] font-medium tracking-tight tabular">
               ${targetPrice.toFixed(2)}
             </div>
-            <p className="text-steel text-[12px] mt-1">
+            <p className="text-muted-steel text-[12px] mt-1">
               Cotización actual: ${precioActual.toFixed(2)}
             </p>
           </div>
 
-          <div className="bg-fog card-asymmetric p-5 border border-mist/60">
-            <span className="text-slate font-display text-[12px] uppercase tracking-wider">
+          <div className="bg-void-black rounded-xl p-5 border border-gunmetal">
+            <span className="text-muted-steel font-mono text-[11px] uppercase tracking-wider">
               Margen de Seguridad
             </span>
             <div
-              className={`font-display mt-1.5 text-[32px] tracking-[-0.03em] ${
-                margenSeguridad >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"
+              className={`font-display mt-1.5 text-[32px] font-medium tracking-tight tabular ${
+                margenSeguridad >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
               {margenSeguridad >= 0 ? "+" : ""}{margenSeguridad.toFixed(1)} %
             </div>
-            <p className="text-steel text-[12px] mt-1">
+            <p className="text-muted-steel text-[12px] mt-1">
               Potencial frente al precio de mercado
             </p>
           </div>
 
-          <div className="bg-fog card-asymmetric p-5 border border-mist/60">
-            <span className="text-slate font-display text-[12px] uppercase tracking-wider">
+          <div className="bg-void-black rounded-xl p-5 border border-gunmetal">
+            <span className="text-muted-steel font-mono text-[11px] uppercase tracking-wider">
               Retorno Anualizado (CAGR)
             </span>
             <div
-              className={`font-display mt-1.5 text-[32px] tracking-[-0.03em] ${
-                cagr >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"
+              className={`font-display mt-1.5 text-[32px] font-medium tracking-tight tabular ${
+                cagr >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
-              {cagr >= 0 ? "+" : ""}{cagr.toFixed(1)} % / año
+              {cagr >= 0 ? "+" : ""}{cagr.toFixed(1)} %
             </div>
-            <p className="text-steel text-[12px] mt-1">
-              Tasa de rentabilidad compuesta esperada
+            <p className="text-muted-steel text-[12px] mt-1">
+              Rentabilidad anual estimada 5 años
             </p>
           </div>
         </div>
       </div>
 
       {/* Tabla detallada de la proyección año a año */}
-      <div className="border-mist bg-canvas-white relative overflow-x-auto rounded-[20px] border">
+      <div className="border-gunmetal bg-carbon-surface relative overflow-x-auto rounded-2xl border">
         <table className="tabular w-full border-collapse text-[14px]">
           <thead>
-            <tr className="border-mist border-b bg-ash">
-              <th scope="col" className="text-steel px-4 py-3 text-left text-[12px] font-medium">
+            <tr className="border-gunmetal border-b bg-void-black">
+              <th scope="col" className="text-muted-steel font-mono uppercase px-4 py-3 text-left text-[12px] font-medium tracking-wider">
                 Línea Proyectada (M$)
               </th>
               {projection.years.map((y) => (
-                <th key={y.label} scope="col" className="text-steel font-display px-4 py-3 text-right text-[13px]">
+                <th key={y.label} scope="col" className="text-muted-steel font-mono uppercase px-4 py-3 text-right text-[12px] font-medium tracking-wider">
                   {y.label}
                 </th>
               ))}
@@ -256,12 +265,12 @@ function FilaTabla({
   total?: boolean;
 }) {
   return (
-    <tr className={`border-mist border-b last:border-0 hover:bg-fog/50 transition-colors ${total ? "bg-fog/40 font-medium" : ""}`}>
-      <th scope="row" className="text-graphite px-4 py-2.5 text-left text-[14px] font-normal">
+    <tr className={`border-gunmetal/60 border-b last:border-0 hover:bg-gunmetal/40 transition-colors ${total ? "bg-gunmetal/20 font-medium" : ""}`}>
+      <th scope="row" className="text-pure-white px-4 py-2.5 text-left text-[14px] font-normal">
         {concepto}
       </th>
       {valores.map((v, i) => (
-        <td key={i} className={`px-4 py-2.5 text-right font-display ${total ? "font-semibold text-graphite" : "text-steel"}`}>
+        <td key={i} className={`px-4 py-2.5 text-right tabular ${total ? "font-semibold text-periwinkle-glow" : "text-frost"}`}>
           {v}
         </td>
       ))}

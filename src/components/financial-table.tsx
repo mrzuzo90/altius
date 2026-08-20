@@ -41,19 +41,19 @@ export function FinancialTable({
   }
 
   return (
-    <div className="border-mist bg-canvas-white relative overflow-x-auto rounded-[20px] border">
+    <div className="bg-carbon-surface border-gunmetal relative overflow-x-auto rounded-2xl border">
       <table className="tabular w-full border-collapse text-[14px]">
         <thead>
-          <tr className="border-mist border-b">
+          <tr className="border-gunmetal border-b">
             <th
               scope="col"
-              className="altius-sticky-head text-steel sticky left-0 z-20 w-[150px] min-w-[150px] px-4 py-3 text-left text-[12px] font-medium sm:w-[300px] sm:min-w-[300px]"
+              className="altius-sticky-head text-muted-steel sticky left-0 z-20 w-[150px] min-w-[150px] px-4 py-3 text-left text-[12px] font-medium font-mono uppercase tracking-wider sm:w-[300px] sm:min-w-[300px]"
             >
               Concepto
             </th>
             <th
               scope="col"
-              className="bg-ash text-steel font-display w-[76px] min-w-[76px] px-2 py-3 text-center text-[12px] font-medium whitespace-nowrap"
+              className="bg-carbon-surface text-muted-steel font-mono uppercase w-[76px] min-w-[76px] px-2 py-3 text-center text-[12px] font-medium tracking-wider whitespace-nowrap"
             >
               Tendencia
             </th>
@@ -61,7 +61,7 @@ export function FinancialTable({
               <th
                 key={p.key}
                 scope="col"
-                className="bg-ash text-steel font-display min-w-[92px] px-4 py-3 text-right text-[13px] tracking-[-0.02em] whitespace-nowrap sm:min-w-[110px]"
+                className="bg-carbon-surface text-muted-steel font-mono min-w-[92px] px-4 py-3 text-right text-[12px] font-medium uppercase tracking-wider whitespace-nowrap sm:min-w-[110px]"
               >
                 {p.label}
               </th>
@@ -78,19 +78,19 @@ export function FinancialTable({
                 style={{ animationDelay: `${Math.min(i * 12, 240)}ms` }}
                 className={cn(
                   "animate-in fade-in-0 fill-mode-backwards duration-300",
-                  "altius-row border-mist group border-b last:border-0",
-                  "hover:bg-fog transition-colors",
-                  row.line.emphasis === "total" && "bg-fog/60",
-                  vacia && "opacity-45",
+                  "altius-row border-gunmetal/60 group border-b last:border-0",
+                  "hover:bg-gunmetal/50 transition-colors",
+                  row.line.emphasis === "total" && "bg-gunmetal/30",
+                  vacia && "opacity-40",
                 )}
               >
                 <th
                   scope="row"
                   title={row.line.label}
                   className={cn(
-                    "altius-sticky-cell text-graphite sticky left-0 z-10 w-[150px] min-w-[150px] max-w-[150px] truncate px-4 py-2 text-left text-[14px] font-normal whitespace-nowrap transition-colors sm:w-[300px] sm:min-w-[300px] sm:max-w-none",
-                    row.line.emphasis === "total" && "font-display tracking-[-0.02em]",
-                    row.line.emphasis === "subtotal" && "font-medium",
+                    "altius-sticky-cell text-pure-white sticky left-0 z-10 w-[150px] min-w-[150px] max-w-[150px] truncate px-4 py-2 text-left text-[14px] font-normal whitespace-nowrap transition-colors sm:w-[300px] sm:min-w-[300px] sm:max-w-none",
+                    row.line.emphasis === "total" && "font-display font-medium text-pure-white",
+                    row.line.emphasis === "subtotal" && "font-medium text-frost",
                   )}
                   style={{ paddingLeft: `${1 + (row.line.indent ?? 0) * 0.85}rem` }}
                 >
@@ -99,7 +99,7 @@ export function FinancialTable({
                 <td className="px-2 py-2 text-center whitespace-nowrap">
                   <Sparkline
                     values={rowValues}
-                    color={row.line.emphasis === "total" ? "var(--color-ember)" : "auto"}
+                    color={row.line.emphasis === "total" ? "#98a4f7" : "#646e87"}
                   />
                 </td>
                 {periods.map((p) => (

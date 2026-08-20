@@ -11,16 +11,16 @@ import "./globals.css";
  * indica el sistema: neo-grotesca de tracking apretado que aguanta el peso 400
  * en tamaños de display sin perder autoridad.
  */
-const polysans = Inter_Tight({
-  variable: "--font-polysans",
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
   subsets: ["latin"],
-  weight: ["400"],
+  weight: ["400", "500", "700"],
 });
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "700"],
 });
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -50,12 +50,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${polysans.variable} ${inter.variable} h-full antialiased`}
+      className={`${interTight.variable} ${inter.variable} h-full antialiased dark`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="bg-canvas-white text-graphite flex min-h-full flex-col transition-colors duration-200">
+      <body className="bg-void-black text-frost flex min-h-full flex-col selection:bg-iris-blue/30 selection:text-white transition-colors duration-200">
         <ThemeProvider>
           <TooltipProvider delayDuration={200}>
             <SiteHeader />

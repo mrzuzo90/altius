@@ -25,28 +25,30 @@ export function MacroChart({
           </defs>
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 10, fill: "var(--color-slate)" }}
+            tick={{ fontSize: 10, fill: "#646e87" }}
             tickLine={false}
             axisLine={false}
             minTickGap={44}
             tickFormatter={(v: string) => v.slice(0, 4)}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "var(--color-slate)" }}
+            tick={{ fontSize: 10, fill: "#646e87" }}
             tickLine={false}
             axisLine={false}
             width={44}
             tickFormatter={(v: number) => v.toLocaleString("es-ES", { maximumFractionDigits: 1 })}
           />
-          <ReferenceLine y={0} stroke="var(--color-mist)" />
+          <ReferenceLine y={0} stroke="#1f2433" />
           <Tooltip
             contentStyle={{
-              background: "var(--color-canvas-white)",
-              border: "1px solid var(--color-mist)",
-              borderRadius: 8, boxShadow: "none",
+              background: "#151621",
+              border: "1px solid #1f2433",
+              borderRadius: 10,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
               fontSize: 12,
+              color: "#ffffff",
             }}
-            labelStyle={{ color: "var(--color-slate)" }}
+            labelStyle={{ color: "#c9d3ee", fontWeight: 500 }}
             formatter={(v) => [
               `${Number(v).toLocaleString("es-ES", { maximumFractionDigits: 2 })} ${unidad}`,
               "",

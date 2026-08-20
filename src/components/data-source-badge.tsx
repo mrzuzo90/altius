@@ -16,10 +16,10 @@ export function DataSourceBadge({
   href?: string;
 }) {
   const contenido = (
-    <span className="border-mist text-steel inline-flex items-center gap-2 rounded-[20px] border px-3 py-1 text-[12px]">
-      <span className="bg-ember size-1.5 rounded-full" aria-hidden />
+    <span className="border-gunmetal bg-carbon-surface text-frost inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] font-mono">
+      <span className="bg-periwinkle-glow size-1.5 rounded-full" aria-hidden />
       {source}
-      {asOf ? <span className="text-slate">· {asOf}</span> : null}
+      {asOf ? <span className="text-muted-steel">· {asOf}</span> : null}
     </span>
   );
 

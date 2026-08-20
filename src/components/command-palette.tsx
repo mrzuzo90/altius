@@ -123,13 +123,13 @@ export function CommandPalette() {
                     key={h.cik + h.ticker}
                     value={`${h.ticker} ${h.name}`}
                     onSelect={() => ir(h.ticker)}
-                    className="flex items-center gap-3"
+                    className="flex items-center gap-3 py-2 cursor-pointer"
                   >
-                    <span className="bg-muted text-foreground min-w-14 rounded px-1.5 py-0.5 text-center font-mono text-xs font-semibold">
+                    <span className="bg-void-black text-periwinkle-glow border border-gunmetal min-w-14 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
                       {h.ticker}
                     </span>
-                    <span className="truncate text-sm">{h.name}</span>
-                    <span className="text-muted-foreground ml-auto font-mono text-[11px]">
+                    <span className="truncate text-sm text-pure-white font-medium">{h.name}</span>
+                    <span className="text-muted-steel ml-auto font-mono text-[11px]">
                       CIK {h.cik}
                     </span>
                   </CommandItem>

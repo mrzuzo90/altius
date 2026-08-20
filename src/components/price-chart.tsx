@@ -32,24 +32,24 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
   const variacion = primero !== 0 ? ((ultimo - primero) / primero) * 100 : 0;
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-baseline gap-3">
-        <span className="tabular font-display text-graphite text-[40px] leading-[1.2] tracking-[-0.8px]">
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
+      <div className="mb-4 flex flex-wrap items-baseline gap-3">
+        <span className="tabular font-display text-pure-white text-[36px] font-medium leading-none tracking-tight">
           {ultimo.toLocaleString("es-ES", { style: "currency", currency: "USD" })}
         </span>
-        <span className="tabular text-steel text-[14px]">
+        <span className={cn("tabular text-[13px] font-mono", sube ? "text-emerald-400" : "text-rose-400")}>
           {sube ? "+" : "−"}
-          {Math.abs(variacion).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % en el periodo
+          {Math.abs(variacion).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % ({rango === "1a" ? "1 año" : rango === "5a" ? "5 años" : "máx"})
         </span>
-        <div className="bg-ash ml-auto inline-flex rounded-[200px] p-1">
+        <div className="bg-void-black border-gunmetal ml-auto inline-flex rounded-full border p-1">
           {RANGOS.map((r) => (
             <button
               key={r.id}
               type="button"
               onClick={() => setRango(r.id)}
               className={cn(
-                "font-display rounded-[200px] px-3.5 py-1.5 text-[13px] tracking-[-0.02em] transition-colors",
-                rango === r.id ? "bg-canvas-white text-graphite" : "text-slate hover:text-graphite",
+                "font-display rounded-full px-3 py-1 text-[12px] font-medium tracking-tight transition-colors",
+                rango === r.id ? "bg-gunmetal text-pure-white" : "text-muted-steel hover:text-frost",
               )}
             >
               {r.label}
@@ -63,13 +63,13 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
           <AreaChart data={datos} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="grad-precio" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-ember)" stopOpacity={0.16} />
-                <stop offset="100%" stopColor="var(--color-ember)" stopOpacity={0} />
+                <stop offset="0%" stopColor="#98a4f7" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#98a4f7" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "var(--color-slate)" }}
+              tick={{ fontSize: 11, fill: "#646e87" }}
               tickLine={false}
               axisLine={false}
               minTickGap={48}
@@ -77,7 +77,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             />
             <YAxis
               domain={["auto", "auto"]}
-              tick={{ fontSize: 11, fill: "var(--color-slate)" }}
+              tick={{ fontSize: 11, fill: "#646e87" }}
               tickLine={false}
               axisLine={false}
               width={54}
@@ -85,12 +85,15 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             />
             <Tooltip
               contentStyle={{
-                background: "var(--color-canvas-white)",
-                border: "1px solid var(--color-mist)",
-                borderRadius: 8, boxShadow: "none",
+                background: "#151621",
+                border: "1px solid #1f2433",
+                borderRadius: 10,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
                 fontSize: 12,
+                color: "#ffffff",
               }}
-              labelStyle={{ color: "var(--color-slate)" }}
+              labelStyle={{ color: "#c9d3ee", fontWeight: 500 }}
+              itemStyle={{ color: "#98a4f7" }}
               formatter={(v) => [
                 Number(v).toLocaleString("es-ES", { style: "currency", currency: "USD" }),
                 "Cierre",
@@ -99,8 +102,8 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
             <Area
               type="monotone"
               dataKey="close"
-              stroke="var(--color-ember)"
-              strokeWidth={1.6}
+              stroke="#98a4f7"
+              strokeWidth={1.8}
               fill="url(#grad-precio)"
               isAnimationActive={false}
               dot={false}
@@ -108,7 +111,7 @@ export function PriceChart({ points, source }: { points: PricePoint[]; source: s
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-slate mt-3 text-[12px]">Cierres semanales ajustados por splits y dividendos · {source}</p>
+      <p className="text-muted-steel mt-3 text-[12px]">Cierres semanales ajustados por splits y dividendos · {source}</p>
     </div>
   );
 }
