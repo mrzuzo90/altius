@@ -289,3 +289,12 @@
 .nav-highlight {
   box-shadow: rgba(255, 255, 255, 0.25) 0px 1px 3px 0px inset;
 }
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

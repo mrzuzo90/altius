@@ -1,130 +1,108 @@
 import Link from "next/link";
 import { HomeSearch } from "@/components/home-search";
-import { ArrowRight, ShieldCheck, Zap, Database, TrendingUp } from "lucide-react";
+import { TickerRibbon } from "@/components/home/ticker-ribbon";
+import { MarketOverviewCards } from "@/components/home/market-overview-cards";
+import { MarketLeadersTable } from "@/components/home/market-leaders-table";
+import { InteractivePreview } from "@/components/home/interactive-preview";
+import { getFredSeries, yoyChange } from "@/lib/fred/client";
+import { ArrowRight, ShieldCheck, Zap, Database, Sparkles } from "lucide-react";
 
-const DESTACADOS = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JNJ", "JPM", "BRK.B"];
+export const revalidate = 3600;
 
-export default function Home() {
+export default async function Home() {
+  const [cpiData, fedData, unrateData] = await Promise.all([
+    getFredSeries("CPIAUCSL").catch(() => []),
+    getFredSeries("FEDFUNDS").catch(() => []),
+    getFredSeries("UNRATE").catch(() => []),
+  ]);
+
+  const cpiValue = yoyChange(cpiData).at(-1)?.value;
+  const fedFundsValue = fedData.at(-1)?.value;
+  const unrateValue = unrateData.at(-1)?.value;
+
   return (
-    <div className="bg-void-black text-frost min-h-screen">
-      {/* Hero Section — Midnight SRE Console Split */}
-      <section className="mx-auto grid max-w-[1200px] gap-x-16 gap-y-12 px-5 pt-16 pb-20 lg:grid-cols-[1.1fr_0.9fr] lg:pt-24 lg:pb-28">
-        <div className="flex flex-col justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gunmetal bg-carbon-surface px-3 py-1 text-[12px] font-medium text-periwinkle-glow mb-6 w-fit">
-            <span className="size-1.5 rounded-full bg-periwinkle-glow animate-pulse" />
-            <span>Terminal Fundamental · Datos XBRL de la SEC en Tiempo Real</span>
+    <div className="bg-void-black text-frost min-h-screen pb-20">
+      {/* 1. Live Market Ticker Tape Ribbon */}
+      <TickerRibbon />
+
+      {/* 2. Hero Section — Wall Street Terminal Console */}
+      <section className="mx-auto max-w-[1200px] px-5 pt-12 pb-14 sm:pt-16 sm:pb-20">
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gunmetal bg-carbon-surface px-4 py-1 text-[12px] font-mono text-periwinkle-glow shadow-xs">
+            <span className="size-2 rounded-full bg-periwinkle-glow animate-pulse" />
+            <span>TERMINAL INSTITUCIONAL · 100% DATOS XBRL OFICIALES</span>
           </div>
 
-          <h1 className="font-display text-pure-white text-[42px] leading-[1.06] tracking-[-0.01em] text-balance sm:text-[50px] lg:text-[53px]">
-            Los números que las empresas presentan de verdad.
+          <h1 className="font-display text-pure-white text-[44px] leading-[1.05] tracking-tight sm:text-[54px] lg:text-[60px] font-medium text-balance">
+            La terminal fundamental de Wall Street sin ruido.
           </h1>
 
-          <p className="text-frost/90 mt-6 max-w-lg text-[18px] leading-[1.55] text-pretty font-sans font-normal">
-            Estados financieros leídos directamente del XBRL de la Comisión de Bolsa y Valores de
-            EE. UU. Sin estimaciones de terceros, sin relleno y con las reexpresiones ya consolidadas.
+          <p className="text-frost/90 max-w-2xl mx-auto text-[18px] leading-[1.55] text-pretty font-normal">
+            Múltiplos LTM, 10 años de estados financieros XBRL consolidados y calculadora de valoración a 5 años leídos directamente de la SEC y la Reserva Federal.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
-              href="/ticker/AAPL/financials"
-              className="btn-primary-gradient inline-flex items-center gap-2 px-6 py-3 text-[15px] font-medium"
-            >
-              <span>Explorar Terminal</span>
-              <ArrowRight className="size-4" />
-            </Link>
-
-            <Link
-              href="/macro"
-              className="btn-ghost-pill inline-flex items-center gap-2 px-5 py-3 text-[15px] font-medium"
-            >
-              <span>Panel Macroeconómico</span>
-            </Link>
-          </div>
-
-          <div className="mt-10 max-w-md">
+          <div className="pt-2 max-w-xl mx-auto">
             <HomeSearch />
-          </div>
-        </div>
-
-        {/* Hero Product Screenshot Mockup / Observability Card */}
-        <div className="flex flex-col gap-4 self-center">
-          <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gunmetal pb-4 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-gunmetal/80 text-pure-white font-mono text-xs font-semibold">
-                  AAPL
-                </div>
-                <div>
-                  <h3 className="font-display text-pure-white text-[16px] font-medium">Apple Inc.</h3>
-                  <p className="text-muted-steel text-[12px]">NASDAQ · Hardware & Services</p>
-                </div>
-              </div>
-              <span className="border-gunmetal bg-void-black text-periwinkle-glow rounded-full border px-2.5 py-0.5 text-[11px] font-mono">
-                FY 2025 · 10-K
-              </span>
-            </div>
-
-            <dl className="space-y-3">
-              <MetricRow label="Ingresos Totales" value="$416.161 M" change="+6.2% YoY" />
-              <MetricRow label="Resultado de Explotación (EBIT)" value="$133.050 M" change="+9.5% YoY" />
-              <MetricRow label="Flujo de Caja Libre (FCF)" value="$98.767 M" change="+12.1% YoY" />
-              <MetricRow label="Retorno sobre Capital (ROIC)" value="56.4 %" highlight />
-            </dl>
-
-            <div className="mt-5 flex items-center justify-between border-t border-gunmetal pt-4 text-[12px] text-muted-steel">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-periwinkle-glow" />
-                Auditoría XBRL Exacta
-              </span>
-              <span>10 ejercicios normalizados</span>
-            </div>
-          </div>
-
-          {/* Mini Stat Cards */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5">
-              <p className="text-muted-steel text-[12px]">Histórico Anual</p>
-              <p className="font-display text-pure-white mt-1.5 text-[32px] font-medium tracking-tight">10 Años</p>
-              <p className="text-periwinkle-glow text-[12px] mt-0.5">Reexpresiones vigentes</p>
-            </div>
-            <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5">
-              <p className="text-muted-steel text-[12px]">Trimestres</p>
-              <p className="font-display text-pure-white mt-1.5 text-[32px] font-medium tracking-tight">8 Periodos</p>
-              <p className="text-periwinkle-glow text-[12px] mt-0.5">Q4 derivado exacto</p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[12px] text-muted-steel font-mono">
+              <span>Populares:</span>
+              {[
+                { t: "NVDA", p: "$128.40" },
+                { t: "AAPL", p: "$232.15" },
+                { t: "MSFT", p: "$418.90" },
+                { t: "AMZN", p: "$186.50" },
+                { t: "GOOGL", p: "$165.20" },
+                { t: "TSLA", p: "$215.80" },
+              ].map((item) => (
+                <Link
+                  key={item.t}
+                  href={`/ticker/${item.t}`}
+                  className="bg-carbon-surface hover:bg-gunmetal text-frost hover:text-pure-white px-2 py-0.5 rounded border border-gunmetal transition-colors"
+                >
+                  <span className="font-bold text-pure-white">{item.t}</span> {item.p}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Tickers Bar — Monochrome Logo Trust Bar Style */}
-      <section className="border-y border-gunmetal bg-carbon-surface/50 py-8">
-        <div className="mx-auto max-w-[1200px] px-5">
-          <p className="text-muted-steel text-center text-[12px] font-medium tracking-wider uppercase mb-5">
-            Cobertura directa de más de 10.000 empresas registradas en la SEC
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-[14px]">
-            {DESTACADOS.map((t) => (
-              <Link
-                key={t}
-                href={`/ticker/${t}`}
-                className="text-muted-steel hover:text-pure-white transition-colors px-2 py-1 rounded hover:bg-gunmetal/50"
-              >
-                {t}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Blocks — 3 Columns Midnight Cards */}
-      <section className="mx-auto max-w-[1200px] px-5 py-24">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="font-display text-pure-white text-[36px] leading-[1.17] tracking-tight">
-            Infraestructura fundamental de nivel institucional
+      {/* 3. Market & Macro Overview Cards */}
+      <section className="mx-auto max-w-[1200px] px-5 mb-14">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-pure-white text-[16px] font-medium tracking-tight uppercase font-mono text-muted-steel">
+            Pulso Macroeconómico y de Mercado
           </h2>
-          <p className="text-frost mt-3 text-[16px] leading-[1.6]">
-            Tres superficies de análisis diseñadas como una consola SRE: cero latencia, datos sin procesar de fuentes oficiales y máxima densidad visual.
-          </p>
+          <Link href="/macro" className="text-periwinkle-glow hover:underline text-[13px] font-medium inline-flex items-center gap-1">
+            <span>Ver observatorio macro completo</span>
+            <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+        <MarketOverviewCards
+          cpiValue={cpiValue}
+          fedFundsValue={fedFundsValue}
+          unrateValue={unrateValue}
+        />
+      </section>
+
+      {/* 4. Interactive Terminal Preview Showcase */}
+      <section className="mx-auto max-w-[1200px] px-5 mb-14">
+        <InteractivePreview />
+      </section>
+
+      {/* 5. Market Leaders & Valuation Table (TIKR Screener Style) */}
+      <section className="mx-auto max-w-[1200px] px-5 mb-20">
+        <MarketLeadersTable />
+      </section>
+
+      {/* 6. Feature Blocks */}
+      <section className="mx-auto max-w-[1200px] px-5 py-12 border-t border-gunmetal/80">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <span className="text-periwinkle-glow font-mono text-[11px] uppercase tracking-wider font-semibold">
+            Arquitectura de Análisis
+          </span>
+          <h2 className="font-display text-pure-white text-[32px] font-medium tracking-tight mt-1">
+            Todo lo que un analista necesita en una sola pantalla
+          </h2>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -132,78 +110,55 @@ export default function Home() {
             icon={<Database className="size-5 text-periwinkle-glow" />}
             index="01"
             title="Estados Financieros XBRL"
-            text="Balance, cuenta de resultados, flujo de caja y ratios calculados. El motor resuelve los cambios de etiqueta contable para que el histórico no se corte al cambiar la taxonomía GAAP."
+            text="Balance, cuenta de resultados y flujo de caja normalizados. El motor resuelve los cambios de etiqueta periodo a periodo para mantener el histórico intacto."
             href="/ticker/AAPL/financials"
-            cta="Abrir estados financieros"
+            cta="Abrir terminal XBRL"
           />
 
           <FeatureCard
             icon={<Zap className="size-5 text-periwinkle-glow" />}
             index="02"
-            title="Modelo de Valoración DCF"
-            text="Calculadora interactiva de proyecciones a 5 años en tiempo real. Ajusta estimaciones de crecimiento, margen EBIT, tasa impositiva y múltiplos de salida con cálculo instantáneo de Margen de Seguridad."
+            title="Calculadora de Valoración DCF"
+            text="Simulación interactiva de proyecciones a 5 años con cálculo en tiempo real de Precio Objetivo, Margen de Seguridad (%) y rentabilidad CAGR esperada."
             href="/ticker/AAPL/valuation"
-            cta="Explorar valoración"
+            cta="Proyectar valoración"
           />
 
           <FeatureCard
-            icon={<TrendingUp className="size-5 text-periwinkle-glow" />}
+            icon={<Sparkles className="size-5 text-periwinkle-glow" />}
             index="03"
-            title="Contexto Macroeconómico"
-            text="Inflación IPC, tipo de interés efectivo de los fondos federales (FEDFUNDS) y tasa de desempleo servidos directamente por la Reserva Federal de San Luis (FRED)."
-            href="/macro"
-            cta="Ver panel macro"
+            title="Auditoría de Calidad (Moats)"
+            text="Checklist automatizado de 6 filtros cuantitativos (ROIC > 15%, márgenes, conversión de FCF y recompras de acciones) para detectar Compounders al instante."
+            href="/ticker/AAPL"
+            cta="Ver scorecard de calidad"
           />
         </div>
       </section>
 
-      {/* Comparison / Case Study Card */}
-      <section className="mx-auto max-w-[1200px] px-5 pb-24">
-        <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-8 sm:p-12 relative overflow-hidden">
-          <div className="max-w-2xl">
-            <span className="text-periwinkle-glow font-display text-[12px] uppercase tracking-wider font-semibold">
-              Rigor Metodológico
-            </span>
-            <h2 className="font-display text-pure-white text-[32px] leading-[1.2] tracking-tight mt-2">
-              Una raya no es un cero
-            </h2>
-            <p className="text-frost mt-4 text-[16px] leading-[1.6]">
-              Cuando una empresa no publica un concepto, Altius muestra una raya en lugar de un dato inventado. Cuando reexpresa un ejercicio, muestra la versión vigente: Johnson &amp; Johnson rebajó sus ingresos de 2022 de 94.943 a 79.990 millones tras escindir Kenvue, y aquí verás la cifra que la empresa sostiene hoy.
+      {/* 7. Methodology & Integrity Banner */}
+      <section className="mx-auto max-w-[1200px] px-5">
+        <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="max-w-2xl space-y-3">
+            <div className="flex items-center gap-2 text-periwinkle-glow text-[13px] font-medium font-mono">
+              <ShieldCheck className="size-4" />
+              <span>GARANTÍA DE VERACIDAD DE DATOS</span>
+            </div>
+            <h3 className="font-display text-pure-white text-[24px] font-medium tracking-tight">
+              Una raya en Altius significa que la empresa no reporta ese concepto.
+            </h3>
+            <p className="text-frost/80 text-[14px] leading-[1.6]">
+              No introducimos ceros ficticios ni extrapolaciones no auditadas. Cuando Johnson &amp; Johnson rebajó sus ingresos de 2022 de 94.943 a 79.990 millones tras escindir Kenvue, Altius muestra la cifra reexpresada que la compañía sostiene ante la SEC.
             </p>
-            <Link
-              href="/ticker/JNJ/financials"
-              className="text-periwinkle-glow hover:underline inline-flex items-center gap-1.5 text-[15px] font-medium mt-6"
-            >
-              <span>Ver el caso práctico de Johnson &amp; Johnson</span>
-              <ArrowRight className="size-4" />
-            </Link>
           </div>
+          <Link
+            href="/ticker/JNJ/financials"
+            className="btn-primary-gradient shrink-0 px-6 py-3 text-[14px] font-medium inline-flex items-center gap-2"
+          >
+            <span>Ver caso Johnson &amp; Johnson</span>
+            <ArrowRight className="size-4" />
+          </Link>
         </div>
       </section>
-    </div>
-  );
-}
-
-function MetricRow({
-  label,
-  value,
-  change,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  change?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-gunmetal/60 pb-2.5 last:border-0 last:pb-0">
-      <dt className="text-frost text-[13px]">{label}</dt>
-      <div className="flex items-center gap-2">
-        <dd className={`tabular font-display font-medium text-[15px] ${highlight ? "text-periwinkle-glow" : "text-pure-white"}`}>
-          {value}
-        </dd>
-        {change ? <span className="text-[11px] text-muted-steel font-mono">{change}</span> : null}
-      </div>
     </div>
   );
 }
@@ -224,25 +179,25 @@ function FeatureCard({
   cta: string;
 }) {
   return (
-    <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-8 flex flex-col justify-between hover:border-steel-border/40 transition-colors">
+    <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-7 flex flex-col justify-between hover:border-steel-border/40 transition-colors group">
       <div>
         <div className="flex items-center justify-between mb-4">
-          <div className="size-9 rounded-xl bg-gunmetal/60 flex items-center justify-center border border-gunmetal">
+          <div className="size-9 rounded-xl bg-void-black flex items-center justify-center border border-gunmetal">
             {icon}
           </div>
           <span className="font-mono text-muted-steel text-[12px]">{index}</span>
         </div>
-        <h3 className="font-display text-pure-white text-[20px] font-medium tracking-tight mb-3">
+        <h3 className="font-display text-pure-white text-[18px] font-medium tracking-tight mb-2.5">
           {title}
         </h3>
-        <p className="text-frost/80 text-[14px] leading-[1.6]">
+        <p className="text-frost/80 text-[13px] leading-[1.6]">
           {text}
         </p>
       </div>
 
       <Link
         href={href}
-        className="text-periwinkle-glow hover:underline inline-flex items-center gap-1 text-[14px] font-medium mt-6"
+        className="text-periwinkle-glow group-hover:underline inline-flex items-center gap-1 text-[13px] font-medium mt-6"
       >
         <span>{cta}</span>
         <ArrowRight className="size-3.5" />
