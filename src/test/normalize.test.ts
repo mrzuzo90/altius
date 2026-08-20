@@ -246,6 +246,58 @@ describe("integridad contable del balance", () => {
   });
 });
 
+describe("procedencia de cada celda", () => {
+  it("cada celda reportada lleva concepto, unidad, formulario, fecha y número de acceso", () => {
+    const st = normalizeStatement(AAPL, INCOME_STATEMENT, "annual", 10);
+    const ingresos = st.rows.find((r) => r.line.id === "revenue")!;
+    const celda = ingresos.cells[st.periods[0].key];
+
+    expect(celda.provenance.kind).toBe("reported");
+    if (celda.provenance.kind !== "reported") throw new Error("procedencia inesperada");
+
+    expect(celda.provenance.concept).toBeTruthy();
+    expect(celda.provenance.unit).toBe("USD");
+    expect(celda.provenance.form).toMatch(/^10-[KQ]$/);
+    expect(celda.provenance.accn).toMatch(/^\d{10}-\d{2}-\d{6}$/);
+    expect(celda.provenance.filed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(celda.provenance.periodStart).not.toBeNull();
+    expect(celda.provenance.periodEnd).toBe(st.periods[0].end);
+  });
+
+  it("una celda sin dato declara ausencia, no una procedencia vacía", () => {
+    // Ninguna empresa reporta las veintiuna líneas del balance, así que siempre
+    // hay celdas vacías con las que comprobar esto sobre datos reales.
+    const st = normalizeStatement(AAPL, BALANCE_SHEET, "annual", 10);
+    const vacias = st.rows.flatMap((fila) =>
+      st.periods.map((p) => fila.cells[p.key]).filter((c) => c && c.value === null),
+    );
+
+    expect(vacias.length).toBeGreaterThan(0);
+    for (const celda of vacias) expect(celda.provenance.kind).toBe("absent");
+  });
+
+  it("el flujo de caja libre derivado declara su fórmula y sus dos entradas", () => {
+    const st = normalizeStatement(AAPL, CASH_FLOW, "annual", 10);
+    const fcf = st.rows.find((r) => r.line.id === "freeCashFlow")!;
+    const celda = fcf.cells[st.periods[0].key];
+
+    expect(celda.derived).toBe(true);
+    expect(celda.provenance.kind).toBe("derived");
+    if (celda.provenance.kind !== "derived") throw new Error("procedencia inesperada");
+
+    expect(celda.provenance.formula).toBe(
+      "Flujo de caja de explotación − Inversión en inmovilizado",
+    );
+    expect(celda.provenance.inputs).toHaveLength(2);
+    // Cada entrada de un derivado arrastra su propia procedencia reportada.
+    expect(celda.provenance.inputs[0].source.kind).toBe("reported");
+    expect(celda.provenance.inputs[1].source.kind).toBe("reported");
+    // La fórmula cuadra con el valor mostrado.
+    const [cfo, capex] = celda.provenance.inputs;
+    expect(celda.value).toBeCloseTo(cfo.value - capex.value, 0);
+  });
+});
+
 describe("prioridad de conceptos donde varios candidatos compiten", () => {
   const anual = (facts: CompanyFacts, id: string, fy: string) => {
     const st = normalizeStatement(facts, INCOME_STATEMENT, "annual", 12);

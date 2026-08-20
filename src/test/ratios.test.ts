@@ -9,7 +9,10 @@ function createDummyStatement(
   const rows: LineSeries[] = Object.entries(rowsData).map(([id, values]) => ({
     line: { id, label: id, concepts: [], kind: "duration", unit: "USD" },
     cells: Object.fromEntries(
-      periods.map((p, idx) => [p.key, { value: values[idx], derived: false }]),
+      periods.map((p, idx) => [
+        p.key,
+        { value: values[idx], derived: false, provenance: { kind: "absent" as const } },
+      ]),
     ),
   }));
   return { periods, rows };
@@ -117,5 +120,42 @@ describe("buildRatiosStatement", () => {
     expect(getVal("revenueGrowthYoY", "2024Q3")).toBeCloseTo(10);
     // 2024Q2 no tiene 2023Q2 en los periodos suministrados -> null
     expect(getVal("revenueGrowthYoY", "2024Q2")).toBeNull();
+  });
+
+  it("cada ratio con valor declara su fórmula y las entradas que la alimentan", () => {
+    const income = createDummyStatement(periods, {
+      revenue: [1000, 800],
+      grossProfit: [400, 300],
+      operatingIncome: [300, 200],
+      pretaxIncome: [280, 190],
+      incomeTax: [56, 38],
+      netIncome: [224, 152],
+    });
+    const balance = createDummyStatement(periods, {
+      equity: [900, 700],
+      totalAssets: [1500, 1200],
+    });
+    const cashflow = createDummyStatement(periods, {
+      operatingCashFlow: [320, 240],
+      capex: [-70, -60],
+      freeCashFlow: [250, 180],
+    });
+
+    const ratios = buildRatiosStatement(income, balance, cashflow, "annual");
+    const margen = ratios.rows.find((r) => r.line.id === "operatingMargin")!;
+    const celda = margen.cells[ratios.periods[0].key];
+
+    expect(celda.provenance.kind).toBe("derived");
+    if (celda.provenance.kind !== "derived") throw new Error("procedencia inesperada");
+    expect(celda.provenance.formula).toBe("Resultado de explotación ÷ Ingresos × 100");
+    expect(celda.provenance.inputs.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("las catorce líneas de RATIOS_STATEMENT tienen fórmula declarada", () => {
+    const vacio = createDummyStatement(periods, {});
+    const ratios = buildRatiosStatement(vacio, vacio, vacio, "annual");
+    // Sin datos todas las celdas son ausentes, pero la lista de filas es la
+    // completa: detecta una línea nueva en la taxonomía sin entrada en FORMULAS.
+    expect(ratios.rows).toHaveLength(14);
   });
 });

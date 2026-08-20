@@ -1,5 +1,6 @@
 import type { CompanyFacts, XbrlFact } from "./types";
 import type { LineDef } from "./taxonomy";
+import { ABSENT, type Provenance } from "./provenance";
 
 /**
  * Motor de normalización XBRL.
@@ -27,8 +28,10 @@ export type Cell = {
   value: number | null;
   /** Cierto si Altius ha calculado el valor en lugar de leerlo del informe. */
   derived: boolean;
-  /** Concepto XBRL del que procede el valor. Permite auditar cada celda. */
+  /** Concepto XBRL del que procede el valor. Se conserva por comodidad de la interfaz. */
   concept?: string;
+  /** De dónde sale exactamente este número. Nunca `undefined`. */
+  provenance: Provenance;
 };
 
 export type LineSeries = { line: LineDef; cells: Record<PeriodKey, Cell> };
@@ -105,7 +108,16 @@ const claveDe = (freq: Frequency, fy: number, q: number): PeriodKey =>
 const etiquetaDe = (freq: Frequency, fy: number, q: number): string =>
   freq === "annual" ? `FY ${fy}` : `Q${q} ${fy}`;
 
-type Resuelto = { value: number; end: string; filed: string; concept: string };
+type Resuelto = {
+  value: number;
+  end: string;
+  start: string | null;
+  filed: string;
+  concept: string;
+  form: string;
+  accn: string;
+  unit: string;
+};
 
 /**
  * Recolecta los hechos de un concepto, ya filtrados y deduplicados.
@@ -148,7 +160,16 @@ function recolectar(
     const key = claveDe(freq, fiscalYear, quarter);
     const previo = salida.get(key);
     if (previo && previo.filed >= f.filed) continue;
-    salida.set(key, { value: f.val, end: f.end, filed: f.filed, concept: concepto });
+    salida.set(key, {
+      value: f.val,
+      end: f.end,
+      start: f.start ?? null,
+      filed: f.filed,
+      concept: concepto,
+      form: f.form ?? "",
+      accn: f.accn,
+      unit: linea.unit,
+    });
   }
   return salida;
 }
@@ -173,8 +194,12 @@ function derivarQ4(
     salida.set(claveQ4, {
       value: total.value - q1.value - q2.value - q3.value,
       end: total.end,
+      start: q1.start,
       filed: total.filed,
       concept: total.concept,
+      form: total.form,
+      accn: total.accn,
+      unit: total.unit,
     });
   }
   return salida;
@@ -244,9 +269,23 @@ export function normalizeStatement(
     .sort((a, b) => (a.end < b.end ? 1 : a.end > b.end ? -1 : 0))
     .slice(0, maxPeriods);
 
-  const enRango = new Set(periods.map((p) => p.key));
   const leer = (id: string, key: PeriodKey): number | null =>
     porLinea.get(id)?.get(key)?.value ?? null;
+
+  const leerFuente = (id: string, key: PeriodKey): Provenance => {
+    const r = porLinea.get(id)?.get(key);
+    if (!r) return ABSENT;
+    return {
+      kind: "reported",
+      concept: r.concept,
+      unit: r.unit,
+      periodStart: r.start,
+      periodEnd: r.end,
+      form: r.form,
+      filed: r.filed,
+      accn: r.accn,
+    };
+  };
 
   const rows: LineSeries[] = lines.map((linea) => {
     const cells: Record<PeriodKey, Cell> = {};
@@ -254,9 +293,20 @@ export function normalizeStatement(
     const derivadosLinea = derivados.get(linea.id) ?? new Set();
 
     for (const p of periods) {
-      let value = brutos.get(p.key)?.value ?? null;
-      let concept = brutos.get(p.key)?.concept;
+      const bruto = brutos.get(p.key);
+      let value = bruto?.value ?? null;
+      let concept = bruto?.concept;
       let derived = derivadosLinea.has(p.key);
+      let provenance: Provenance = bruto ? leerFuente(linea.id, p.key) : ABSENT;
+
+      // Q4 se obtiene restando, no leyendo: la procedencia lo dice.
+      if (derived && bruto) {
+        provenance = {
+          kind: "derived",
+          formula: "Ejercicio completo − Q1 − Q2 − Q3",
+          inputs: [{ label: "Ejercicio completo", value: bruto.value, source: leerFuente(linea.id, p.key) }],
+        };
+      }
 
       // Las dos únicas magnitudes que Altius calcula, y solo cuando la empresa
       // no las publica o cuando por definición no existen en el informe.
@@ -267,6 +317,14 @@ export function normalizeStatement(
           value = ingresos - coste;
           derived = true;
           concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Ingresos − Coste de ventas",
+            inputs: [
+              { label: "Ingresos", value: ingresos, source: leerFuente("revenue", p.key) },
+              { label: "Coste de ventas", value: coste, source: leerFuente("costOfRevenue", p.key) },
+            ],
+          };
         }
       }
       if (linea.computed === "freeCashFlow") {
@@ -276,15 +334,23 @@ export function normalizeStatement(
           value = cfo - capex;
           derived = true;
           concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Flujo de caja de explotación − Inversión en inmovilizado",
+            inputs: [
+              { label: "Flujo de caja de explotación", value: cfo, source: leerFuente("operatingCashFlow", p.key) },
+              { label: "Inversión en inmovilizado", value: capex, source: leerFuente("capex", p.key) },
+            ],
+          };
         }
       }
 
       if (value !== null && linea.negate) value = -value;
-      cells[p.key] = { value, derived, concept };
+      if (value === null) provenance = ABSENT;
+      cells[p.key] = { value, derived, concept, provenance };
     }
     return { line: linea, cells };
   });
 
-  void enRango;
   return { periods, rows };
 }

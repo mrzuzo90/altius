@@ -10,7 +10,10 @@ function createDummyStatement(
   const rows: LineSeries[] = Object.entries(rowsData).map(([id, values]) => ({
     line: { id, label: id, concepts: [], kind: "duration", unit: "USD" },
     cells: Object.fromEntries(
-      periods.map((p, idx) => [p.key, { value: values[idx], derived: false }]),
+      periods.map((p, idx) => [
+        p.key,
+        { value: values[idx], derived: false, provenance: { kind: "absent" as const } },
+      ]),
     ),
   }));
   return { periods, rows };
