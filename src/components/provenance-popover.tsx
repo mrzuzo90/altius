@@ -34,7 +34,15 @@ export function ProvenanceDetail({ cik, provenance }: { cik: string; provenance:
           {provenance.inputs.map((entrada) => (
             <div key={entrada.label} className="flex justify-between gap-4 text-[12px]">
               <dt className="text-muted-steel">{entrada.label}</dt>
-              <dd className="text-frost tabular">{formatValue(entrada.value, "USD", "millions")}</dd>
+              <dd className="text-frost tabular">
+                {entrada.source.kind === "absent" ? (
+                  formatValue(entrada.value, "USD", "millions")
+                ) : (
+                  <ProvenancePopover cik={cik} provenance={entrada.source}>
+                    <span>{formatValue(entrada.value, "USD", "millions")}</span>
+                  </ProvenancePopover>
+                )}
+              </dd>
             </div>
           ))}
         </dl>
@@ -65,6 +73,7 @@ export function ProvenanceDetail({ cik, provenance }: { cik: string; provenance:
         />
         <Fila t="Formulario" v={provenance.form} />
         <Fila t="Presentado" v={formatDate(provenance.filed)} />
+        <Fila t="Número de acceso" v={provenance.accn} />
       </dl>
       <a
         href={edgarFilingUrl(cik, provenance.accn)}
