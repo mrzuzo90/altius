@@ -108,7 +108,12 @@ export function StatementTabs({
             key={`${b.id}-${frequency}-${scale}`}
             className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
           >
-            <FinancialTable periods={b.periods} rows={b.rows} scale={scale} />
+            <FinancialTable
+              periods={b.periods}
+              rows={b.rows}
+              scale={scale}
+              cik={bundle.profile.cik}
+            />
           </div>
         </TabsContent>
       ))}

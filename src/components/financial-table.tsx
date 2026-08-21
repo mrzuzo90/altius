@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { formatValue, type Scale } from "@/lib/format";
 import type { Cell, LineSeries, Period } from "@/lib/sec/normalize";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProvenancePopover } from "@/components/provenance-popover";
 
 /**
  * Tabla financiera densa.
@@ -27,10 +27,12 @@ export function FinancialTable({
   periods,
   rows,
   scale,
+  cik,
 }: {
   periods: Period[];
   rows: LineSeries[];
   scale: Scale;
+  cik: string;
 }) {
   if (periods.length === 0) {
     return (
@@ -110,6 +112,7 @@ export function FinancialTable({
                     unit={row.line.unit}
                     scale={scale}
                     total={row.line.emphasis === "total"}
+                    cik={cik}
                   />
                 ))}
               </tr>
@@ -126,11 +129,13 @@ function Celda({
   unit,
   scale,
   total,
+  cik,
 }: {
   cell: Cell | undefined;
   unit: LineSeries["line"]["unit"];
   scale: Scale;
   total: boolean;
+  cik: string;
 }) {
   const value = cell?.value ?? null;
   const texto = formatValue(value, unit, scale);
@@ -150,22 +155,10 @@ function Celda({
 
   return (
     <td className="px-4 py-2 text-right whitespace-nowrap">
-      {cell?.derived ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" className="cursor-help">{contenido}</button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-[12px]">
-            Valor calculado por Altius, no reportado directamente en el informe.
-          </TooltipContent>
-        </Tooltip>
-      ) : cell?.concept ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" className="cursor-help">{contenido}</button>
-          </TooltipTrigger>
-          <TooltipContent className="font-mono text-[11px]">{cell.concept}</TooltipContent>
-        </Tooltip>
+      {cell && cell.provenance.kind !== "absent" ? (
+        <ProvenancePopover cik={cik} provenance={cell.provenance}>
+          <span className="cursor-help">{contenido}</span>
+        </ProvenancePopover>
       ) : (
         contenido
       )}
