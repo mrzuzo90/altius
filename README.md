@@ -18,7 +18,11 @@ Todo dato mostrado es trazable a un documento público. En concreto:
   Altius muestra la versión más reciente. Johnson & Johnson rebajó sus ingresos
   de 2022 de 94.943 a 79.990 millones tras escindir Kenvue: aquí verás 79.990,
   porque la cifra original ya no es lo que la empresa sostiene.
-- **Cada bloque declara su procedencia** y la fecha del dato.
+- **Cada celda declara su procedencia.** Si es un hecho publicado: concepto
+  XBRL, unidad, periodo, formulario, fecha de presentación y número de acceso.
+  Si es un cálculo de Altius: la fórmula y la procedencia de cada entrada.
+  Tipos en `src/lib/sec/provenance.ts`. Por ahora vive en el motor; todavía no
+  hay una interfaz para consultarla celda a celda.
 
 ## Puesta en marcha
 
@@ -46,9 +50,9 @@ macro funcionan sin credenciales.
 | `SEC_USER_AGENT` | **Sí** | Nombre y email reales. Sin ella, la SEC devuelve 403 |
 | `GEMINI_API_KEY` | No | Activa el copiloto. Clave gratuita en [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Sin ella, el resumen es extractivo y se marca como tal |
 | `ALPHAVANTAGE_API_KEY` | No | Activa el gráfico de cotización. Clave gratuita en [alphavantage.co](https://www.alphavantage.co/support/#api-key). Su plan gratuito permite 25 peticiones diarias |
-| `GEMINI_MODEL` | No | Modelo de Gemini. Por defecto `gemini-3.6-flash` |
+| `GEMINI_MODEL` | No | Modelo de Gemini. Por defecto `gemini-flash-latest`, con salto automático a `gemini-flash-lite-latest` si falla |
 | `FRED_API_KEY` | No | Conmuta al API JSON de FRED. Sin ella se usa el CSV público, que da los mismos datos |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Activa la caché compartida en Postgres |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Sin efecto todavía. El adaptador (`src/lib/cache/supabase-store.ts`) existe pero `getCacheStore()` no lo selecciona aún |
 
 ## Fuentes de datos
 
@@ -76,9 +80,10 @@ de proveedor: cambiar de fuente es escribir un fichero en `src/lib/prices/`.
 ## Arquitectura
 
 ```
-src/lib/sec/       Cliente de la SEC, taxonomía XBRL y motor de normalización
+src/lib/sec/       Cliente de la SEC, taxonomía XBRL, motor de normalización y procedencia
 src/lib/fred/      Series macroeconómicas
 src/lib/prices/    Cotizaciones, tras una interfaz de proveedor
+src/lib/valuation/ Métricas de mercado y calculadora de proyección a 5 años
 src/lib/ai/        Copiloto del MD&A, con degradación extractiva
 src/lib/cache/     Interfaz CacheStore: adaptador de disco y de Postgres
 src/components/    Interfaz
@@ -116,7 +121,7 @@ a periodo, quedan diez ejercicios contiguos.
 npm test
 ```
 
-Noventa y cuatro pruebas sobre fixtures reales de Apple, Tesla y Johnson & Johnson.
+La suite completa corre sobre fixtures reales de Apple, Tesla y Johnson & Johnson.
 Además de las cifras concretas, se comprueban dos invariantes:
 
 - El activo total iguala pasivo más patrimonio en las tres empresas y en todos
@@ -137,9 +142,10 @@ Define las variables de entorno en el panel del proyecto. `SEC_USER_AGENT` es la
 
 **Sobre la caché en producción:** el adaptador de disco escribe en `/tmp`, que en
 Vercel es efímero y no se comparte entre invocaciones concurrentes. Allí es una
-caché oportunista de instancia. La caché compartida real la aportan `revalidate`
-de Next y, cuando conectes Supabase, la tabla de
-`supabase/migrations/0001_cache_tables.sql`.
+caché oportunista de instancia. Hoy la única caché compartida real la aporta
+`revalidate` de Next. El adaptador de Postgres (`supabase/migrations/0001_cache_tables.sql`,
+`src/lib/cache/supabase-store.ts`) está escrito pero `getCacheStore()` todavía
+no lo selecciona, así que conectar Supabase no activa nada por sí solo.
 
 ## Alcance
 
