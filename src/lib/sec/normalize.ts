@@ -1,6 +1,6 @@
 import type { CompanyFacts, XbrlFact } from "./types";
 import type { LineDef } from "./taxonomy";
-import { ABSENT, type Provenance } from "./provenance";
+import { ABSENT, type DerivedProvenance, type Provenance } from "./provenance";
 
 /**
  * Motor de normalización XBRL.
@@ -294,7 +294,32 @@ export function normalizeStatement(
     accn: r.accn,
   });
 
+  /**
+   * Procedencia derivada de un Q4: el ejercicio completo y los tres
+   * trimestres, con su propia procedencia reportada cada uno. Se usa tanto
+   * para la propia línea (donde puede necesitar invertirse, ver `negate`)
+   * como para cualquier otra línea que la cite como entrada — un Q4 nunca es
+   * "reported" solo porque ya esté resuelto en `porLinea`.
+   */
+  const provenanciaQ4 = (fq4: FuentesQ4): DerivedProvenance => ({
+    kind: "derived",
+    formula: "Ejercicio completo − Q1 − Q2 − Q3",
+    inputs: [
+      { label: "Ejercicio completo", value: fq4.anual.value, source: resueltoAProvenance(fq4.anual) },
+      { label: "Q1", value: fq4.q1.value, source: resueltoAProvenance(fq4.q1) },
+      { label: "Q2", value: fq4.q2.value, source: resueltoAProvenance(fq4.q2) },
+      { label: "Q3", value: fq4.q3.value, source: resueltoAProvenance(fq4.q3) },
+    ],
+  });
+
   const leerFuente = (id: string, key: PeriodKey): Provenance => {
+    // Un Q4 derivado nunca es "reported", ni siquiera cuando lo cita otra
+    // línea (p. ej. el ingreso de Q4 dentro del beneficio bruto): se cita
+    // como lo que es, una resta, o se oculta un nivel de la derivación.
+    if (derivados.get(id)?.has(key)) {
+      const fq4 = fuentesQ4.get(id)?.get(key);
+      if (fq4) return provenanciaQ4(fq4);
+    }
     const r = porLinea.get(id)?.get(key);
     return r ? resueltoAProvenance(r) : ABSENT;
   };
@@ -317,16 +342,12 @@ export function normalizeStatement(
       if (derived && bruto) {
         const fq4 = fuentesQ4.get(linea.id)?.get(p.key);
         if (fq4) {
-          provenance = {
-            kind: "derived",
-            formula: "Ejercicio completo − Q1 − Q2 − Q3",
-            inputs: [
-              { label: "Ejercicio completo", value: fq4.anual.value, source: resueltoAProvenance(fq4.anual) },
-              { label: "Q1", value: fq4.q1.value, source: resueltoAProvenance(fq4.q1) },
-              { label: "Q2", value: fq4.q2.value, source: resueltoAProvenance(fq4.q2) },
-              { label: "Q3", value: fq4.q3.value, source: resueltoAProvenance(fq4.q3) },
-            ],
-          };
+          const base = provenanciaQ4(fq4);
+          // Las entradas se invierten igual que el valor mostrado: si no, la
+          // resta de la fórmula deja de cuadrar con la celda (D8-bis).
+          provenance = linea.negate
+            ? { ...base, inputs: base.inputs.map((entrada) => ({ ...entrada, value: -entrada.value })) }
+            : base;
         }
       }
 

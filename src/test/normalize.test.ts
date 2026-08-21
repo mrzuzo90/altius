@@ -201,6 +201,85 @@ describe("derivación del cuarto trimestre", () => {
       porEtiqueta["Ejercicio completo"] - porEtiqueta["Q1"] - porEtiqueta["Q2"] - porEtiqueta["Q3"],
     );
   });
+
+  it("la procedencia de Q4 en una línea invertida (negate) reconcilia con el valor mostrado", () => {
+    // capex se reporta en positivo y Altius lo muestra en negativo. Si las
+    // cuatro entradas de la procedencia no se invierten igual, "Ejercicio
+    // completo − Q1 − Q2 − Q3" deja de cuadrar con la celda mostrada.
+    const conCapexTrimestral: CompanyFacts = {
+      cik: 1, entityName: "Prueba",
+      facts: { "us-gaap": { PaymentsToAcquirePropertyPlantAndEquipment: { units: { USD: [
+        { start: "2023-01-01", end: "2023-12-31", val: 1000, accn: "a", filed: "2024-01-15", form: "10-K" },
+        { start: "2023-01-01", end: "2023-03-31", val: 200, accn: "b", filed: "2023-04-20", form: "10-Q" },
+        { start: "2023-04-01", end: "2023-06-30", val: 250, accn: "c", filed: "2023-07-20", form: "10-Q" },
+        { start: "2023-07-01", end: "2023-09-30", val: 260, accn: "d", filed: "2023-10-20", form: "10-Q" },
+        // Sin hecho directo de Q4 (oct-dic): se deriva restando.
+      ] } } } },
+    };
+
+    const st = normalizeStatement(conCapexTrimestral, CASH_FLOW, "quarterly", 8);
+    const capex = st.rows.find((r) => r.line.id === "capex")!;
+    const celda = capex.cells["2023Q4"];
+
+    expect(celda?.derived).toBe(true);
+    // 1000 − 200 − 250 − 260 = 290 en bruto; invertido para mostrarse: −290.
+    expect(celda?.value).toBe(-290);
+
+    expect(celda?.provenance.kind).toBe("derived");
+    if (celda?.provenance.kind !== "derived") throw new Error("procedencia inesperada");
+    expect(celda.provenance.inputs).toHaveLength(4);
+
+    const [anual, q1, q2, q3] = celda.provenance.inputs;
+    expect(anual.value).toBe(-1000);
+    expect(q1.value).toBe(-200);
+    expect(q2.value).toBe(-250);
+    expect(q3.value).toBe(-260);
+    // La fórmula cuadra con el valor mostrado (ya invertido), no con el bruto.
+    expect(celda.value).toBe(anual.value - q1.value - q2.value - q3.value);
+  });
+
+  it("una entrada Q4-derivada se cita como derivada, no como reportada, cuando alimenta otra celda derivada", () => {
+    // GrossProfit está deliberadamente ausente: fuerza el cálculo de
+    // respaldo "Ingresos − Coste de ventas", cuyo ingreso de Q4 es en sí
+    // mismo una resta (no hay hecho directo de Q4 para Revenues).
+    const sinGrossProfit: CompanyFacts = {
+      cik: 1, entityName: "Prueba",
+      facts: { "us-gaap": {
+        Revenues: { units: { USD: [
+          { start: "2023-01-01", end: "2023-12-31", val: 1000, accn: "a", filed: "2024-01-15", form: "10-K" },
+          { start: "2023-01-01", end: "2023-03-31", val: 200, accn: "b", filed: "2023-04-20", form: "10-Q" },
+          { start: "2023-04-01", end: "2023-06-30", val: 250, accn: "c", filed: "2023-07-20", form: "10-Q" },
+          { start: "2023-07-01", end: "2023-09-30", val: 260, accn: "d", filed: "2023-10-20", form: "10-Q" },
+        ] } },
+        CostOfRevenue: { units: { USD: [
+          { start: "2023-01-01", end: "2023-12-31", val: 600, accn: "e", filed: "2024-01-15", form: "10-K" },
+          { start: "2023-01-01", end: "2023-03-31", val: 120, accn: "f", filed: "2023-04-20", form: "10-Q" },
+          { start: "2023-04-01", end: "2023-06-30", val: 150, accn: "g", filed: "2023-07-20", form: "10-Q" },
+          { start: "2023-07-01", end: "2023-09-30", val: 155, accn: "h", filed: "2023-10-20", form: "10-Q" },
+        ] } },
+      } },
+    };
+
+    const st = normalizeStatement(sinGrossProfit, INCOME_STATEMENT, "quarterly", 8);
+    const grossProfit = st.rows.find((r) => r.line.id === "grossProfit")!;
+    const celda = grossProfit.cells["2023Q4"];
+
+    expect(celda?.derived).toBe(true);
+    expect(celda?.provenance.kind).toBe("derived");
+    if (celda?.provenance.kind !== "derived") throw new Error("procedencia inesperada");
+    expect(celda.provenance.formula).toBe("Ingresos − Coste de ventas");
+    // 290 (1000−200−250−260) − 175 (600−120−150−155) = 115
+    expect(celda.value).toBe(115);
+
+    const ingresos = celda.provenance.inputs.find((i) => i.label === "Ingresos")!;
+    expect(ingresos.source.kind).toBe("derived");
+    if (ingresos.source.kind !== "derived") throw new Error("procedencia inesperada");
+    expect(ingresos.source.formula).toBe("Ejercicio completo − Q1 − Q2 − Q3");
+    expect(ingresos.source.inputs).toHaveLength(4);
+
+    const coste = celda.provenance.inputs.find((i) => i.label === "Coste de ventas")!;
+    expect(coste.source.kind).toBe("derived");
+  });
 });
 
 describe("convención de signos", () => {
