@@ -25,7 +25,7 @@ export function MarketOverviewCards({
         </div>
         <div className="my-3">
           <div className="font-display text-pure-white text-[30px] font-medium tracking-tight tabular">
-            {cpiValue ? `${cpiValue.toFixed(1)} %` : "2.9 %"}
+            {cpiValue !== undefined ? `${cpiValue.toFixed(1)} %` : "—"}
           </div>
           <p className="text-muted-steel text-[12px]">Variación interanual IPC EE. UU.</p>
         </div>
@@ -51,7 +51,7 @@ export function MarketOverviewCards({
         </div>
         <div className="my-3">
           <div className="font-display text-pure-white text-[30px] font-medium tracking-tight tabular">
-            {fedFundsValue ? `${fedFundsValue.toFixed(2)} %` : "4.58 %"}
+            {fedFundsValue !== undefined ? `${fedFundsValue.toFixed(2)} %` : "—"}
           </div>
           <p className="text-muted-steel text-[12px]">Tipo efectivo interbancario</p>
         </div>
@@ -77,7 +77,7 @@ export function MarketOverviewCards({
         </div>
         <div className="my-3">
           <div className="font-display text-pure-white text-[30px] font-medium tracking-tight tabular">
-            {unrateValue ? `${unrateValue.toFixed(1)} %` : "4.0 %"}
+            {unrateValue !== undefined ? `${unrateValue.toFixed(1)} %` : "—"}
           </div>
           <p className="text-muted-steel text-[12px]">Tasa de paro desestacionalizada</p>
         </div>

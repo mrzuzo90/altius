@@ -71,8 +71,8 @@ export const COMMODITIES: Record<CommoditySymbol, CommodityMeta> = {
     shortName: "Plata",
     category: "precious_metals",
     unit: "USD / Onza Troy",
-    fredSeriesId: "SLV",
-    provider: "LBMA / Global Market Data",
+    fredSeriesId: "PSILVERUSDM",
+    provider: "Fondo Monetario Internacional (FMI) / LBMA via FRED",
     description:
       "Cotización de referencia de la plata física como metal precioso de inversión y componente clave en transición energética e industrial.",
   },
@@ -182,58 +182,29 @@ export async function getCommoditySeries(symbol: CommoditySymbol): Promise<Price
   const apiKey = process.env.FRED_API_KEY?.trim();
   let points: PricePoint[];
 
-  try {
-    if (apiKey) {
-      const url =
-        `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
-        `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-      const json = (await res.json()) as { observations: { date: string; value: string }[] };
-      points = json.observations
-        .filter((o) => o.value !== "." && o.value !== "")
-        .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
-        .filter((p) => Number.isFinite(p.close));
-    } else {
-      const res = await fetch(
-        `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
-        { cache: "no-store" },
-      );
-      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-      const fredPoints: FredPoint[] = parseFredCsv(await res.text());
-      points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
-    }
-  } catch {
-    // Si la serie falla por limitación de red, generamos una serie representativa basada en los precios spot reales
-    points = generateRepresentativeCommoditySeries(symbol);
+  if (apiKey) {
+    const url =
+      `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
+      `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
+    const json = (await res.json()) as { observations: { date: string; value: string }[] };
+    points = json.observations
+      .filter((o) => o.value !== "." && o.value !== "")
+      .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
+      .filter((p) => Number.isFinite(p.close));
+  } else {
+    const res = await fetch(
+      `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
+    const fredPoints: FredPoint[] = parseFredCsv(await res.text());
+    points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
   }
 
   points.sort((a, b) => (a.date < b.date ? -1 : 1));
   await cache.set(cacheKey, points, TTL.commodities);
-  return points;
-}
-
-function generateRepresentativeCommoditySeries(symbol: CommoditySymbol): PricePoint[] {
-  const basePrices: Record<CommoditySymbol, number> = {
-    BRENT: 82.5,
-    WTI: 78.4,
-    NATGAS: 2.45,
-    GOLD: 2510.0,
-    SILVER: 29.8,
-    COPPER: 9240.0,
-    WHEAT: 228.0,
-    CORN: 165.0,
-  };
-  const base = basePrices[symbol] ?? 100;
-  const points: PricePoint[] = [];
-
-  for (let i = 250; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const noise = (Math.sin(i / 15) * 0.08 + Math.cos(i / 7) * 0.04) * base;
-    points.push({ date: dateStr, close: Math.max(0.1, Number((base + noise).toFixed(2))) });
-  }
   return points;
 }
 

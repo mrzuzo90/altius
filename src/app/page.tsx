@@ -5,25 +5,49 @@ import { MarketOverviewCards } from "@/components/home/market-overview-cards";
 import { MarketLeadersTable } from "@/components/home/market-leaders-table";
 import { InteractivePreview } from "@/components/home/interactive-preview";
 import { getFredSeries, yoyChange } from "@/lib/fred/client";
+import { getAllIndicesSummary } from "@/lib/indices";
+import { getAllCommoditiesSummary } from "@/lib/commodities";
 import { ArrowRight, ShieldCheck, Zap, Database, Sparkles } from "lucide-react";
+import type { RibbonItem } from "@/components/home/ticker-ribbon";
 
 export const revalidate = 3600;
 
 export default async function Home() {
-  const [cpiData, fedData, unrateData] = await Promise.all([
+  const [cpiData, fedData, unrateData, indicesSummaries, commoditiesSummaries] = await Promise.all([
     getFredSeries("CPIAUCSL").catch(() => []),
     getFredSeries("FEDFUNDS").catch(() => []),
     getFredSeries("UNRATE").catch(() => []),
+    getAllIndicesSummary().catch(() => []),
+    getAllCommoditiesSummary().catch(() => []),
   ]);
 
   const cpiValue = yoyChange(cpiData).at(-1)?.value;
   const fedFundsValue = fedData.at(-1)?.value;
   const unrateValue = unrateData.at(-1)?.value;
 
+  const ribbonItems: RibbonItem[] = [
+    ...indicesSummaries.map((idx) => ({
+      type: "index" as const,
+      ticker: idx.shortName,
+      price: idx.currentValue,
+      changePct: idx.change1D ?? 0,
+      href: `/indices/${idx.slug}`,
+      isVix: idx.symbol === "VIXCLS",
+    })),
+    ...commoditiesSummaries.map((com) => ({
+      type: "commodity" as const,
+      ticker: com.shortName,
+      price: com.currentValue,
+      changePct: com.change1D ?? 0,
+      href: `/commodities/${com.slug}`,
+      unit: com.unit,
+    })),
+  ];
+
   return (
     <div className="bg-void-black text-frost min-h-screen pb-20">
       {/* 1. Live Market Ticker Tape Ribbon */}
-      <TickerRibbon />
+      <TickerRibbon items={ribbonItems} />
 
       {/* 2. Hero Section — Wall Street Terminal Console */}
       <section className="mx-auto max-w-[1200px] px-5 pt-12 pb-14 sm:pt-16 sm:pb-20">
@@ -46,19 +70,20 @@ export default async function Home() {
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[12px] text-muted-steel font-mono">
               <span>Populares:</span>
               {[
-                { t: "NVDA", p: "$128.40" },
-                { t: "AAPL", p: "$232.15" },
-                { t: "MSFT", p: "$418.90" },
-                { t: "AMZN", p: "$186.50" },
-                { t: "GOOGL", p: "$165.20" },
-                { t: "TSLA", p: "$215.80" },
+                { t: "NVDA", label: "NVIDIA" },
+                { t: "AAPL", label: "Apple" },
+                { t: "MSFT", label: "Microsoft" },
+                { t: "ASML", label: "ASML" },
+                { t: "SAN", label: "Santander" },
+                { t: "TSLA", label: "Tesla" },
               ].map((item) => (
                 <Link
                   key={item.t}
                   href={`/ticker/${item.t}`}
-                  className="bg-carbon-surface hover:bg-gunmetal text-frost hover:text-pure-white px-2 py-0.5 rounded border border-gunmetal transition-colors"
+                  className="bg-carbon-surface hover:bg-gunmetal text-frost hover:text-pure-white px-2.5 py-0.5 rounded border border-gunmetal transition-colors inline-flex items-center gap-1.5"
                 >
-                  <span className="font-bold text-pure-white">{item.t}</span> {item.p}
+                  <span className="font-bold text-pure-white">{item.t}</span>
+                  <span className="text-muted-steel text-[11px] font-sans">{item.label}</span>
                 </Link>
               ))}
             </div>
