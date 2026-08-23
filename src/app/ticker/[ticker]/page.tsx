@@ -18,6 +18,8 @@ import type { FilingRef } from "@/lib/sec/types";
 import { buildStatements, hasUsableData } from "@/lib/sec/statements";
 import { evaluateQualityScorecard } from "@/lib/sec/quality";
 import { QualityScorecard } from "@/components/quality-scorecard";
+import { getCompanyNews } from "@/lib/news";
+import { CompanyNewsFeed } from "@/components/news/company-news-feed";
 
 export const revalidate = 21600;
 
@@ -33,11 +35,12 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
   const hit = await resolveTicker(ticker);
   if (!hit) notFound();
 
-  const [profile, ultimo10K, precios, bundle] = await Promise.all([
+  const [profile, ultimo10K, precios, bundle, newsResult] = await Promise.all([
     getCompanyProfile(hit.cik),
     findLatestFiling(hit.cik, ["10-K"]),
     getPriceSeries(ticker),
     buildStatements(hit.cik, "annual"),
+    getCompanyNews(ticker, hit.name, hit.cik),
   ]);
 
   const scorecard = hasUsableData(bundle) ? evaluateQualityScorecard(bundle) : null;
@@ -71,6 +74,12 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
               <SinPrecio resultado={precios} />
             )}
           </div>
+
+          <CompanyNewsFeed
+            news={newsResult.news}
+            ticker={ticker}
+            companyName={profile.name}
+          />
         </section>
 
         <aside className="space-y-6">
@@ -127,6 +136,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
             <div className="mt-4 space-y-2.5">
               <Enlace href={`/ticker/${ticker}/financials`} texto="Estados financieros" />
               <Enlace href={`/ticker/${ticker}/valuation`} texto="Múltiplos y valoración" />
+              <Enlace href={`/ticker/${ticker}/technical`} texto="Análisis técnico e indicadores" />
               <Enlace href={`/ticker/${ticker}/ai`} texto="Copiloto de informe 10-K" />
             </div>
           </div>

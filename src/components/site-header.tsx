@@ -9,6 +9,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 const NAV = [
   { href: "/", label: "Observatorio" },
+  { href: "/indices", label: "Índices" },
   { href: "/macro", label: "Macro" },
 ];
 

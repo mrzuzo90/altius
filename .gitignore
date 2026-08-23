@@ -45,3 +45,4 @@ next-env.d.ts
 .cache/
 .env*.local
 coverage/
+.claude/

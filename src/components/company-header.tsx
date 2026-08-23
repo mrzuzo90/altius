@@ -7,6 +7,7 @@ const TABS = [
   { href: "", label: "Perfil" },
   { href: "/financials", label: "Estados financieros" },
   { href: "/valuation", label: "Valoración" },
+  { href: "/technical", label: "Análisis técnico" },
   { href: "/ai", label: "Copiloto" },
 ];
 

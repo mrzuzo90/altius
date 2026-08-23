@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/command";
 
 type Hit = { ticker: string; cik: string; name: string };
+type IndexHit = { symbol: string; name: string; shortName: string; slug: string; provider: string };
 
 /**
  * Buscador global. Se abre con Cmd+K, con Ctrl+K, o desde la cabecera mediante
@@ -24,16 +25,15 @@ export function CommandPalette() {
   const [abierto, setAbierto] = useState(false);
   const [consulta, setConsulta] = useState("");
   /** Los resultados se guardan junto a la consulta que los produjo. */
-  const [resultado, setResultado] = useState<{ q: string; hits: Hit[] }>({
+  const [resultado, setResultado] = useState<{ q: string; hits: Hit[]; indices: IndexHit[] }>({
     q: "",
     hits: [],
+    indices: [],
   });
 
   const q = consulta.trim();
-  // Derivado en render en lugar de sincronizado con setState dentro de un
-  // efecto: evita renders en cascada y, sobre todo, evita enseñar durante un
-  // instante los resultados de la consulta anterior.
   const hits = resultado.q === q ? resultado.hits : [];
+  const indices = resultado.q === q ? resultado.indices : [];
   const cargando = q !== "" && resultado.q !== q;
 
   useEffect(() => {
@@ -55,17 +55,15 @@ export function CommandPalette() {
   useEffect(() => {
     if (!q) return;
     const control = new AbortController();
-    // Antirrebote: el índice de la SEC son más de 10.000 entradas y no hace
-    // falta consultarlo en cada pulsación.
     const t = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
           signal: control.signal,
         });
-        const json = (await res.json()) as { results?: Hit[] };
-        setResultado({ q, hits: json.results ?? [] });
+        const json = (await res.json()) as { results?: Hit[]; indices?: IndexHit[] };
+        setResultado({ q, hits: json.results ?? [], indices: json.indices ?? [] });
       } catch {
-        // Petición cancelada al seguir escribiendo: no es un error.
+        // Petición cancelada al seguir escribiendo
       }
     }, 160);
     return () => {
@@ -83,24 +81,25 @@ export function CommandPalette() {
     [router],
   );
 
+  const irIndice = useCallback(
+    (slug: string) => {
+      setAbierto(false);
+      setConsulta("");
+      router.push(`/indices/${slug}`);
+    },
+    [router],
+  );
+
   return (
     <CommandDialog
       open={abierto}
       onOpenChange={setAbierto}
-      title="Buscar empresa"
-      description="Busca por ticker o por razón social en el registro de la SEC"
+      title="Buscar empresa o índice"
+      description="Busca por ticker, índice o razón social en el registro de la SEC y mercados oficiales"
     >
-      {/* El filtrado ya lo hace el índice de la SEC en el servidor; el filtro
-          interno de cmdk volvería a filtrar y ocultaría resultados válidos. */}
-      {/* Se deja que cmdk filtre, en lugar de desactivarlo. Con el filtrado
-          interno apagado, la biblioteca tampoco gestionaba la selección ni la
-          tecla Intro: el ratón navegaba y el teclado no. Como el servidor ya
-          devuelve solo resultados relevantes y cada elemento lleva su ticker y
-          su nombre como valor, el filtro de cmdk no descarta ninguno y su
-          navegación por teclado vuelve a funcionar sola. */}
       <Command>
         <CommandInput
-          placeholder="Busca por ticker o nombre — AAPL, Johnson, Tesla…"
+          placeholder="Busca por ticker, índice o nombre — SP500, NASDAQ, AAPL, Tesla…"
           value={consulta}
           onValueChange={setConsulta}
         />
@@ -108,33 +107,57 @@ export function CommandPalette() {
           {!q ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               <Search className="mx-auto mb-2 size-5 opacity-40" />
-              Más de 10.000 empresas registradas en la SEC.
+              Más de 10.000 empresas registradas en la SEC e índices oficiales de Wall Street.
             </div>
-          ) : cargando && hits.length === 0 ? (
+          ) : cargando && hits.length === 0 && indices.length === 0 ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               Buscando…
             </div>
           ) : (
             <>
               <CommandEmpty>Sin resultados para «{q}».</CommandEmpty>
-              <CommandGroup heading="Empresas">
-                {hits.map((h) => (
-                  <CommandItem
-                    key={h.cik + h.ticker}
-                    value={`${h.ticker} ${h.name}`}
-                    onSelect={() => ir(h.ticker)}
-                    className="flex items-center gap-3 py-2 cursor-pointer"
-                  >
-                    <span className="bg-void-black text-periwinkle-glow border border-gunmetal min-w-14 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
-                      {h.ticker}
-                    </span>
-                    <span className="truncate text-sm text-pure-white font-medium">{h.name}</span>
-                    <span className="text-muted-steel ml-auto font-mono text-[11px]">
-                      CIK {h.cik}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+
+              {indices.length > 0 && (
+                <CommandGroup heading="Índices Bursátiles">
+                  {indices.map((idx) => (
+                    <CommandItem
+                      key={idx.symbol}
+                      value={`${idx.symbol} ${idx.shortName} ${idx.name} indice`}
+                      onSelect={() => irIndice(idx.slug)}
+                      className="flex items-center gap-3 py-2 cursor-pointer"
+                    >
+                      <span className="bg-void-black text-amber-300 border border-amber-500/40 min-w-16 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
+                        {idx.shortName}
+                      </span>
+                      <span className="truncate text-sm text-pure-white font-medium">{idx.name}</span>
+                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
+                        ÍNDICE
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {hits.length > 0 && (
+                <CommandGroup heading="Empresas (SEC)">
+                  {hits.map((h) => (
+                    <CommandItem
+                      key={h.cik + h.ticker}
+                      value={`${h.ticker} ${h.name}`}
+                      onSelect={() => ir(h.ticker)}
+                      className="flex items-center gap-3 py-2 cursor-pointer"
+                    >
+                      <span className="bg-void-black text-periwinkle-glow border border-gunmetal min-w-14 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
+                        {h.ticker}
+                      </span>
+                      <span className="truncate text-sm text-pure-white font-medium">{h.name}</span>
+                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
+                        CIK {h.cik}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
             </>
           )}
         </CommandList>

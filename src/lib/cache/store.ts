@@ -37,4 +37,6 @@ export const TTL = {
   /** El texto de un informe ya presentado no cambia nunca. */
   filingDocument: 60 * 60 * 24 * 30,
   mdnaSummary: 60 * 60 * 24 * 30,
+  news: 60 * 60,
+  indices: 60 * 60 * 12,
 } as const;

@@ -4,25 +4,55 @@ import Link from "next/link";
 import { MARKET_LEADERS } from "@/lib/home/leaders-data";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
+type RibbonItem =
+  | { type: "stock"; ticker: string; price: number; changePct: number; href: string }
+  | { type: "index"; ticker: string; price: number; changePct: number; href: string; isVix?: boolean };
+
+const INDEX_RIBBON_ITEMS: RibbonItem[] = [
+  { type: "index", ticker: "S&P 500", price: 5980.25, changePct: 0.72, href: "/indices/sp500" },
+  { type: "index", ticker: "NASDAQ", price: 18940.10, changePct: 1.15, href: "/indices/nasdaq" },
+  { type: "index", ticker: "DOW JONES", price: 43450.80, changePct: 0.38, href: "/indices/dow-jones" },
+  { type: "index", ticker: "VIX", price: 15.20, changePct: -3.40, href: "/indices/vix", isVix: true },
+];
+
 export function TickerRibbon() {
-  const items = [...MARKET_LEADERS, ...MARKET_LEADERS];
+  const stockItems: RibbonItem[] = MARKET_LEADERS.map((m) => ({
+    type: "stock",
+    ticker: m.ticker,
+    price: m.price,
+    changePct: m.changePct,
+    href: `/ticker/${m.ticker}`,
+  }));
+
+  const allItems = [...INDEX_RIBBON_ITEMS, ...stockItems];
+  const items = [...allItems, ...allItems];
 
   return (
     <div className="bg-carbon-surface/80 border-b border-gunmetal overflow-hidden py-2 backdrop-blur-sm">
-      <div className="flex w-max animate-[scroll_50s_linear_infinite] hover:[animation-play-state:paused]">
+      <div className="flex w-max animate-[scroll_55s_linear_infinite] hover:[animation-play-state:paused]">
         {items.map((item, idx) => {
           const isUp = item.changePct >= 0;
+          const isIndex = item.type === "index";
+
           return (
             <Link
               key={`${item.ticker}-${idx}`}
-              href={`/ticker/${item.ticker}`}
-              className="flex items-center gap-3 px-6 border-r border-gunmetal/60 hover:bg-gunmetal/40 transition-colors py-1 group"
+              href={item.href}
+              className="flex items-center gap-3 px-5 border-r border-gunmetal/60 hover:bg-gunmetal/40 transition-colors py-1 group"
             >
-              <span className="font-mono font-bold text-[13px] text-pure-white group-hover:text-periwinkle-glow transition-colors">
+              <span
+                className={`font-mono font-bold text-[13px] transition-colors ${
+                  isIndex
+                    ? "text-amber-300 group-hover:text-amber-200"
+                    : "text-pure-white group-hover:text-periwinkle-glow"
+                }`}
+              >
                 {item.ticker}
               </span>
               <span className="font-mono text-[13px] text-frost tabular">
-                ${item.price.toFixed(2)}
+                {item.type === "index" && item.isVix
+                  ? item.price.toFixed(2)
+                  : `$${item.price.toFixed(2)}`}
               </span>
               <span
                 className={`flex items-center gap-0.5 font-mono text-[11px] font-medium px-1.5 py-0.5 rounded ${
