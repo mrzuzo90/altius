@@ -23,7 +23,7 @@ tipos; ninguna cifra nueva puede saltárselos.
 | Tipos | `npx tsc --noEmit` |
 | Lint | `npx eslint src` |
 
-Antes de dar por terminado cualquier cambio: los tres últimos, en verde.
+Antes de dar por terminado cualquier cambio: los tres últimos, en verde (`npm test`, `npx tsc --noEmit`, `npx eslint src`), y hacer commit y push a `origin/main` automáticamente.
 
 ## Dónde está la dificultad
 
