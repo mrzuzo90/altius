@@ -16,6 +16,7 @@ import {
 type Hit = { ticker: string; cik: string; name: string };
 type IndexHit = { symbol: string; name: string; shortName: string; slug: string; provider: string };
 type CommodityHit = { symbol: string; name: string; shortName: string; slug: string; unit: string };
+type CurrencyHit = { symbol: string; name: string; shortName: string; slug: string; baseCurrency: string; quoteCurrency: string };
 
 /**
  * Buscador global. Se abre con Cmd+K, con Ctrl+K, o desde la cabecera mediante
@@ -31,17 +32,20 @@ export function CommandPalette() {
     hits: Hit[];
     indices: IndexHit[];
     commodities: CommodityHit[];
+    currencies: CurrencyHit[];
   }>({
     q: "",
     hits: [],
     indices: [],
     commodities: [],
+    currencies: [],
   });
 
   const q = consulta.trim();
   const hits = resultado.q === q ? resultado.hits : [];
   const indices = resultado.q === q ? resultado.indices : [];
   const commodities = resultado.q === q ? resultado.commodities : [];
+  const currencies = resultado.q === q ? resultado.currencies : [];
   const cargando = q !== "" && resultado.q !== q;
 
   useEffect(() => {
@@ -72,12 +76,14 @@ export function CommandPalette() {
           results?: Hit[];
           indices?: IndexHit[];
           commodities?: CommodityHit[];
+          currencies?: CurrencyHit[];
         };
         setResultado({
           q,
           hits: json.results ?? [],
           indices: json.indices ?? [],
           commodities: json.commodities ?? [],
+          currencies: json.currencies ?? [],
         });
       } catch {
         // Petición cancelada al seguir escribiendo
@@ -116,16 +122,25 @@ export function CommandPalette() {
     [router],
   );
 
+  const irDivisa = useCallback(
+    (slug: string) => {
+      setAbierto(false);
+      setConsulta("");
+      router.push(`/divisas/${slug}`);
+    },
+    [router],
+  );
+
   return (
     <CommandDialog
       open={abierto}
       onOpenChange={setAbierto}
-      title="Buscar empresa, índice o materia prima"
-      description="Busca por ticker, índice europeo/global, materia prima o empresa en el registro de la SEC"
+      title="Buscar empresa, índice, materia prima o divisa"
+      description="Busca por ticker, índice, materia prima o tipo de cambio oficial en mercados globales"
     >
       <Command>
         <CommandInput
-          placeholder="Busca por ticker, índice o materia prima — Oro, Brent, DAX, IBEX, ASML, AAPL…"
+          placeholder="Busca por ticker, índice, commodity o divisa — EUR/USD, Oro, DAX, AAPL, ASML…"
           value={consulta}
           onValueChange={setConsulta}
         />
@@ -133,15 +148,36 @@ export function CommandPalette() {
           {!q ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               <Search className="mx-auto mb-2 size-5 opacity-40" />
-              Más de 10.000 empresas registradas en la SEC, selectivos europeos e internacionales y materias primas.
+              Más de 10.000 empresas de la SEC, selectivos bursátiles, materias primas y tipos de cambio Forex.
             </div>
-          ) : cargando && hits.length === 0 && indices.length === 0 && commodities.length === 0 ? (
+          ) : cargando && hits.length === 0 && indices.length === 0 && commodities.length === 0 && currencies.length === 0 ? (
             <div className="text-muted-foreground px-4 py-8 text-center text-sm">
               Buscando…
             </div>
           ) : (
             <>
               <CommandEmpty>Sin resultados para «{q}».</CommandEmpty>
+
+              {currencies.length > 0 && (
+                <CommandGroup heading="Divisas y Tipos de Cambio (Forex)">
+                  {currencies.map((cur) => (
+                    <CommandItem
+                      key={cur.symbol}
+                      value={`${cur.symbol} ${cur.shortName} ${cur.name} divisa forex tipo de cambio`}
+                      onSelect={() => irDivisa(cur.slug)}
+                      className="flex items-center gap-3 py-2 cursor-pointer"
+                    >
+                      <span className="bg-void-black text-emerald-400 border border-emerald-500/40 min-w-16 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
+                        {cur.shortName}
+                      </span>
+                      <span className="truncate text-sm text-pure-white font-medium">{cur.name}</span>
+                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
+                        FOREX
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
 
               {commodities.length > 0 && (
                 <CommandGroup heading="Materias Primas (Commodities)">

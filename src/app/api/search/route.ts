@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { searchTickers } from "@/lib/sec/tickers";
 import { getAllMarketIndices } from "@/lib/indices";
 import { getAllCommodities } from "@/lib/commodities";
+import { getAllCurrencyPairs } from "@/lib/currencies";
 
 export const revalidate = 3600;
 
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
     const tickersPromise = searchTickers(q, 10);
     const allIndices = getAllMarketIndices();
     const allCommodities = getAllCommodities();
+    const allCurrencies = getAllCurrencyPairs();
 
     const matchingIndices = query
       ? allIndices.filter(
@@ -60,16 +62,44 @@ export async function GET(request: Request) {
         )
       : [];
 
+    const matchingCurrencies = query
+      ? allCurrencies.filter(
+          (cur) =>
+            cur.symbol.toLowerCase().includes(query) ||
+            cur.name.toLowerCase().includes(query) ||
+            cur.shortName.toLowerCase().includes(query) ||
+            cur.slug.toLowerCase().includes(query) ||
+            (query.includes("eur") && cur.symbol === "EURUSD") ||
+            (query.includes("euro") && cur.symbol === "EURUSD") ||
+            (query.includes("gbp") && cur.symbol === "GBPUSD") ||
+            (query.includes("libra") && cur.symbol === "GBPUSD") ||
+            (query.includes("jpy") && cur.symbol === "USDJPY") ||
+            (query.includes("yen") && cur.symbol === "USDJPY") ||
+            (query.includes("chf") && cur.symbol === "USDCHF") ||
+            (query.includes("franco") && cur.symbol === "USDCHF") ||
+            (query.includes("cad") && cur.symbol === "USDCAD") ||
+            (query.includes("cny") && cur.symbol === "USDCNY") ||
+            (query.includes("yuan") && cur.symbol === "USDCNY") ||
+            (query.includes("mxn") && cur.symbol === "USDMXN") ||
+            (query.includes("peso") && cur.symbol === "USDMXN") ||
+            (query.includes("dxy") && cur.symbol === "DXY") ||
+            (query.includes("dolar") && (cur.symbol === "DXY" || cur.symbol === "EURUSD")) ||
+            (query.includes("forex") && true) ||
+            (query.includes("divis") && true),
+        )
+      : [];
+
     const results = await tickersPromise;
     return NextResponse.json({
       results,
       indices: matchingIndices,
       commodities: matchingCommodities,
+      currencies: matchingCurrencies,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json(
-      { results: [], indices: [], commodities: [], error: message },
+      { results: [], indices: [], commodities: [], currencies: [], error: message },
       { status: 502 },
     );
   }

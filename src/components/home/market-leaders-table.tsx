@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MARKET_LEADERS } from "@/lib/home/leaders-data";
+import { MARKET_LEADERS, type MarketLeader } from "@/lib/home/leaders-data";
 import { Sparkline } from "@/components/sparkline";
 import { TrendingUp, TrendingDown, Table, Copy, Check } from "lucide-react";
 
-export function MarketLeadersTable() {
+export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: MarketLeader[] }) {
+  const leadersList = providedLeaders && providedLeaders.length > 0 ? providedLeaders : MARKET_LEADERS;
   const [regionFilter, setRegionFilter] = useState<"all" | "us" | "europe">("all");
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [copiado, setCopiado] = useState(false);
 
   const sectores = ["all", "Technology", "Semiconductors", "Software & Cloud", "Pharmaceuticals", "Banking & Finance"];
 
-  const filtered = MARKET_LEADERS.filter((m) => {
+  const filtered = leadersList.filter((m) => {
     const matchRegion = regionFilter === "all" || m.region === regionFilter;
     const matchSector = sectorFilter === "all" || m.sector === sectorFilter;
     return matchRegion && matchSector;
@@ -25,14 +26,14 @@ export function MarketLeadersTable() {
       m.ticker,
       m.name,
       m.sector,
-      m.price,
-      m.changePct,
-      m.marketCap,
+      m.price > 0 ? m.price : "—",
+      m.price > 0 ? m.changePct : "—",
+      m.marketCap > 0 ? m.marketCap : "—",
       m.pe ?? "—",
       m.evEbitda ?? "—",
-      m.fcfMargin,
-      m.roic,
-      m.revenueGrowth,
+      m.fcfMargin !== null ? m.fcfMargin : "—",
+      m.roic !== null ? m.roic : "—",
+      m.revenueGrowth !== null ? m.revenueGrowth : "—",
     ].join("\t"));
     navigator.clipboard.writeText([cabecera, ...filas].join("\n"));
     setCopiado(true);
@@ -151,6 +152,8 @@ export function MarketLeadersTable() {
           <tbody className="divide-y divide-gunmetal/40">
             {filtered.map((item) => {
               const isUp = item.changePct >= 0;
+              const hasPrice = item.price > 0;
+
               return (
                 <tr key={item.ticker} className="hover:bg-gunmetal/30 transition-colors group">
                   <td className="py-3.5 pl-2 font-mono font-bold text-pure-white">
@@ -164,22 +167,26 @@ export function MarketLeadersTable() {
                     </Link>
                   </td>
                   <td className="py-3.5 text-right font-mono text-pure-white font-medium">
-                    ${item.price.toFixed(2)}
+                    {hasPrice ? `$${item.price.toFixed(2)}` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono">
-                    <span
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                        isUp
-                          ? "text-emerald-400 bg-emerald-950/40 border border-emerald-800/40"
-                          : "text-rose-400 bg-rose-950/40 border border-rose-800/40"
-                      }`}
-                    >
-                      {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                      {isUp ? "+" : ""}{item.changePct.toFixed(2)}%
-                    </span>
+                    {hasPrice ? (
+                      <span
+                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                          isUp
+                            ? "text-emerald-400 bg-emerald-950/40 border border-emerald-800/40"
+                            : "text-rose-400 bg-rose-950/40 border border-rose-800/40"
+                        }`}
+                      >
+                        {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                        {isUp ? "+" : ""}{item.changePct.toFixed(2)}%
+                      </span>
+                    ) : (
+                      <span className="text-muted-steel">—</span>
+                    )}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    ${(item.marketCap / 1000).toFixed(1)} B
+                    {item.marketCap > 0 ? `$${(item.marketCap / 1000).toFixed(1)} B` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-pure-white font-medium">
                     {item.pe !== null ? `${item.pe.toFixed(1)}x` : "—"}
@@ -188,17 +195,21 @@ export function MarketLeadersTable() {
                     {item.evEbitda !== null ? `${item.evEbitda.toFixed(1)}x` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    {item.fcfMargin.toFixed(1)}%
+                    {item.fcfMargin !== null ? `${item.fcfMargin.toFixed(1)}%` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-emerald-400 font-semibold">
-                    {item.roic.toFixed(1)}%
+                    {item.roic !== null ? `${item.roic.toFixed(1)}%` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    +{item.revenueGrowth.toFixed(1)}%
+                    {item.revenueGrowth !== null ? `+${item.revenueGrowth.toFixed(1)}%` : "—"}
                   </td>
                   <td className="py-3.5 text-center">
                     <div className="w-16 mx-auto">
-                      <Sparkline values={item.trend} color={isUp ? "#34d399" : "#f87171"} />
+                      {item.trend.length > 2 ? (
+                        <Sparkline values={item.trend} color={isUp ? "#34d399" : "#f87171"} />
+                      ) : (
+                        <span className="text-muted-steel text-[11px]">—</span>
+                      )}
                     </div>
                   </td>
                   <td className="py-3.5 text-right pr-2 font-mono">

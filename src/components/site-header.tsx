@@ -11,6 +11,7 @@ const NAV = [
   { href: "/", label: "Observatorio" },
   { href: "/indices", label: "Índices" },
   { href: "/commodities", label: "Materias Primas" },
+  { href: "/divisas", label: "Divisas" },
   { href: "/macro", label: "Macro" },
 ];
 

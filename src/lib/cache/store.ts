@@ -40,4 +40,6 @@ export const TTL = {
   news: 60 * 60,
   indices: 60 * 60 * 12,
   commodities: 60 * 60 * 12,
+  currencies: 60 * 60 * 12,
+  quotes: 60 * 15,
 } as const;

@@ -7,18 +7,30 @@ import { InteractivePreview } from "@/components/home/interactive-preview";
 import { getFredSeries, yoyChange } from "@/lib/fred/client";
 import { getAllIndicesSummary } from "@/lib/indices";
 import { getAllCommoditiesSummary } from "@/lib/commodities";
+import { getAllCurrenciesSummary } from "@/lib/currencies";
+import { getDynamicMarketLeaders } from "@/lib/home/leaders-data";
 import { ArrowRight, ShieldCheck, Zap, Database, Sparkles } from "lucide-react";
 import type { RibbonItem } from "@/components/home/ticker-ribbon";
 
 export const revalidate = 3600;
 
 export default async function Home() {
-  const [cpiData, fedData, unrateData, indicesSummaries, commoditiesSummaries] = await Promise.all([
+  const [
+    cpiData,
+    fedData,
+    unrateData,
+    indicesSummaries,
+    commoditiesSummaries,
+    currenciesSummaries,
+    realLeaders,
+  ] = await Promise.all([
     getFredSeries("CPIAUCSL").catch(() => []),
     getFredSeries("FEDFUNDS").catch(() => []),
     getFredSeries("UNRATE").catch(() => []),
     getAllIndicesSummary().catch(() => []),
     getAllCommoditiesSummary().catch(() => []),
+    getAllCurrenciesSummary().catch(() => []),
+    getDynamicMarketLeaders().catch(() => []),
   ]);
 
   const cpiValue = yoyChange(cpiData).at(-1)?.value;
@@ -41,6 +53,13 @@ export default async function Home() {
       changePct: com.change1D ?? 0,
       href: `/commodities/${com.slug}`,
       unit: com.unit,
+    })),
+    ...currenciesSummaries.map((cur) => ({
+      type: "commodity" as const,
+      ticker: cur.shortName,
+      price: cur.currentValue,
+      changePct: cur.change1D ?? 0,
+      href: `/divisas/${cur.slug}`,
     })),
   ];
 
@@ -116,7 +135,7 @@ export default async function Home() {
 
       {/* 5. Market Leaders & Valuation Table (TIKR Screener Style) */}
       <section className="mx-auto max-w-[1200px] px-5 mb-20">
-        <MarketLeadersTable />
+        <MarketLeadersTable leaders={realLeaders} />
       </section>
 
       {/* 6. Feature Blocks */}

@@ -1,3 +1,5 @@
+import { getLiveQuote } from "@/lib/quotes/client";
+
 export type MarketLeader = {
   ticker: string;
   name: string;
@@ -9,13 +11,28 @@ export type MarketLeader = {
   marketCap: number; // in Millions USD
   pe: number | null;
   evEbitda: number | null;
-  fcfMargin: number;
-  roic: number;
-  revenueGrowth: number;
+  fcfMargin: number | null;
+  roic: number | null;
+  revenueGrowth: number | null;
   trend: number[];
 };
 
-export const MARKET_LEADERS: MarketLeader[] = [
+export type MarketLeaderMeta = {
+  ticker: string;
+  name: string;
+  sector: string;
+  region: "us" | "europe";
+  country: string;
+  cik?: string;
+  pe?: number | null;
+  evEbitda?: number | null;
+  fcfMargin?: number | null;
+  roic?: number | null;
+  revenueGrowth?: number | null;
+  marketCapBase?: number;
+};
+
+export const MARKET_LEADER_CONFIGS: MarketLeaderMeta[] = [
   // EE. UU.
   {
     ticker: "NVDA",
@@ -23,15 +40,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Semiconductors",
     region: "us",
     country: "Estados Unidos",
-    price: 128.40,
-    changePct: 3.42,
-    marketCap: 3150000,
-    pe: 42.5,
-    evEbitda: 34.8,
-    fcfMargin: 48.2,
-    roic: 68.4,
-    revenueGrowth: 94.2,
-    trend: [14.2, 18.5, 26.0, 48.0, 85.0, 128.4],
+    cik: "0001045810",
   },
   {
     ticker: "AAPL",
@@ -39,15 +48,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Technology",
     region: "us",
     country: "Estados Unidos",
-    price: 232.15,
-    changePct: 0.85,
-    marketCap: 3510000,
-    pe: 33.8,
-    evEbitda: 25.4,
-    fcfMargin: 26.5,
-    roic: 56.4,
-    revenueGrowth: 6.2,
-    trend: [130.5, 150.2, 175.0, 192.0, 215.0, 232.15],
+    cik: "0000320193",
   },
   {
     ticker: "MSFT",
@@ -55,15 +56,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Software & Cloud",
     region: "us",
     country: "Estados Unidos",
-    price: 418.90,
-    changePct: 1.15,
-    marketCap: 3110000,
-    pe: 34.2,
-    evEbitda: 22.8,
-    fcfMargin: 30.4,
-    roic: 28.5,
-    revenueGrowth: 15.6,
-    trend: [240.0, 280.5, 330.0, 375.0, 400.0, 418.9],
+    cik: "0000789019",
   },
   {
     ticker: "AMZN",
@@ -71,15 +64,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "E-Commerce & AWS",
     region: "us",
     country: "Estados Unidos",
-    price: 186.50,
-    changePct: -0.45,
-    marketCap: 1940000,
-    pe: 41.2,
-    evEbitda: 17.5,
-    fcfMargin: 9.8,
-    roic: 14.8,
-    revenueGrowth: 12.5,
-    trend: [115.0, 130.0, 145.0, 170.0, 180.0, 186.5],
+    cik: "0001018724",
   },
   {
     ticker: "GOOGL",
@@ -87,15 +72,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Internet & Ads",
     region: "us",
     country: "Estados Unidos",
-    price: 165.20,
-    changePct: 1.40,
-    marketCap: 2050000,
-    pe: 22.8,
-    evEbitda: 15.2,
-    fcfMargin: 24.1,
-    roic: 31.2,
-    revenueGrowth: 14.2,
-    trend: [95.0, 110.0, 130.0, 145.0, 158.0, 165.2],
+    cik: "0001652044",
   },
   {
     ticker: "META",
@@ -103,15 +80,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Social Media & AI",
     region: "us",
     country: "Estados Unidos",
-    price: 520.40,
-    changePct: 2.10,
-    marketCap: 1320000,
-    pe: 26.5,
-    evEbitda: 16.8,
-    fcfMargin: 35.8,
-    roic: 33.5,
-    revenueGrowth: 22.1,
-    trend: [180.0, 240.0, 310.0, 450.0, 490.0, 520.4],
+    cik: "0001326801",
   },
   {
     ticker: "TSLA",
@@ -119,15 +88,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Automotive & Energy",
     region: "us",
     country: "Estados Unidos",
-    price: 215.80,
-    changePct: -1.85,
-    marketCap: 685000,
-    pe: 65.4,
-    evEbitda: 38.2,
-    fcfMargin: 5.2,
-    roic: 11.4,
-    revenueGrowth: 8.5,
-    trend: [180.0, 260.0, 210.0, 240.0, 195.0, 215.8],
+    cik: "0001318605",
   },
 
   // Europa
@@ -137,15 +98,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Semiconductors",
     region: "europe",
     country: "Países Bajos",
-    price: 840.50,
-    changePct: 2.25,
-    marketCap: 335000,
-    pe: 38.4,
-    evEbitda: 29.5,
-    fcfMargin: 28.4,
-    roic: 42.1,
-    revenueGrowth: 18.5,
-    trend: [580.0, 640.0, 720.0, 890.0, 810.0, 840.5],
+    cik: "0000937966",
   },
   {
     ticker: "NVO",
@@ -153,15 +106,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Pharmaceuticals",
     region: "europe",
     country: "Dinamarca",
-    price: 132.80,
-    changePct: 1.10,
-    marketCap: 590000,
-    pe: 36.2,
-    evEbitda: 26.8,
-    fcfMargin: 34.2,
-    roic: 64.8,
-    revenueGrowth: 24.5,
-    trend: [75.0, 92.0, 110.0, 128.0, 135.0, 132.8],
+    cik: "0000353278",
   },
   {
     ticker: "SAP",
@@ -169,15 +114,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Software & Cloud",
     region: "europe",
     country: "Alemania",
-    price: 210.40,
-    changePct: 0.95,
-    marketCap: 248000,
-    pe: 32.5,
-    evEbitda: 21.4,
-    fcfMargin: 22.0,
-    roic: 16.5,
-    revenueGrowth: 10.2,
-    trend: [120.0, 140.0, 165.0, 185.0, 202.0, 210.4],
+    cik: "0001000184",
   },
   {
     ticker: "SAN",
@@ -185,15 +122,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Banking & Finance",
     region: "europe",
     country: "España",
-    price: 4.85,
-    changePct: 1.45,
-    marketCap: 74000,
-    pe: 6.8,
-    evEbitda: null,
-    fcfMargin: 32.0,
-    roic: 15.8,
-    revenueGrowth: 12.8,
-    trend: [3.1, 3.6, 4.2, 4.5, 4.7, 4.85],
+    cik: "0000891478",
   },
   {
     ticker: "TTE",
@@ -201,15 +130,7 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Energy & Renewables",
     region: "europe",
     country: "Francia",
-    price: 68.20,
-    changePct: -0.30,
-    marketCap: 158000,
-    pe: 7.9,
-    evEbitda: 3.8,
-    fcfMargin: 16.5,
-    roic: 18.2,
-    revenueGrowth: 5.4,
-    trend: [52.0, 58.0, 62.0, 66.0, 69.0, 68.2],
+    cik: "0000879764",
   },
   {
     ticker: "IBDRY",
@@ -217,15 +138,6 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Utilities & Clean Energy",
     region: "europe",
     country: "España",
-    price: 52.40,
-    changePct: 0.70,
-    marketCap: 86000,
-    pe: 14.5,
-    evEbitda: 9.8,
-    fcfMargin: 14.2,
-    roic: 11.2,
-    revenueGrowth: 8.4,
-    trend: [42.0, 45.0, 48.0, 50.0, 51.5, 52.4],
   },
   {
     ticker: "AZN",
@@ -233,14 +145,55 @@ export const MARKET_LEADERS: MarketLeader[] = [
     sector: "Pharmaceuticals",
     region: "europe",
     country: "Reino Unido",
-    price: 82.10,
-    changePct: 1.20,
-    marketCap: 254000,
-    pe: 34.0,
-    evEbitda: 18.2,
-    fcfMargin: 19.5,
-    roic: 14.2,
-    revenueGrowth: 15.0,
-    trend: [62.0, 68.0, 74.0, 79.0, 80.5, 82.1],
+    cik: "0000901832",
   },
 ];
+
+/**
+ * Obtiene los líderes de mercado con sus cotizaciones y sparklines reales en tiempo real.
+ * Si un dato no está disponible en la fuente oficial, se asignan valores honestos o nulos.
+ */
+export async function getDynamicMarketLeaders(): Promise<MarketLeader[]> {
+  const leaders = await Promise.all(
+    MARKET_LEADER_CONFIGS.map(async (meta) => {
+      const quote = await getLiveQuote(meta.ticker);
+
+      return {
+        ticker: meta.ticker,
+        name: meta.name,
+        sector: meta.sector,
+        region: meta.region,
+        country: meta.country,
+        price: quote?.price ?? 0,
+        changePct: quote?.changePct ?? 0,
+        marketCap: quote?.marketCap ?? 0,
+        pe: meta.pe ?? null,
+        evEbitda: meta.evEbitda ?? null,
+        fcfMargin: meta.fcfMargin ?? null,
+        roic: meta.roic ?? null,
+        revenueGrowth: meta.revenueGrowth ?? null,
+        trend: quote?.sparkline ?? [],
+      };
+    }),
+  );
+
+  return leaders;
+}
+
+/** Fallback tipado para render inicial en cliente si fuera necesario */
+export const MARKET_LEADERS: MarketLeader[] = MARKET_LEADER_CONFIGS.map((meta) => ({
+  ticker: meta.ticker,
+  name: meta.name,
+  sector: meta.sector,
+  region: meta.region,
+  country: meta.country,
+  price: 0,
+  changePct: 0,
+  marketCap: 0,
+  pe: null,
+  evEbitda: null,
+  fcfMargin: null,
+  roic: null,
+  revenueGrowth: null,
+  trend: [],
+}));
