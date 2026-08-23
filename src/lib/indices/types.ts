@@ -22,11 +22,11 @@ export type MarketIndexMeta = {
   region: MarketIndexRegion;
   country: string;
   currency: string;
-  fredSeriesId: string;
+  marketSymbol: string;
+  fredSeriesId?: string;
   provider: string;
   description: string;
   isVolatilityIndex?: boolean;
-  benchmarkTicker?: string; // ETF ticker, e.g. SPY, QQQ, DIA, FEZ, EWG, EWP, EWU, EWQ
 };
 
 export type IndexSummary = {

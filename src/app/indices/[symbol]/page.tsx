@@ -52,17 +52,9 @@ export default async function IndexDetailPage({
               <span className="font-mono text-periwinkle-glow font-bold text-[14px] bg-carbon-surface px-3 py-1 rounded-full border border-gunmetal">
                 {meta.shortName}
               </span>
-              <span className="text-muted-steel text-[13px] font-mono">
-                FRED ID: {meta.fredSeriesId}
+              <span className="text-muted-steel text-[12px] font-mono bg-void-black border border-gunmetal px-2 py-0.5 rounded">
+                Símbolo oficial: {meta.marketSymbol}
               </span>
-              {meta.benchmarkTicker && (
-                <Link
-                  href={`/ticker/${meta.benchmarkTicker}`}
-                  className="text-muted-steel hover:text-periwinkle-glow text-[12px] font-mono border border-gunmetal/80 px-2 py-0.5 rounded transition-colors"
-                >
-                  ETF réplica: {meta.benchmarkTicker}
-                </Link>
-              )}
             </div>
 
             <h1 className="font-display text-pure-white text-[36px] font-medium leading-[1.1] tracking-tight">
@@ -75,8 +67,8 @@ export default async function IndexDetailPage({
 
           <DataSourceBadge
             source={meta.provider}
-            detail={`Serie oficial sincronizada con FRED (${meta.fredSeriesId}).`}
-            href={`https://fred.stlouisfed.org/series/${meta.fredSeriesId}`}
+            detail={`Cotización oficial en puntos de índice nominales (${meta.marketSymbol}).`}
+            href={meta.fredSeriesId ? `https://fred.stlouisfed.org/series/${meta.fredSeriesId}` : undefined}
           />
         </div>
       </div>
@@ -88,14 +80,14 @@ export default async function IndexDetailPage({
             Evolución y Análisis Técnico Interactivo
           </h2>
           <span className="text-muted-steel font-mono text-[12px]">
-            Superposiciones SMA 20/50/200 · Bollinger · RSI · MACD
+            Puntos de índice nominales · SMA 20/50/200 · Bollinger · RSI · MACD
           </span>
         </div>
 
         <TechnicalChart
           points={technical.points}
           source={meta.provider}
-          currency={meta.isVolatilityIndex ? "PTS" : "USD"}
+          currency={meta.isVolatilityIndex ? "PTS" : meta.currency}
         />
       </section>
 

@@ -22,11 +22,11 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "us",
     country: "Estados Unidos",
     currency: "USD",
+    marketSymbol: "^GSPC",
     fredSeriesId: "SP500",
     provider: "S&P Dow Jones Indices LLC",
     description:
       "Índice de referencia compuesto por las 500 mayores corporaciones de Wall Street. Representa más del 80% de la capitalización bursátil estadounidense.",
-    benchmarkTicker: "SPY",
   },
   NASDAQCOM: {
     symbol: "NASDAQCOM",
@@ -36,11 +36,11 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "us",
     country: "Estados Unidos",
     currency: "USD",
+    marketSymbol: "^IXIC",
     fredSeriesId: "NASDAQCOM",
     provider: "NASDAQ OMX Group",
     description:
       "Índice que agrupa a más de 3.000 acciones cotizadas en el mercado electrónico NASDAQ, con alto peso en semiconductores, software y tecnología.",
-    benchmarkTicker: "QQQ",
   },
   DJIA: {
     symbol: "DJIA",
@@ -50,11 +50,11 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "us",
     country: "Estados Unidos",
     currency: "USD",
+    marketSymbol: "^DJI",
     fredSeriesId: "DJIA",
     provider: "S&P Dow Jones Indices LLC",
     description:
       "El selectivo más antiguo de Wall Street, ponderado por precio sobre 30 compañías industriales, financieras y de servicios emblemáticas.",
-    benchmarkTicker: "DIA",
   },
   VIXCLS: {
     symbol: "VIXCLS",
@@ -64,6 +64,7 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "us",
     country: "Estados Unidos",
     currency: "PTS",
+    marketSymbol: "^VIX",
     fredSeriesId: "VIXCLS",
     provider: "Chicago Board Options Exchange (CBOE)",
     description:
@@ -80,11 +81,10 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "europe",
     country: "Eurozona",
     currency: "EUR",
-    fredSeriesId: "SPASTT01EZM661N",
+    marketSymbol: "^STOXX50E",
     provider: "STOXX Ltd. (Deutsche Börse Group)",
     description:
       "Índice bursátil de referencia de la Eurozona compuesto por 50 de las empresas más grandes y líquidas de 8 países europeos.",
-    benchmarkTicker: "FEZ",
   },
   DAX: {
     symbol: "DAX",
@@ -94,11 +94,10 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "europe",
     country: "Alemania",
     currency: "EUR",
-    fredSeriesId: "SPASTT01DEM661N",
+    marketSymbol: "^GDAXI",
     provider: "Deutsche Börse",
     description:
       "Índice director de la economía alemana que agrupa a las 40 mayores compañías cotizadas en la Bolsa de Frankfurt (SAP, Siemens, Allianz, etc.).",
-    benchmarkTicker: "EWG",
   },
   IBEX35: {
     symbol: "IBEX35",
@@ -108,11 +107,10 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "europe",
     country: "España",
     currency: "EUR",
-    fredSeriesId: "SPASTT01ESM661N",
+    marketSymbol: "^IBEX",
     provider: "BME - Bolsas y Mercados Españoles",
     description:
       "Selectivo de las 35 empresas con mayor liquidez cotizadas en el Sistema de Interconexión Bursátil Español (SIBE) en Madrid.",
-    benchmarkTicker: "EWP",
   },
   FTSE100: {
     symbol: "FTSE100",
@@ -122,11 +120,10 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "europe",
     country: "Reino Unido",
     currency: "GBP",
-    fredSeriesId: "SPASTT01GBM661N",
+    marketSymbol: "^FTSE",
     provider: "FTSE Russell (LSE Group)",
     description:
       "Índice ponderado por capitalización de las 100 mayores empresas cotizadas en la Bolsa de Valores de Londres (London Stock Exchange).",
-    benchmarkTicker: "EWU",
   },
   CAC40: {
     symbol: "CAC40",
@@ -136,11 +133,10 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     region: "europe",
     country: "Francia",
     currency: "EUR",
-    fredSeriesId: "SPASTT01FRM661N",
+    marketSymbol: "^FCHI",
     provider: "Euronext Paris",
     description:
       "Índice de referencia de la Bolsa de París que agrupa a los 40 valores más significativos de Francia (LVMH, TotalEnergies, Sanofi, L'Oréal).",
-    benchmarkTicker: "EWQ",
   },
 };
 
@@ -153,7 +149,6 @@ const INDEX_ALIASES: Record<string, MarketIndexSymbol> = {
   GSPC: "SP500",
   "^GSPC": "SP500",
   SPX: "SP500",
-  SPY: "SP500",
   NASDAQ: "NASDAQCOM",
   NASDAQCOM: "NASDAQCOM",
   NASDAC: "NASDAQCOM",
@@ -161,13 +156,11 @@ const INDEX_ALIASES: Record<string, MarketIndexSymbol> = {
   IXIC: "NASDAQCOM",
   "^IXIC": "NASDAQCOM",
   NDX: "NASDAQCOM",
-  QQQ: "NASDAQCOM",
   DOW: "DJIA",
   DJIA: "DJIA",
   DOWJONES: "DJIA",
   "DOW JONES": "DJIA",
   "^DJI": "DJIA",
-  DIA: "DJIA",
   VIX: "VIXCLS",
   VIXCLS: "VIXCLS",
   "^VIX": "VIXCLS",
@@ -181,33 +174,28 @@ const INDEX_ALIASES: Record<string, MarketIndexSymbol> = {
   STOXX50E: "STOXX50E",
   SX5E: "STOXX50E",
   "^STOXX50E": "STOXX50E",
-  FEZ: "STOXX50E",
   DAX: "DAX",
   DAX40: "DAX",
   "DAX 40": "DAX",
   DAX30: "DAX",
   GDAXI: "DAX",
   "^GDAXI": "DAX",
-  EWG: "DAX",
   IBEX: "IBEX35",
   IBEX35: "IBEX35",
   "IBEX 35": "IBEX35",
   "IBEX-35": "IBEX35",
   "^IBEX": "IBEX35",
   "IBEX.MC": "IBEX35",
-  EWP: "IBEX35",
   FTSE: "FTSE100",
   FTSE100: "FTSE100",
   "FTSE 100": "FTSE100",
   UK100: "FTSE100",
   "^FTSE": "FTSE100",
-  EWU: "FTSE100",
   CAC: "CAC40",
   CAC40: "CAC40",
   "CAC 40": "CAC40",
   PX1: "CAC40",
   "^FCHI": "CAC40",
-  EWQ: "CAC40",
 };
 
 export function resolveIndexSymbol(query: string): MarketIndexMeta | null {
@@ -230,39 +218,96 @@ export function getAllMarketIndices(region?: MarketIndexRegion): MarketIndexMeta
 }
 
 /**
- * Obtiene la serie histórica de un índice bursátil desde FRED.
+ * Obtiene la serie histórica en puntos nominales del índice bursátil (no del ETF).
  */
 export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePoint[]> {
   const meta = MARKET_INDICES[symbol];
   if (!meta) throw new Error(`Índice no reconocido: ${symbol}`);
 
   const cache = getCacheStore();
-  const cacheKey = `indices:series:${symbol}`;
+  const cacheKey = `indices:series:v2:${symbol}`;
   const cached = await cache.get<PricePoint[]>(cacheKey);
   if (cached && cached.length > 0) return cached;
 
-  const apiKey = process.env.FRED_API_KEY?.trim();
-  let points: PricePoint[];
+  let points: PricePoint[] = [];
 
-  if (apiKey) {
-    const url =
-      `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
-      `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-    const json = (await res.json()) as { observations: { date: string; value: string }[] };
-    points = json.observations
-      .filter((o) => o.value !== "." && o.value !== "")
-      .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
-      .filter((p) => Number.isFinite(p.close));
-  } else {
-    const res = await fetch(
-      `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-    const fredPoints: FredPoint[] = parseFredCsv(await res.text());
-    points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+  // 1. Intentar obtener la serie histórica oficial en puntos nominales desde el feed de mercado
+  if (meta.marketSymbol) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(meta.marketSymbol)}?interval=1d&range=5y`;
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        },
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const json = (await res.json()) as {
+          chart?: {
+            result?: [
+              {
+                timestamp?: number[];
+                indicators?: {
+                  quote?: [
+                    {
+                      close?: (number | null)[];
+                    },
+                  ];
+                };
+              },
+            ];
+          };
+        };
+
+        const result = json.chart?.result?.[0];
+        const timestamps = result?.timestamp ?? [];
+        const closes = result?.indicators?.quote?.[0]?.close ?? [];
+
+        for (let i = 0; i < timestamps.length; i++) {
+          const c = closes[i];
+          const t = timestamps[i];
+          if (c !== null && c !== undefined && Number.isFinite(c) && t) {
+            const dateStr = new Date(t * 1000).toISOString().slice(0, 10);
+            points.push({ date: dateStr, close: Number(c.toFixed(2)) });
+          }
+        }
+      }
+    } catch {
+      // Intento con proveedor alternativo FRED
+    }
+  }
+
+  // 2. Si la serie de mercado no devolvió datos y el índice tiene serie nominal en FRED
+  if (points.length === 0 && meta.fredSeriesId) {
+    const apiKey = process.env.FRED_API_KEY?.trim();
+
+    if (apiKey) {
+      const url =
+        `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
+        `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const json = (await res.json()) as { observations: { date: string; value: string }[] };
+        points = json.observations
+          .filter((o) => o.value !== "." && o.value !== "")
+          .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
+          .filter((p) => Number.isFinite(p.close));
+      }
+    } else {
+      const res = await fetch(
+        `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
+        { cache: "no-store" },
+      );
+      if (res.ok) {
+        const fredPoints: FredPoint[] = parseFredCsv(await res.text());
+        points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+      }
+    }
+  }
+
+  if (points.length === 0) {
+    throw new Error(`No se pudo obtener la serie oficial en puntos para el índice: ${symbol}`);
   }
 
   points.sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -271,7 +316,7 @@ export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePo
 }
 
 /**
- * Calcula el resumen de métricas y variaciones para un índice bursátil.
+ * Calcula el resumen de métricas y variaciones para un índice bursátil en puntos nominales.
  */
 export function computeIndexSummary(
   symbol: MarketIndexSymbol,
@@ -354,7 +399,7 @@ export function computeIndexSummary(
 }
 
 /**
- * Obtiene el detalle completo de un índice con sus indicadores técnicos calculados.
+ * Obtiene el detalle completo de un índice con sus indicadores técnicos calculados sobre los puntos nominales.
  */
 export async function getIndexDetail(symbol: MarketIndexSymbol): Promise<IndexDetailResult> {
   const meta = MARKET_INDICES[symbol];
