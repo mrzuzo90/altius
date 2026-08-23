@@ -9,9 +9,18 @@ import type { CompanyFacts } from "./types";
  * forma de resolver los alias de conceptos sin encadenar decenas de peticiones,
  * porque no se sabe qué etiqueta usa cada empresa hasta haberlas mirado todas.
  */
-export function getCompanyFacts(cik: string): Promise<CompanyFacts> {
-  return secFetchJson<CompanyFacts>(
-    `https://data.sec.gov/api/xbrl/companyfacts/CIK${padCik(cik)}.json`,
-    TTL.companyFacts,
-  );
+export async function getCompanyFacts(cik: string): Promise<CompanyFacts> {
+  try {
+    return await secFetchJson<CompanyFacts>(
+      `https://data.sec.gov/api/xbrl/companyfacts/CIK${padCik(cik)}.json`,
+      TTL.companyFacts,
+    );
+  } catch {
+    // Si la empresa no publica hechos XBRL o es un ADR Level 1 sin reportes en EDGAR
+    return {
+      cik: Number(padCik(cik)),
+      entityName: "",
+      facts: {},
+    };
+  }
 }

@@ -17,8 +17,16 @@ export type StatementBundle = {
 
 const MAX_PERIODOS: Record<Frequency, number> = { annual: 10, quarterly: 8 };
 
-export async function buildStatements(cik: string, frequency: Frequency): Promise<StatementBundle> {
-  const [profile, facts] = await Promise.all([getCompanyProfile(cik), getCompanyFacts(cik)]);
+export async function buildStatements(
+  cik: string,
+  frequency: Frequency,
+  fallbackName?: string,
+  fallbackTicker?: string,
+): Promise<StatementBundle> {
+  const [profile, facts] = await Promise.all([
+    getCompanyProfile(cik, fallbackName, fallbackTicker),
+    getCompanyFacts(cik),
+  ]);
 
   const baseBlocks: StatementBlock[] = (Object.keys(STATEMENTS) as (keyof typeof STATEMENTS)[]).map((id) => {
     const def = STATEMENTS[id];

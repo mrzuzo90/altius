@@ -36,7 +36,7 @@ export default async function ValuationPage({ params }: { params: Promise<{ tick
   const ticker = hit.ticker;
 
   const [bundle, precios] = await Promise.all([
-    buildStatements(hit.cik, "annual"),
+    buildStatements(hit.cik, "annual", hit.name, hit.ticker),
     getPriceSeries(hit.ticker),
   ]);
 

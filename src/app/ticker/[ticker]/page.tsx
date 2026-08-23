@@ -53,10 +53,10 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
   const ticker = hit.ticker;
 
   const [profile, ultimo10K, precios, bundle, newsResult] = await Promise.all([
-    getCompanyProfile(hit.cik),
+    getCompanyProfile(hit.cik, hit.name, hit.ticker),
     findLatestFiling(hit.cik, ["10-K", "20-F", "10-Q", "6-K"]),
     getPriceSeries(hit.ticker),
-    buildStatements(hit.cik, "annual"),
+    buildStatements(hit.cik, "annual", hit.name, hit.ticker),
     getCompanyNews(hit.ticker, hit.name, hit.cik),
   ]);
 

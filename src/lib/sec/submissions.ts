@@ -130,10 +130,39 @@ export function getSubmissions(cik: string): Promise<RawSubmissions> {
   return secFetchJson<RawSubmissions>(submissionsUrl(cik), TTL.submissions);
 }
 
-export async function getCompanyProfile(cik: string): Promise<CompanyProfile> {
-  return buildProfile(await getSubmissions(cik));
+export async function getCompanyProfile(
+  cik: string,
+  fallbackName?: string,
+  fallbackTicker?: string,
+): Promise<CompanyProfile> {
+  try {
+    const raw = await getSubmissions(cik);
+    if (raw) return buildProfile(raw);
+  } catch {
+    // Si la entidad no tiene submissions directos en EDGAR (ej. ADRs OTC / no-filers)
+  }
+
+  return {
+    cik: padCik(cik),
+    name: fallbackName ?? "Empresa Cotizada",
+    tickers: fallbackTicker ? [fallbackTicker] : [],
+    exchanges: [],
+    sic: "",
+    sicDescription: "",
+    sector: "No clasificado",
+    fiscalYearEnd: null,
+    website: null,
+    address: null,
+    stateOfIncorporation: null,
+  };
 }
 
 export async function findLatestFiling(cik: string, forms: string[]): Promise<FilingRef | null> {
-  return pickLatestFiling(await getSubmissions(cik), forms);
+  try {
+    const raw = await getSubmissions(cik);
+    if (!raw) return null;
+    return pickLatestFiling(raw, forms);
+  } catch {
+    return null;
+  }
 }

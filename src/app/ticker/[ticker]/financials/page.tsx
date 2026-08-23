@@ -41,7 +41,7 @@ export default async function FinancialsPage({
   if (!hit) notFound();
   const ticker = hit.ticker;
 
-  const bundle = await buildStatements(hit.cik, frequency);
+  const bundle = await buildStatements(hit.cik, frequency, hit.name, hit.ticker);
 
   return (
     <>

@@ -40,7 +40,7 @@ export default async function CopilotoPage({ params }: { params: Promise<{ ticke
   const ticker = hit.ticker;
 
   const [profile, filing] = await Promise.all([
-    getCompanyProfile(hit.cik),
+    getCompanyProfile(hit.cik, hit.name, hit.ticker),
     findLatestFiling(hit.cik, ["10-K", "20-F"]),
   ]);
 

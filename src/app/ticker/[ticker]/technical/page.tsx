@@ -39,7 +39,7 @@ export default async function TechnicalPage({
   const ticker = hit.ticker;
 
   const [profile, precios] = await Promise.all([
-    getCompanyProfile(hit.cik),
+    getCompanyProfile(hit.cik, hit.name, hit.ticker),
     getPriceSeries(ticker),
   ]);
 
