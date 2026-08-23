@@ -10,6 +10,7 @@ import { ThemeToggle } from "./theme-toggle";
 const NAV = [
   { href: "/", label: "Observatorio" },
   { href: "/indices", label: "Índices" },
+  { href: "/commodities", label: "Materias Primas" },
   { href: "/macro", label: "Macro" },
 ];
 

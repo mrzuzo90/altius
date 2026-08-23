@@ -39,4 +39,5 @@ export const TTL = {
   mdnaSummary: 60 * 60 * 24 * 30,
   news: 60 * 60,
   indices: 60 * 60 * 12,
+  commodities: 60 * 60 * 12,
 } as const;

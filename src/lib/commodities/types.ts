@@ -1,42 +1,41 @@
 import type { PricePoint } from "@/lib/prices/types";
 import type { TechnicalDataset } from "@/lib/technical/types";
 
-export type MarketIndexRegion = "us" | "europe" | "global";
+export type CommodityCategory =
+  | "energy"
+  | "precious_metals"
+  | "industrial_metals"
+  | "agriculture";
 
-export type MarketIndexSymbol =
-  | "SP500"
-  | "NASDAQCOM"
-  | "DJIA"
-  | "VIXCLS"
-  | "STOXX50E"
-  | "DAX"
-  | "IBEX35"
-  | "FTSE100"
-  | "CAC40";
+export type CommoditySymbol =
+  | "BRENT"
+  | "WTI"
+  | "NATGAS"
+  | "GOLD"
+  | "SILVER"
+  | "COPPER"
+  | "WHEAT"
+  | "CORN";
 
-export type MarketIndexMeta = {
-  symbol: MarketIndexSymbol;
+export type CommodityMeta = {
+  symbol: CommoditySymbol;
   slug: string;
   name: string;
   shortName: string;
-  region: MarketIndexRegion;
-  country: string;
-  currency: string;
+  category: CommodityCategory;
+  unit: string;
   fredSeriesId: string;
   provider: string;
   description: string;
-  isVolatilityIndex?: boolean;
-  benchmarkTicker?: string; // ETF ticker, e.g. SPY, QQQ, DIA, FEZ, EWG, EWP, EWU, EWQ
 };
 
-export type IndexSummary = {
-  symbol: MarketIndexSymbol;
+export type CommoditySummary = {
+  symbol: CommoditySymbol;
   slug: string;
   name: string;
   shortName: string;
-  region: MarketIndexRegion;
-  country: string;
-  currency: string;
+  category: CommodityCategory;
+  unit: string;
   currentValue: number;
   date: string;
   change1D?: number;
@@ -55,9 +54,9 @@ export type IndexSummary = {
   provider: string;
 };
 
-export type IndexDetailResult = {
-  meta: MarketIndexMeta;
-  summary: IndexSummary;
+export type CommodityDetailResult = {
+  meta: CommodityMeta;
+  summary: CommoditySummary;
   technical: TechnicalDataset;
   points: PricePoint[];
 };

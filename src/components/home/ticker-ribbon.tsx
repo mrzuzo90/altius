@@ -6,13 +6,25 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 
 type RibbonItem =
   | { type: "stock"; ticker: string; price: number; changePct: number; href: string }
-  | { type: "index"; ticker: string; price: number; changePct: number; href: string; isVix?: boolean };
+  | { type: "index" | "commodity"; ticker: string; price: number; changePct: number; href: string; isVix?: boolean; unit?: string };
 
-const INDEX_RIBBON_ITEMS: RibbonItem[] = [
+const GLOBAL_RIBBON_ITEMS: RibbonItem[] = [
+  // Índices EE. UU.
   { type: "index", ticker: "S&P 500", price: 5980.25, changePct: 0.72, href: "/indices/sp500" },
   { type: "index", ticker: "NASDAQ", price: 18940.10, changePct: 1.15, href: "/indices/nasdaq" },
   { type: "index", ticker: "DOW JONES", price: 43450.80, changePct: 0.38, href: "/indices/dow-jones" },
   { type: "index", ticker: "VIX", price: 15.20, changePct: -3.40, href: "/indices/vix", isVix: true },
+
+  // Índices Europa
+  { type: "index", ticker: "EURO STOXX 50", price: 4950.40, changePct: 0.85, href: "/indices/eurostoxx50" },
+  { type: "index", ticker: "DAX 40", price: 18620.50, changePct: 0.92, href: "/indices/dax" },
+  { type: "index", ticker: "IBEX 35", price: 11280.30, changePct: 1.05, href: "/indices/ibex35" },
+
+  // Materias Primas
+  { type: "commodity", ticker: "ORO", price: 2512.40, changePct: 0.65, href: "/commodities/oro" },
+  { type: "commodity", ticker: "BRENT", price: 82.35, changePct: -0.45, href: "/commodities/brent" },
+  { type: "commodity", ticker: "GAS NATURAL", price: 2.48, changePct: 2.10, href: "/commodities/gas-natural" },
+  { type: "commodity", ticker: "COBRE", price: 9240.0, changePct: 1.30, href: "/commodities/cobre" },
 ];
 
 export function TickerRibbon() {
@@ -24,7 +36,7 @@ export function TickerRibbon() {
     href: `/ticker/${m.ticker}`,
   }));
 
-  const allItems = [...INDEX_RIBBON_ITEMS, ...stockItems];
+  const allItems = [...GLOBAL_RIBBON_ITEMS, ...stockItems];
   const items = [...allItems, ...allItems];
 
   return (

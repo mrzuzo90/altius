@@ -6,21 +6,26 @@ import type {
   IndexDetailResult,
   IndexSummary,
   MarketIndexMeta,
+  MarketIndexRegion,
   MarketIndexSymbol,
 } from "./types";
 
 export * from "./types";
 
 export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
+  // EE. UU.
   SP500: {
     symbol: "SP500",
     slug: "sp500",
     name: "S&P 500 Index",
     shortName: "S&P 500",
+    region: "us",
+    country: "Estados Unidos",
+    currency: "USD",
     fredSeriesId: "SP500",
     provider: "S&P Dow Jones Indices LLC",
     description:
-      "Índice de referencia compuesto por las 500 mayores corporaciones de Wall Street. Representa más del 80% de la capitalización del mercado bursátil estadounidense.",
+      "Índice de referencia compuesto por las 500 mayores corporaciones de Wall Street. Representa más del 80% de la capitalización bursátil estadounidense.",
     benchmarkTicker: "SPY",
   },
   NASDAQCOM: {
@@ -28,10 +33,13 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     slug: "nasdaq",
     name: "NASDAQ Composite Index",
     shortName: "NASDAQ",
+    region: "us",
+    country: "Estados Unidos",
+    currency: "USD",
     fredSeriesId: "NASDAQCOM",
     provider: "NASDAQ OMX Group",
     description:
-      "Índice que agrupa a más de 3.000 acciones cotizadas en el mercado electrónico NASDAQ, con una alta concentración en semiconductores, software y gigantes de internet.",
+      "Índice que agrupa a más de 3.000 acciones cotizadas en el mercado electrónico NASDAQ, con alto peso en semiconductores, software y tecnología.",
     benchmarkTicker: "QQQ",
   },
   DJIA: {
@@ -39,10 +47,13 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     slug: "dow-jones",
     name: "Dow Jones Industrial Average",
     shortName: "Dow Jones",
+    region: "us",
+    country: "Estados Unidos",
+    currency: "USD",
     fredSeriesId: "DJIA",
     provider: "S&P Dow Jones Indices LLC",
     description:
-      "El índice bursátil más antiguo de Wall Street, ponderado por precio sobre 30 compañías industriales, financieras y de servicios emblemáticas de EE. UU.",
+      "El selectivo más antiguo de Wall Street, ponderado por precio sobre 30 compañías industriales, financieras y de servicios emblemáticas.",
     benchmarkTicker: "DIA",
   },
   VIXCLS: {
@@ -50,16 +61,92 @@ export const MARKET_INDICES: Record<MarketIndexSymbol, MarketIndexMeta> = {
     slug: "vix",
     name: "CBOE Volatility Index (VIX)",
     shortName: "VIX",
+    region: "us",
+    country: "Estados Unidos",
+    currency: "PTS",
     fredSeriesId: "VIXCLS",
     provider: "Chicago Board Options Exchange (CBOE)",
     description:
-      "Medida líder de la volatilidad implícita esperada a 30 días calculada a partir de los contratos de opciones sobre el S&P 500, conocido como el termómetro del miedo.",
+      "Medida líder de volatilidad implícita esperada a 30 días calculada a partir de las opciones sobre el S&P 500, conocida como el termómetro del miedo.",
     isVolatilityIndex: true,
+  },
+
+  // Europa
+  STOXX50E: {
+    symbol: "STOXX50E",
+    slug: "eurostoxx50",
+    name: "Euro Stoxx 50 Index",
+    shortName: "Euro Stoxx 50",
+    region: "europe",
+    country: "Eurozona",
+    currency: "EUR",
+    fredSeriesId: "SPASTT01EZM661N",
+    provider: "STOXX Ltd. (Deutsche Börse Group)",
+    description:
+      "Índice bursátil de referencia de la Eurozona compuesto por 50 de las empresas más grandes y líquidas de 8 países europeos.",
+    benchmarkTicker: "FEZ",
+  },
+  DAX: {
+    symbol: "DAX",
+    slug: "dax",
+    name: "DAX 40 Index (Alemania)",
+    shortName: "DAX 40",
+    region: "europe",
+    country: "Alemania",
+    currency: "EUR",
+    fredSeriesId: "SPASTT01DEM661N",
+    provider: "Deutsche Börse",
+    description:
+      "Índice director de la economía alemana que agrupa a las 40 mayores compañías cotizadas en la Bolsa de Frankfurt (SAP, Siemens, Allianz, etc.).",
+    benchmarkTicker: "EWG",
+  },
+  IBEX35: {
+    symbol: "IBEX35",
+    slug: "ibex35",
+    name: "IBEX 35 Index (España)",
+    shortName: "IBEX 35",
+    region: "europe",
+    country: "España",
+    currency: "EUR",
+    fredSeriesId: "SPASTT01ESM661N",
+    provider: "BME - Bolsas y Mercados Españoles",
+    description:
+      "Selectivo de las 35 empresas con mayor liquidez cotizadas en el Sistema de Interconexión Bursátil Español (SIBE) en Madrid.",
+    benchmarkTicker: "EWP",
+  },
+  FTSE100: {
+    symbol: "FTSE100",
+    slug: "ftse100",
+    name: "FTSE 100 Index (Reino Unido)",
+    shortName: "FTSE 100",
+    region: "europe",
+    country: "Reino Unido",
+    currency: "GBP",
+    fredSeriesId: "SPASTT01GBM661N",
+    provider: "FTSE Russell (LSE Group)",
+    description:
+      "Índice ponderado por capitalización de las 100 mayores empresas cotizadas en la Bolsa de Valores de Londres (London Stock Exchange).",
+    benchmarkTicker: "EWU",
+  },
+  CAC40: {
+    symbol: "CAC40",
+    slug: "cac40",
+    name: "CAC 40 Index (Francia)",
+    shortName: "CAC 40",
+    region: "europe",
+    country: "Francia",
+    currency: "EUR",
+    fredSeriesId: "SPASTT01FRM661N",
+    provider: "Euronext Paris",
+    description:
+      "Índice de referencia de la Bolsa de París que agrupa a los 40 valores más significativos de Francia (LVMH, TotalEnergies, Sanofi, L'Oréal).",
+    benchmarkTicker: "EWQ",
   },
 };
 
-/** Mapeo de alias o símbolos habituales a nuestros símbolos oficiales */
+/** Mapeo exhaustivo de alias para resolución unificada */
 const INDEX_ALIASES: Record<string, MarketIndexSymbol> = {
+  // US
   SP500: "SP500",
   "S&P500": "SP500",
   "S&P 500": "SP500",
@@ -84,19 +171,62 @@ const INDEX_ALIASES: Record<string, MarketIndexSymbol> = {
   VIX: "VIXCLS",
   VIXCLS: "VIXCLS",
   "^VIX": "VIXCLS",
+
+  // Europa
+  EUROSTOXX: "STOXX50E",
+  EUROSTOXX50: "STOXX50E",
+  "EURO STOXX": "STOXX50E",
+  "EURO STOXX 50": "STOXX50E",
+  STOXX50: "STOXX50E",
+  STOXX50E: "STOXX50E",
+  SX5E: "STOXX50E",
+  "^STOXX50E": "STOXX50E",
+  FEZ: "STOXX50E",
+  DAX: "DAX",
+  DAX40: "DAX",
+  "DAX 40": "DAX",
+  DAX30: "DAX",
+  GDAXI: "DAX",
+  "^GDAXI": "DAX",
+  EWG: "DAX",
+  IBEX: "IBEX35",
+  IBEX35: "IBEX35",
+  "IBEX 35": "IBEX35",
+  "IBEX-35": "IBEX35",
+  "^IBEX": "IBEX35",
+  "IBEX.MC": "IBEX35",
+  EWP: "IBEX35",
+  FTSE: "FTSE100",
+  FTSE100: "FTSE100",
+  "FTSE 100": "FTSE100",
+  UK100: "FTSE100",
+  "^FTSE": "FTSE100",
+  EWU: "FTSE100",
+  CAC: "CAC40",
+  CAC40: "CAC40",
+  "CAC 40": "CAC40",
+  PX1: "CAC40",
+  "^FCHI": "CAC40",
+  EWQ: "CAC40",
 };
 
 export function resolveIndexSymbol(query: string): MarketIndexMeta | null {
   const norm = query.trim().toUpperCase().replace(/[\^]/g, "");
-  const foundSymbol = INDEX_ALIASES[norm] ?? INDEX_ALIASES[query.trim().toUpperCase()];
+  const foundSymbol =
+    INDEX_ALIASES[norm] ??
+    INDEX_ALIASES[query.trim().toUpperCase()] ??
+    (Object.values(MARKET_INDICES).find((m) => m.slug.toLowerCase() === query.trim().toLowerCase())
+      ?.symbol as MarketIndexSymbol | undefined);
+
   if (foundSymbol && MARKET_INDICES[foundSymbol]) {
     return MARKET_INDICES[foundSymbol];
   }
   return null;
 }
 
-export function getAllMarketIndices(): MarketIndexMeta[] {
-  return Object.values(MARKET_INDICES);
+export function getAllMarketIndices(region?: MarketIndexRegion): MarketIndexMeta[] {
+  const list = Object.values(MARKET_INDICES);
+  return region ? list.filter((i) => i.region === region) : list;
 }
 
 /**
@@ -198,8 +328,12 @@ export function computeIndexSummary(
 
   return {
     symbol,
+    slug: meta.slug,
     name: meta.name,
     shortName: meta.shortName,
+    region: meta.region,
+    country: meta.country,
+    currency: meta.currency,
     currentValue,
     date: currentDate,
     change1D: prev1D && prev1D > 0 ? ((currentValue - prev1D) / prev1D) * 100 : undefined,
@@ -239,12 +373,14 @@ export async function getIndexDetail(symbol: MarketIndexSymbol): Promise<IndexDe
 }
 
 /**
- * Obtiene el resumen de todos los índices principales para la vista general.
+ * Obtiene el resumen de todos los índices para la vista general (opcionalmente filtrado por región).
  */
-export async function getAllIndicesSummary(): Promise<IndexSummary[]> {
+export async function getAllIndicesSummary(region?: MarketIndexRegion): Promise<IndexSummary[]> {
   const symbols = Object.keys(MARKET_INDICES) as MarketIndexSymbol[];
+  const filtered = region ? symbols.filter((s) => MARKET_INDICES[s].region === region) : symbols;
+
   const summaries = await Promise.all(
-    symbols.map(async (sym) => {
+    filtered.map(async (sym) => {
       try {
         const points = await getIndexSeries(sym);
         return computeIndexSummary(sym, points);

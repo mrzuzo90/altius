@@ -8,7 +8,8 @@ import {
 import type { PricePoint } from "@/lib/prices/types";
 
 describe("Módulo de Índices Bursátiles", () => {
-  it("resuelve alias de índices correctamente", () => {
+  it("resuelve alias de índices estadounidenses y europeos correctamente", () => {
+    // US
     expect(resolveIndexSymbol("SP500")?.symbol).toBe("SP500");
     expect(resolveIndexSymbol("S&P 500")?.symbol).toBe("SP500");
     expect(resolveIndexSymbol("^GSPC")?.symbol).toBe("SP500");
@@ -16,17 +17,35 @@ describe("Módulo de Índices Bursátiles", () => {
     expect(resolveIndexSymbol("NASDAC")?.symbol).toBe("NASDAQCOM");
     expect(resolveIndexSymbol("DOW")?.symbol).toBe("DJIA");
     expect(resolveIndexSymbol("VIX")?.symbol).toBe("VIXCLS");
+
+    // Europa
+    expect(resolveIndexSymbol("EURO STOXX 50")?.symbol).toBe("STOXX50E");
+    expect(resolveIndexSymbol("EUROSTOXX50")?.symbol).toBe("STOXX50E");
+    expect(resolveIndexSymbol("DAX")?.symbol).toBe("DAX");
+    expect(resolveIndexSymbol("DAX 40")?.symbol).toBe("DAX");
+    expect(resolveIndexSymbol("IBEX")?.symbol).toBe("IBEX35");
+    expect(resolveIndexSymbol("IBEX 35")?.symbol).toBe("IBEX35");
+    expect(resolveIndexSymbol("FTSE")?.symbol).toBe("FTSE100");
+    expect(resolveIndexSymbol("CAC")?.symbol).toBe("CAC40");
+    expect(resolveIndexSymbol("CAC 40")?.symbol).toBe("CAC40");
     expect(resolveIndexSymbol("NONEXISTENT")).toBeNull();
   });
 
-  it("devuelve los metadatos completos de todos los índices", () => {
-    const indices = getAllMarketIndices();
-    expect(indices.length).toBe(4);
-    const symbols = indices.map((i) => i.symbol);
-    expect(symbols).toContain("SP500");
-    expect(symbols).toContain("NASDAQCOM");
-    expect(symbols).toContain("DJIA");
-    expect(symbols).toContain("VIXCLS");
+  it("devuelve los metadatos completos y filtra por región", () => {
+    const all = getAllMarketIndices();
+    expect(all.length).toBe(9);
+
+    const europe = getAllMarketIndices("europe");
+    expect(europe.length).toBe(5);
+    const eurSymbols = europe.map((i) => i.symbol);
+    expect(eurSymbols).toContain("STOXX50E");
+    expect(eurSymbols).toContain("DAX");
+    expect(eurSymbols).toContain("IBEX35");
+    expect(eurSymbols).toContain("FTSE100");
+    expect(eurSymbols).toContain("CAC40");
+
+    const us = getAllMarketIndices("us");
+    expect(us.length).toBe(4);
   });
 
   it("calcula el resumen de variaciones y máximos históricos", () => {

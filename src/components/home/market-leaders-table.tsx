@@ -7,14 +7,17 @@ import { Sparkline } from "@/components/sparkline";
 import { TrendingUp, TrendingDown, Table, Copy, Check } from "lucide-react";
 
 export function MarketLeadersTable() {
+  const [regionFilter, setRegionFilter] = useState<"all" | "us" | "europe">("all");
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [copiado, setCopiado] = useState(false);
 
-  const sectores = ["all", "Technology", "Semiconductors", "Software & Cloud", "Social Media & AI"];
+  const sectores = ["all", "Technology", "Semiconductors", "Software & Cloud", "Pharmaceuticals", "Banking & Finance"];
 
-  const filtered = sectorFilter === "all"
-    ? MARKET_LEADERS
-    : MARKET_LEADERS.filter((m) => m.sector === sectorFilter);
+  const filtered = MARKET_LEADERS.filter((m) => {
+    const matchRegion = regionFilter === "all" || m.region === regionFilter;
+    const matchSector = sectorFilter === "all" || m.sector === sectorFilter;
+    return matchRegion && matchSector;
+  });
 
   const copiarTabla = () => {
     const cabecera = ["Ticker", "Empresa", "Sector", "Precio", "Var %", "Market Cap ($M)", "PER", "EV/EBITDA", "Margen FCF %", "ROIC %", "Crecimiento %"].join("\t");
@@ -70,6 +73,44 @@ export function MarketLeadersTable() {
             )}
           </button>
 
+          {/* Filtro Geográfico */}
+          <div className="bg-void-black border-gunmetal rounded-full border p-0.5 flex items-center">
+            <button
+              type="button"
+              onClick={() => setRegionFilter("all")}
+              className={`rounded-full px-3 py-1 text-[12px] font-display transition-colors ${
+                regionFilter === "all"
+                  ? "bg-gunmetal text-pure-white"
+                  : "text-muted-steel hover:text-frost"
+              }`}
+            >
+              Global
+            </button>
+            <button
+              type="button"
+              onClick={() => setRegionFilter("us")}
+              className={`rounded-full px-3 py-1 text-[12px] font-display transition-colors ${
+                regionFilter === "us"
+                  ? "bg-gunmetal text-pure-white"
+                  : "text-muted-steel hover:text-frost"
+              }`}
+            >
+              EE. UU.
+            </button>
+            <button
+              type="button"
+              onClick={() => setRegionFilter("europe")}
+              className={`rounded-full px-3 py-1 text-[12px] font-display transition-colors ${
+                regionFilter === "europe"
+                  ? "bg-gunmetal text-pure-white"
+                  : "text-muted-steel hover:text-frost"
+              }`}
+            >
+              Europa
+            </button>
+          </div>
+
+          {/* Filtro por Sector */}
           <div className="bg-void-black border-gunmetal rounded-full border p-0.5 flex flex-wrap gap-1 max-w-full overflow-x-auto">
             {sectores.map((sec) => (
               <button
@@ -82,7 +123,7 @@ export function MarketLeadersTable() {
                     : "text-muted-steel hover:text-frost"
                 }`}
               >
-                {sec === "all" ? "Todos" : sec}
+                {sec === "all" ? "Todos los sectores" : sec}
               </button>
             ))}
           </div>
