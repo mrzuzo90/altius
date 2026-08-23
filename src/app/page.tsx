@@ -8,7 +8,7 @@ import { getFredSeries, yoyChange } from "@/lib/fred/client";
 import { getAllIndicesSummary } from "@/lib/indices";
 import { getAllCommoditiesSummary } from "@/lib/commodities";
 import { getAllCurrenciesSummary } from "@/lib/currencies";
-import { getDynamicMarketLeaders } from "@/lib/home/leaders-data";
+import { getDynamicMarketLeaders } from "@/lib/home/leaders-server";
 import { ArrowRight, ShieldCheck, Zap, Database, Sparkles } from "lucide-react";
 import type { RibbonItem } from "@/components/home/ticker-ribbon";
 

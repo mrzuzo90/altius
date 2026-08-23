@@ -1,5 +1,3 @@
-import { getLiveQuote } from "@/lib/quotes/client";
-
 export type MarketLeader = {
   ticker: string;
   name: string;
@@ -149,38 +147,7 @@ export const MARKET_LEADER_CONFIGS: MarketLeaderMeta[] = [
   },
 ];
 
-/**
- * Obtiene los líderes de mercado con sus cotizaciones y sparklines reales en tiempo real.
- * Si un dato no está disponible en la fuente oficial, se asignan valores honestos o nulos.
- */
-export async function getDynamicMarketLeaders(): Promise<MarketLeader[]> {
-  const leaders = await Promise.all(
-    MARKET_LEADER_CONFIGS.map(async (meta) => {
-      const quote = await getLiveQuote(meta.ticker);
-
-      return {
-        ticker: meta.ticker,
-        name: meta.name,
-        sector: meta.sector,
-        region: meta.region,
-        country: meta.country,
-        price: quote?.price ?? 0,
-        changePct: quote?.changePct ?? 0,
-        marketCap: quote?.marketCap ?? 0,
-        pe: meta.pe ?? null,
-        evEbitda: meta.evEbitda ?? null,
-        fcfMargin: meta.fcfMargin ?? null,
-        roic: meta.roic ?? null,
-        revenueGrowth: meta.revenueGrowth ?? null,
-        trend: quote?.sparkline ?? [],
-      };
-    }),
-  );
-
-  return leaders;
-}
-
-/** Fallback tipado para render inicial en cliente si fuera necesario */
+/** Fallback tipado para render en cliente */
 export const MARKET_LEADERS: MarketLeader[] = MARKET_LEADER_CONFIGS.map((meta) => ({
   ticker: meta.ticker,
   name: meta.name,
