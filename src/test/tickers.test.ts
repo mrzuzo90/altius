@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankTickers, type TickerHit } from "@/lib/sec/tickers";
+import { rankTickers, type TickerHit, resolveTicker } from "@/lib/sec/tickers";
 
 // Forma real de company_tickers.json: objeto indexado por número, no array.
 const CRUDO = {
@@ -63,5 +63,12 @@ describe("relevancia entre nombres que comparten prefijo", () => {
 
   it("la coincidencia exacta de ticker sigue mandando sobre el nombre", () => {
     expect(rankTickers(CON_HOMONIMOS, "APLE")[0].ticker).toBe("APLE");
+  });
+});
+
+describe("resolveTicker con alias globales", () => {
+  it("devuelve null con cadena vacía", async () => {
+    expect(await resolveTicker("")).toBeNull();
+    expect(await resolveTicker("   ")).toBeNull();
   });
 });

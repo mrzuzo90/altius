@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { findLatestFiling, getCompanyProfile } from "@/lib/sec/submissions";
 import { secFetchText } from "@/lib/sec/client";
@@ -10,6 +10,9 @@ import { CompanyHeader } from "@/components/company-header";
 import { MdnaSummary } from "@/components/mdna-summary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, FileText, Loader2 } from "lucide-react";
+import { resolveIndexSymbol } from "@/lib/indices";
+import { resolveCommoditySymbol } from "@/lib/commodities";
+import { resolveCurrencySymbol } from "@/lib/currencies";
 
 export const revalidate = 86400;
 // El documento pesa varios megabytes y el modelo tarda; se necesita margen.
@@ -17,19 +20,28 @@ export const maxDuration = 120;
 
 export async function generateMetadata({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params;
-  return { title: `${ticker.toUpperCase()} · Copiloto 10-K` };
+  return { title: `${ticker.toUpperCase()} · Copiloto 10-K / 20-F` };
 }
 
 export default async function CopilotoPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker: bruto } = await params;
-  const ticker = bruto.toUpperCase();
+  const rawQuery = bruto.trim();
 
-  const hit = await resolveTicker(ticker);
+  // Redirecciones directas si la URL era un índice, materia prima o divisa
+  const indexHit = resolveIndexSymbol(rawQuery);
+  if (indexHit) redirect(`/indices/${indexHit.slug}`);
+  const commodityHit = resolveCommoditySymbol(rawQuery);
+  if (commodityHit) redirect(`/commodities/${commodityHit.slug}`);
+  const currencyHit = resolveCurrencySymbol(rawQuery);
+  if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
+
+  const hit = await resolveTicker(rawQuery);
   if (!hit) notFound();
+  const ticker = hit.ticker;
 
   const [profile, filing] = await Promise.all([
     getCompanyProfile(hit.cik),
-    findLatestFiling(hit.cik, ["10-K"]),
+    findLatestFiling(hit.cik, ["10-K", "20-F"]),
   ]);
 
   return (

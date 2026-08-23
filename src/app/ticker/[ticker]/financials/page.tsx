@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { buildStatements, hasUsableData } from "@/lib/sec/statements";
 import { CompanyHeader } from "@/components/company-header";
@@ -6,6 +6,9 @@ import { FinancialsClient } from "./financials-client";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { formatDate } from "@/lib/format";
 import type { Frequency } from "@/lib/sec/normalize";
+import { resolveIndexSymbol } from "@/lib/indices";
+import { resolveCommoditySymbol } from "@/lib/commodities";
+import { resolveCurrencySymbol } from "@/lib/currencies";
 
 export const revalidate = 21600;
 
@@ -22,17 +25,27 @@ export default async function FinancialsPage({
   searchParams: Promise<{ freq?: string }>;
 }) {
   const [{ ticker: bruto }, { freq }] = await Promise.all([params, searchParams]);
-  const ticker = bruto.toUpperCase();
+  const rawQuery = bruto.trim();
+
+  // Redirecciones directas si la URL era un índice, materia prima o divisa
+  const indexHit = resolveIndexSymbol(rawQuery);
+  if (indexHit) redirect(`/indices/${indexHit.slug}`);
+  const commodityHit = resolveCommoditySymbol(rawQuery);
+  if (commodityHit) redirect(`/commodities/${commodityHit.slug}`);
+  const currencyHit = resolveCurrencySymbol(rawQuery);
+  if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
+
   const frequency: Frequency = freq === "quarterly" ? "quarterly" : "annual";
 
-  const hit = await resolveTicker(ticker);
+  const hit = await resolveTicker(rawQuery);
   if (!hit) notFound();
+  const ticker = hit.ticker;
 
   const bundle = await buildStatements(hit.cik, frequency);
 
   return (
     <>
-      <CompanyHeader profile={bundle.profile} ticker={ticker} active="/financials" />
+      <CompanyHeader profile={bundle.profile} ticker={hit.ticker} active="/financials" />
 
       <div className="mx-auto max-w-[1200px] px-5 py-12">
         <div className="mb-8 flex flex-wrap items-center gap-4">

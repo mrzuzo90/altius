@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { resolveTicker } from "@/lib/sec/tickers";
@@ -20,6 +20,9 @@ import { evaluateQualityScorecard } from "@/lib/sec/quality";
 import { QualityScorecard } from "@/components/quality-scorecard";
 import { getCompanyNews } from "@/lib/news";
 import { CompanyNewsFeed } from "@/components/news/company-news-feed";
+import { resolveIndexSymbol } from "@/lib/indices";
+import { resolveCommoditySymbol } from "@/lib/commodities";
+import { resolveCurrencySymbol } from "@/lib/currencies";
 
 export const revalidate = 21600;
 
@@ -30,17 +33,31 @@ export async function generateMetadata({ params }: { params: Promise<{ ticker: s
 
 export default async function PerfilPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker: bruto } = await params;
-  const ticker = bruto.toUpperCase();
+  const rawQuery = bruto.trim();
 
-  const hit = await resolveTicker(ticker);
+  // 1. Si es un índice, redirigir a su ficha oficial
+  const indexHit = resolveIndexSymbol(rawQuery);
+  if (indexHit) redirect(`/indices/${indexHit.slug}`);
+
+  // 2. Si es una materia prima, redirigir a su ficha oficial
+  const commodityHit = resolveCommoditySymbol(rawQuery);
+  if (commodityHit) redirect(`/commodities/${commodityHit.slug}`);
+
+  // 3. Si es una divisa / tipo de cambio, redirigir a su ficha oficial
+  const currencyHit = resolveCurrencySymbol(rawQuery);
+  if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
+
+  // 4. Resolver empresa por ticker o alias global
+  const hit = await resolveTicker(rawQuery);
   if (!hit) notFound();
+  const ticker = hit.ticker;
 
   const [profile, ultimo10K, precios, bundle, newsResult] = await Promise.all([
     getCompanyProfile(hit.cik),
-    findLatestFiling(hit.cik, ["10-K"]),
-    getPriceSeries(ticker),
+    findLatestFiling(hit.cik, ["10-K", "20-F", "10-Q", "6-K"]),
+    getPriceSeries(hit.ticker),
     buildStatements(hit.cik, "annual"),
-    getCompanyNews(ticker, hit.name, hit.cik),
+    getCompanyNews(hit.ticker, hit.name, hit.cik),
   ]);
 
   const scorecard = hasUsableData(bundle) ? evaluateQualityScorecard(bundle) : null;

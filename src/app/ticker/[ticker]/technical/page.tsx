@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CompanyHeader } from "@/components/company-header";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { TechnicalChart } from "@/components/technical/technical-chart";
@@ -7,6 +7,9 @@ import { getPriceSeries } from "@/lib/prices";
 import { getCompanyProfile } from "@/lib/sec/submissions";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { buildTechnicalDataset } from "@/lib/technical";
+import { resolveIndexSymbol } from "@/lib/indices";
+import { resolveCommoditySymbol } from "@/lib/commodities";
+import { resolveCurrencySymbol } from "@/lib/currencies";
 
 export const revalidate = 21600;
 
@@ -21,10 +24,19 @@ export default async function TechnicalPage({
   params: Promise<{ ticker: string }>;
 }) {
   const { ticker: bruto } = await params;
-  const ticker = bruto.toUpperCase();
+  const rawQuery = bruto.trim();
 
-  const hit = await resolveTicker(ticker);
+  // Redirecciones directas si la URL era un índice, materia prima o divisa
+  const indexHit = resolveIndexSymbol(rawQuery);
+  if (indexHit) redirect(`/indices/${indexHit.slug}`);
+  const commodityHit = resolveCommoditySymbol(rawQuery);
+  if (commodityHit) redirect(`/commodities/${commodityHit.slug}`);
+  const currencyHit = resolveCurrencySymbol(rawQuery);
+  if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
+
+  const hit = await resolveTicker(rawQuery);
   if (!hit) notFound();
+  const ticker = hit.ticker;
 
   const [profile, precios] = await Promise.all([
     getCompanyProfile(hit.cik),
@@ -37,7 +49,7 @@ export default async function TechnicalPage({
 
   return (
     <>
-      <CompanyHeader profile={profile} ticker={ticker} active="/technical" />
+      <CompanyHeader profile={profile} ticker={hit.ticker} active="/technical" />
 
       <div className="mx-auto max-w-[1200px] px-5 py-10 space-y-10">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-4">

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { buildStatements, hasUsableData } from "@/lib/sec/statements";
 import { getPriceSeries } from "@/lib/prices";
@@ -8,6 +8,9 @@ import { ValuationSummaryCards } from "@/components/valuation/valuation-summary-
 import { ProjectionCalculator } from "@/components/valuation/projection-calculator";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { formatDate } from "@/lib/format";
+import { resolveIndexSymbol } from "@/lib/indices";
+import { resolveCommoditySymbol } from "@/lib/commodities";
+import { resolveCurrencySymbol } from "@/lib/currencies";
 
 export const revalidate = 21600;
 
@@ -18,20 +21,29 @@ export async function generateMetadata({ params }: { params: Promise<{ ticker: s
 
 export default async function ValuationPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker: bruto } = await params;
-  const ticker = bruto.toUpperCase();
+  const rawQuery = bruto.trim();
 
-  const hit = await resolveTicker(ticker);
+  // Redirecciones directas si la URL era un índice, materia prima o divisa
+  const indexHit = resolveIndexSymbol(rawQuery);
+  if (indexHit) redirect(`/indices/${indexHit.slug}`);
+  const commodityHit = resolveCommoditySymbol(rawQuery);
+  if (commodityHit) redirect(`/commodities/${commodityHit.slug}`);
+  const currencyHit = resolveCurrencySymbol(rawQuery);
+  if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
+
+  const hit = await resolveTicker(rawQuery);
   if (!hit) notFound();
+  const ticker = hit.ticker;
 
   const [bundle, precios] = await Promise.all([
     buildStatements(hit.cik, "annual"),
-    getPriceSeries(ticker),
+    getPriceSeries(hit.ticker),
   ]);
 
   if (!hasUsableData(bundle)) {
     return (
       <>
-        <CompanyHeader profile={bundle.profile} ticker={ticker} active="/valuation" />
+        <CompanyHeader profile={bundle.profile} ticker={hit.ticker} active="/valuation" />
         <div className="mx-auto max-w-[1200px] px-5 py-12">
           <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-16 text-center">
             <p className="text-steel mx-auto max-w-lg text-[15px] leading-[1.5] text-pretty">
