@@ -55,6 +55,31 @@ describe("ProvenanceDetail", () => {
     expect(screen.getByText("Inversión en inmovilizado")).toBeDefined();
   });
 
+  it("distingue el puente de actualidad de un filing regulatorio", () => {
+    render(
+      <ProvenanceDetail
+        cik=""
+        provenance={{
+          kind: "reported",
+          concept: "ifrs-full:Revenue",
+          unit: "EUR",
+          periodStart: "2025-01-01",
+          periodEnd: "2025-12-31",
+          form: "YAHOO-ANNUAL",
+          filed: "2026-08-26",
+          accn: "YF-MC.PA-2025-12-31-annualTotalRevenue",
+          sourceUrl: "https://finance.yahoo.com/quote/MC.PA/financials/",
+          sourceLabel: "Yahoo Finance · último ejercicio",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Dato anual agregado para mantener la actualidad")).toBeDefined();
+    expect(screen.getByText("Actualizado")).toBeDefined();
+    expect(screen.getByText("Referencia")).toBeDefined();
+    expect(screen.getByRole("link", { name: /Yahoo Finance/i })).toBeDefined();
+  });
+
   it("deja abrir la procedencia propia de cada entrada de un valor derivado", () => {
     render(
       <ProvenanceDetail

@@ -1,5 +1,12 @@
+export type HistoricalMetricCoverage = {
+  observations: number;
+  startFiscalYear: number | null;
+  endFiscalYear: number | null;
+};
+
 export type ValuationMetrics = {
-  price: number;
+  currency: string;
+  price: number | null;
   priceDate: string | null;
   sharesDiluted: number | null;
   marketCap: number | null;
@@ -25,9 +32,13 @@ export type ValuationMetrics = {
 
   // Márgenes y retornos base para proyecciones
   historicalRevenueGrowth: number | null;
+  historicalRevenueGrowthCoverage: HistoricalMetricCoverage;
   historicalEbitMargin: number | null;
+  historicalEbitMarginCoverage: HistoricalMetricCoverage;
   historicalFcfConversion: number | null;
+  historicalDepreciationMargin: number | null;
   historicalTaxRate: number | null;
+  historicalTaxRateCoverage: HistoricalMetricCoverage;
   lastFiscalYear: number | null;
 };
 
@@ -46,16 +57,22 @@ export type ProjectedYear = {
   revenue: number;
   ebit: number;
   netIncome: number;
-  fcf: number;
+  fcf: number | null;
   sharesDiluted: number;
-  targetMarketCap: number;
-  targetPrice: number;
+  targetMarketCap: number | null;
+  targetPrice: number | null;
 };
 
 export type ValuationProjection = {
   years: ProjectedYear[];
-  currentPrice: number;
-  targetPrice5Y: number;
-  marginOfSafety: number;       // en porcentaje, ej: 25.4 (%)
-  cagr5Y: number;               // retorno anual compuesto esperado en %, ej: 14.8 (%)
+  currentPrice: number | null;
+  targetPrice5Y: number | null;
+  marginOfSafety: number | null;
+  cagr5Y: number | null;
+  unavailableReason: string | null;
+};
+
+export type ImpliedExpectations = {
+  revenueGrowth: number | null;
+  reason: string | null;
 };

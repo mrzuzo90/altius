@@ -4,9 +4,11 @@ export type MarketLeader = {
   sector: string;
   region?: "us" | "europe";
   country?: string;
-  price: number;
-  changePct: number;
-  marketCap: number; // in Millions USD
+  price: number | null;
+  priceCurrency: string | null;
+  changePct: number | null;
+  marketCap: number | null; // en millones de la divisa indicada por el proveedor
+  fundamentalCurrency: string | null;
   pe: number | null;
   evEbitda: number | null;
   fcfMargin: number | null;
@@ -28,6 +30,8 @@ export type MarketLeaderMeta = {
   roic?: number | null;
   revenueGrowth?: number | null;
   marketCapBase?: number;
+  /** Número de acciones ordinarias representadas por cada ADR/cotización. */
+  sharesPerListing?: number;
 };
 
 export const MARKET_LEADER_CONFIGS: MarketLeaderMeta[] = [
@@ -131,7 +135,7 @@ export const MARKET_LEADER_CONFIGS: MarketLeaderMeta[] = [
     cik: "0000879764",
   },
   {
-    ticker: "IBDRY",
+    ticker: "IBE.MC",
     name: "Iberdrola, S.A.",
     sector: "Utilities & Clean Energy",
     region: "europe",
@@ -146,21 +150,3 @@ export const MARKET_LEADER_CONFIGS: MarketLeaderMeta[] = [
     cik: "0000901832",
   },
 ];
-
-/** Fallback tipado para render en cliente */
-export const MARKET_LEADERS: MarketLeader[] = MARKET_LEADER_CONFIGS.map((meta) => ({
-  ticker: meta.ticker,
-  name: meta.name,
-  sector: meta.sector,
-  region: meta.region,
-  country: meta.country,
-  price: 0,
-  changePct: 0,
-  marketCap: 0,
-  pe: null,
-  evEbitda: null,
-  fcfMargin: null,
-  roic: null,
-  revenueGrowth: null,
-  trend: [],
-}));

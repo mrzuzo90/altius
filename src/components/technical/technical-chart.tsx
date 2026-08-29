@@ -15,13 +15,24 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import type { IndicatorPoint } from "@/lib/technical/types";
+import { filterPricePoints, type PriceRangeId } from "@/lib/prices/ranges";
+import {
+  chartSpanDays,
+  chartTimeTicks,
+  formatPriceChartDate,
+  formatPriceChartTick,
+  formatPriceQuote,
+  priceChartDomain,
+  timestampPricePoints,
+} from "@/lib/prices/chart";
 
 const RANGOS = [
-  { id: "6m", label: "6 meses", dias: 182 },
-  { id: "1a", label: "1 año", dias: 365 },
-  { id: "3a", label: "3 años", dias: 365 * 3 },
-  { id: "5a", label: "5 años", dias: 365 * 5 },
-  { id: "max", label: "Máx", dias: Number.POSITIVE_INFINITY },
+  { id: "3m", label: "3 meses", range: "3m" },
+  { id: "6m", label: "6 meses", range: "6m" },
+  { id: "1a", label: "1 año", range: "1y" },
+  { id: "3a", label: "3 años", range: "3y" },
+  { id: "5a", label: "5 años", range: "5y" },
+  { id: "max", label: "Máx", range: "max" },
 ] as const;
 
 export function TechnicalChart({
@@ -46,18 +57,25 @@ export function TechnicalChart({
 
   const datos = useMemo(() => {
     const def = RANGOS.find((r) => r.id === rango)!;
-    if (!Number.isFinite(def.dias)) return points;
-    const ultimoPunto = points.at(-1);
-    if (!ultimoPunto) return points;
-
-    const corte = Date.parse(ultimoPunto.date) - def.dias * 86_400_000;
-    return points.filter((p) => Date.parse(p.date) >= corte);
+    return filterPricePoints(points, def.range as PriceRangeId);
   }, [points, rango]);
+  const chartData = useMemo(() => timestampPricePoints(datos), [datos]);
+  const spanDays = chartSpanDays(chartData);
+  const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
+  const yDomain = useMemo(() => priceChartDomain(datos), [datos]);
 
-  const primero = datos[0]?.close ?? 0;
-  const ultimo = datos.at(-1)?.close ?? 0;
+  if (datos.length === 0) {
+    return (
+      <div className="bg-carbon-surface border-gunmetal text-muted-steel rounded-2xl border border-dashed px-6 py-16 text-center text-[13px]">
+        No hay observaciones suficientes para construir el análisis técnico.
+      </div>
+    );
+  }
+
+  const primero = datos[0].close;
+  const ultimo = datos.at(-1)!.close;
   const sube = ultimo >= primero;
-  const variacion = primero !== 0 ? ((ultimo - primero) / primero) * 100 : 0;
+  const variacion = primero !== 0 ? ((ultimo - primero) / primero) * 100 : null;
 
   return (
     <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6 space-y-6">
@@ -65,9 +83,7 @@ export function TechnicalChart({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
         <div className="flex flex-wrap items-baseline gap-3">
           <span className="tabular font-display text-pure-white text-[34px] font-medium leading-none tracking-tight">
-            {currency === "USD"
-              ? ultimo.toLocaleString("es-ES", { style: "currency", currency: "USD" })
-              : `${ultimo.toLocaleString("es-ES", { maximumFractionDigits: 2 })} pts`}
+            {formatPriceQuote(ultimo, currency)}
           </span>
           <span
             className={cn(
@@ -77,8 +93,8 @@ export function TechnicalChart({
                 : "text-rose-400 bg-rose-950/40 border-rose-800/40",
             )}
           >
-            {sube ? "+" : "−"}
-            {Math.abs(variacion).toLocaleString("es-ES", { maximumFractionDigits: 2 })} %
+            {variacion !== null ? (sube ? "+" : "−") : ""}
+            {variacion !== null ? `${Math.abs(variacion).toLocaleString("es-ES", { maximumFractionDigits: 2 })} %` : "—"}
           </span>
         </div>
 
@@ -88,6 +104,7 @@ export function TechnicalChart({
             <button
               key={r.id}
               type="button"
+              aria-pressed={rango === r.id}
               onClick={() => setRango(r.id)}
               className={cn(
                 "font-display rounded-full px-3 py-1 text-[12px] font-medium tracking-tight transition-colors cursor-pointer",
@@ -203,7 +220,7 @@ export function TechnicalChart({
       {/* Gráfico Principal de Cotización */}
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={datos} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="grad-precio-tech" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#98a4f7" stopOpacity={0.28} />
@@ -211,24 +228,24 @@ export function TechnicalChart({
               </linearGradient>
             </defs>
             <XAxis
-              dataKey="date"
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              ticks={xTicks}
               tick={{ fontSize: 11, fill: "#646e87" }}
               tickLine={false}
               axisLine={false}
               minTickGap={48}
-              tickFormatter={(v: string) => v.slice(0, 7)}
+              tickFormatter={(value: number) => formatPriceChartTick(value, spanDays)}
             />
             <YAxis
-              domain={["auto", "auto"]}
+              domain={yDomain}
               tick={{ fontSize: 11, fill: "#646e87" }}
               tickLine={false}
               axisLine={false}
               width={58}
-              tickFormatter={(v: number) =>
-                currency === "USD"
-                  ? `$${v.toLocaleString("es-ES", { maximumFractionDigits: 0 })}`
-                  : v.toLocaleString("es-ES", { maximumFractionDigits: 0 })
-              }
+              tickFormatter={(value: number) => formatPriceQuote(value, currency, true)}
             />
             <Tooltip
               contentStyle={{
@@ -240,12 +257,10 @@ export function TechnicalChart({
                 color: "#ffffff",
               }}
               labelStyle={{ color: "#c9d3ee", fontWeight: 600, marginBottom: 4 }}
+              labelFormatter={(value) => formatPriceChartDate(Number(value))}
               formatter={(val, name) => {
                 const n = Number(val);
-                const formatNum = (num: number) =>
-                  currency === "USD"
-                    ? num.toLocaleString("es-ES", { style: "currency", currency: "USD" })
-                    : num.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+                const formatNum = (num: number) => formatPriceQuote(num, currency);
 
                 if (name === "close") return [formatNum(n), "Precio"];
                 if (name === "sma20") return [formatNum(n), "SMA 20"];
@@ -340,8 +355,8 @@ export function TechnicalChart({
 
           <div className="h-[120px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={datos} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <XAxis dataKey="date" hide />
+              <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <XAxis dataKey="timestamp" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
                 <YAxis
                   domain={[0, 100]}
                   ticks={[30, 50, 70]}
@@ -362,6 +377,7 @@ export function TechnicalChart({
                     borderRadius: 8,
                     fontSize: 11,
                   }}
+                  labelFormatter={(value) => formatPriceChartDate(Number(value))}
                   formatter={(val) => [`${Number(val).toFixed(1)} / 100`, "RSI 14"]}
                 />
                 <Line
@@ -394,8 +410,8 @@ export function TechnicalChart({
 
           <div className="h-[120px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={datos} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <XAxis dataKey="date" hide />
+              <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <XAxis dataKey="timestamp" type="number" scale="time" domain={["dataMin", "dataMax"]} hide />
                 <YAxis
                   domain={["auto", "auto"]}
                   tick={{ fontSize: 10, fill: "#646e87" }}
@@ -412,6 +428,7 @@ export function TechnicalChart({
                     borderRadius: 8,
                     fontSize: 11,
                   }}
+                  labelFormatter={(value) => formatPriceChartDate(Number(value))}
                   formatter={(val, name) => [
                     Number(val).toFixed(2),
                     name === "macdLine" ? "MACD" : name === "macdSignal" ? "Señal" : "Histograma",

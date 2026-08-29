@@ -1,4 +1,5 @@
 import { getCacheStore, TTL } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 import { parseFredCsv, type FredPoint } from "@/lib/fred/client";
 import type { PricePoint } from "@/lib/prices/types";
 import { buildTechnicalDataset } from "@/lib/technical";
@@ -186,7 +187,7 @@ export async function getCommoditySeries(symbol: CommoditySymbol): Promise<Price
     const url =
       `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
       `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchWithTimeout(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
     const json = (await res.json()) as { observations: { date: string; value: string }[] };
     points = json.observations
@@ -194,7 +195,7 @@ export async function getCommoditySeries(symbol: CommoditySymbol): Promise<Price
       .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
       .filter((p) => Number.isFinite(p.close));
   } else {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
       { cache: "no-store" },
     );
@@ -203,6 +204,9 @@ export async function getCommoditySeries(symbol: CommoditySymbol): Promise<Price
     points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
   }
 
+  if (points.length === 0) {
+    throw new Error(`FRED no devolvió observaciones para ${meta.fredSeriesId}.`);
+  }
   points.sort((a, b) => (a.date < b.date ? -1 : 1));
   await cache.set(cacheKey, points, TTL.commodities);
   return points;

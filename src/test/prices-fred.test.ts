@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseAlphaVantage } from "@/lib/prices/alpha-vantage";
+import { stitchPriceSegments } from "@/lib/prices";
+import { filterPricePoints, priceRangeCutoff } from "@/lib/prices/ranges";
 import { parseFredCsv, yoyChange } from "@/lib/fred/client";
 
 describe("parseAlphaVantage", () => {
@@ -87,6 +89,91 @@ describe("parseAlphaVantage", () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("rate-limited");
+  });
+});
+
+describe("granularidad de la cotización histórica", () => {
+  it("sustituye el solapamiento mensual por semanal y el semanal por diario", () => {
+    const stitched = stitchPriceSegments([
+      [
+        { date: "2024-01-01", close: 10 },
+        { date: "2024-04-01", close: 11 },
+        { date: "2024-07-01", close: 12 },
+      ],
+      [
+        { date: "2024-06-03", close: 20 },
+        { date: "2024-06-10", close: 21 },
+        { date: "2024-11-11", close: 22 },
+      ],
+      [
+        { date: "2024-11-08", close: 30 },
+        { date: "2024-11-11", close: 31 },
+        { date: "2024-11-12", close: 32 },
+      ],
+    ]);
+
+    expect(stitched.map((point) => point.date)).toEqual([
+      "2024-01-01",
+      "2024-04-01",
+      "2024-06-03",
+      "2024-06-10",
+      "2024-11-08",
+      "2024-11-11",
+      "2024-11-12",
+    ]);
+    expect(stitched.find((point) => point.date === "2024-11-11")?.close).toBe(31);
+  });
+
+  it("calcula 3 meses, año actual y ejercicio fiscal por fechas reales", () => {
+    const points = [
+      { date: "2025-09-27", close: 10 },
+      { date: "2025-09-28", close: 11 },
+      { date: "2026-01-01", close: 12 },
+      { date: "2026-05-25", close: 13 },
+      { date: "2026-08-25", close: 14 },
+    ];
+
+    expect(filterPricePoints(points, "3m").map((point) => point.date)).toEqual([
+      "2026-05-25",
+      "2026-08-25",
+    ]);
+    expect(filterPricePoints(points, "ytd").map((point) => point.date)).toEqual([
+      "2026-01-01",
+      "2026-05-25",
+      "2026-08-25",
+    ]);
+    expect(filterPricePoints(points, "fytd", { fiscalYearStart: "2025-09-28" })[0].date)
+      .toBe("2025-09-27");
+  });
+
+  it("resta meses y años naturales, incluidos finales de mes y años bisiestos", () => {
+    expect(priceRangeCutoff("2025-03-31", "1m")).toBe("2025-02-28");
+    expect(priceRangeCutoff("2024-03-31", "1m")).toBe("2024-02-29");
+    expect(priceRangeCutoff("2026-08-31", "3m")).toBe("2026-05-31");
+    expect(priceRangeCutoff("2024-02-29", "1y")).toBe("2023-02-28");
+  });
+
+  it("incluye el cierre anterior cuando el inicio cae en fin de semana", () => {
+    const points = [
+      { date: "2026-07-24", close: 100 },
+      { date: "2026-07-27", close: 103 },
+      { date: "2026-08-26", close: 110 },
+    ];
+    expect(filterPricePoints(points, "1m").map((point) => point.date)).toEqual([
+      "2026-07-24",
+      "2026-07-27",
+      "2026-08-26",
+    ]);
+  });
+
+  it("no añade observaciones externas a un periodo personalizado", () => {
+    const points = [
+      { date: "2026-07-24", close: 100 },
+      { date: "2026-07-27", close: 103 },
+      { date: "2026-08-26", close: 110 },
+    ];
+    expect(filterPricePoints(points, "custom", { from: "2026-07-26" }).map((point) => point.date))
+      .toEqual(["2026-07-27", "2026-08-26"]);
   });
 });
 

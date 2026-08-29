@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommandPalette } from "@/components/command-palette";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { WatchlistProvider } from "@/components/watchlist/watchlist-provider";
 import "./globals.css";
 
 /**
@@ -28,7 +29,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 export const metadata: Metadata = {
   title: { default: "Altius", template: "%s · Altius" },
   description:
-    "Observatorio de análisis fundamental construido sobre datos públicos de la SEC, la Reserva Federal y Gemini.",
+    "Observatorio de análisis fundamental con datos regulatorios SEC y ESEF, cotizaciones, PER histórico y series macroeconómicas.",
 };
 
 const themeInitScript = `
@@ -45,7 +46,7 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="es"
@@ -57,12 +58,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="bg-void-black text-frost flex min-h-full flex-col selection:bg-iris-blue/30 selection:text-white transition-colors duration-200">
         <ThemeProvider>
-          <TooltipProvider delayDuration={200}>
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-            <CommandPalette />
-          </TooltipProvider>
+          <WatchlistProvider>
+            <TooltipProvider delayDuration={200}>
+              <SiteHeader />
+              <main className="flex-1">{children}</main>
+              <SiteFooter />
+              <CommandPalette />
+            </TooltipProvider>
+          </WatchlistProvider>
         </ThemeProvider>
       </body>
     </html>

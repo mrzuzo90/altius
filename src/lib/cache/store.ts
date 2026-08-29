@@ -11,6 +11,7 @@ export interface CacheStore {
 }
 
 import { FileSystemCacheStore } from "./fs-store";
+import { SupabaseCacheStore } from "./supabase-store";
 
 let singleton: CacheStore | null = null;
 
@@ -23,8 +24,39 @@ let singleton: CacheStore | null = null;
 export function getCacheStore(): CacheStore {
   if (singleton) return singleton;
   const dir = process.env.VERCEL ? "/tmp/altius-cache" : ".cache";
-  singleton = new FileSystemCacheStore(dir);
+  const local = new FileSystemCacheStore(dir);
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  singleton = supabaseUrl && supabaseKey
+    ? new LayeredCacheStore(new SupabaseCacheStore(supabaseUrl, supabaseKey), local)
+    : local;
   return singleton;
+}
+
+/**
+ * La capa compartida tiene prioridad y el disco actúa como respaldo oportunista.
+ * Ambas implementaciones absorben sus propios errores, por lo que una caída de
+ * Supabase termina en un miss local y nunca bloquea la petición del usuario.
+ */
+export class LayeredCacheStore implements CacheStore {
+  constructor(
+    private readonly shared: CacheStore,
+    private readonly local: CacheStore,
+  ) {}
+
+  async get<T>(key: string): Promise<T | null> {
+    const sharedValue = await this.shared.get<T>(key);
+    if (sharedValue !== null) return sharedValue;
+    return this.local.get<T>(key);
+  }
+
+  async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+    await Promise.all([
+      this.shared.set(key, value, ttlSeconds),
+      this.local.set(key, value, ttlSeconds),
+    ]);
+  }
 }
 
 /** TTL en segundos por tipo de dato. */
@@ -42,4 +74,8 @@ export const TTL = {
   commodities: 60 * 60 * 12,
   currencies: 60 * 60 * 12,
   quotes: 60 * 15,
+  alertQuotes: 60,
+  optionsRealtime: 60 * 15,
+  optionsDelayed: 60 * 60 * 24,
+  qualityScreener: 60 * 60 * 6,
 } as const;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { trimCik } from "@/lib/sec/client";
 import type { CompanyProfile } from "@/lib/sec/types";
 import { cn } from "@/lib/utils";
+import { WatchlistTargetButton } from "@/components/watchlist/watchlist-target-button";
 
 const TABS = [
   { href: "", label: "Perfil" },
@@ -37,11 +38,12 @@ export function CompanyHeader({
           {profile.exchanges[0] ? (
             <span className="text-muted-steel text-[13px] font-mono">{profile.exchanges[0]}</span>
           ) : null}
+          <WatchlistTargetButton ticker={ticker} companyName={profile.name} />
         </div>
 
         <dl className="text-muted-steel mt-4 flex flex-wrap items-center gap-x-8 gap-y-1.5 text-[13px]">
           <Dato termino="SIC" valor={profile.sic || "—"} />
-          <Dato
+          {profile.cik ? <Dato
             termino="CIK"
             valor={
               <a
@@ -53,7 +55,8 @@ export function CompanyHeader({
                 {trimCik(profile.cik)}
               </a>
             }
-          />
+          /> : null}
+          {profile.lei ? <Dato termino="LEI" valor={<span className="font-mono text-periwinkle-glow">{profile.lei}</span>} /> : null}
           {profile.stateOfIncorporation ? (
             <Dato termino="Constitución" valor={profile.stateOfIncorporation} />
           ) : null}

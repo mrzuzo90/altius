@@ -2,21 +2,50 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import {
+  ArrowRightLeft,
+  BarChart3,
+  Building2,
+  CornerDownLeft,
+  Gem,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import {
   Command,
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import type { RankedSearchResult, SearchResultKind } from "@/lib/search/ranking";
 
-type Hit = { ticker: string; cik: string; name: string };
-type IndexHit = { symbol: string; name: string; shortName: string; slug: string; provider: string };
-type CommodityHit = { symbol: string; name: string; shortName: string; slug: string; unit: string };
-type CurrencyHit = { symbol: string; name: string; shortName: string; slug: string; baseCurrency: string; quoteCurrency: string };
+const RESULT_APPEARANCE: Record<
+  SearchResultKind,
+  { label: string; badge: string; icon: typeof Building2 }
+> = {
+  company: {
+    label: "Empresa",
+    badge: "border-periwinkle-glow/35 bg-periwinkle-glow/10 text-periwinkle-glow",
+    icon: Building2,
+  },
+  index: {
+    label: "Índice",
+    badge: "border-sky-400/35 bg-sky-400/10 text-sky-300",
+    icon: BarChart3,
+  },
+  commodity: {
+    label: "Materia prima",
+    badge: "border-amber-400/35 bg-amber-400/10 text-amber-300",
+    icon: Gem,
+  },
+  currency: {
+    label: "Divisa",
+    badge: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300",
+    icon: ArrowRightLeft,
+  },
+};
 
 /**
  * Buscador global. Se abre con Cmd+K, con Ctrl+K, o desde la cabecera mediante
@@ -26,33 +55,21 @@ export function CommandPalette() {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [consulta, setConsulta] = useState("");
-  /** Los resultados se guardan junto a la consulta que los produjo. */
-  const [resultado, setResultado] = useState<{
-    q: string;
-    hits: Hit[];
-    indices: IndexHit[];
-    commodities: CommodityHit[];
-    currencies: CurrencyHit[];
-  }>({
+  const [resultado, setResultado] = useState<{ q: string; ranked: RankedSearchResult[] }>({
     q: "",
-    hits: [],
-    indices: [],
-    commodities: [],
-    currencies: [],
+    ranked: [],
   });
 
   const q = consulta.trim();
-  const hits = resultado.q === q ? resultado.hits : [];
-  const indices = resultado.q === q ? resultado.indices : [];
-  const commodities = resultado.q === q ? resultado.commodities : [];
-  const currencies = resultado.q === q ? resultado.currencies : [];
+  const ranked = resultado.q === q ? resultado.ranked : [];
   const cargando = q !== "" && resultado.q !== q;
+  const directTicker = /^[A-Za-z0-9^.\-]{1,18}$/.test(q) ? q.toUpperCase() : null;
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setAbierto((v) => !v);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setAbierto((current) => !current);
       }
     };
     const onOpen = () => setAbierto(true);
@@ -67,66 +84,28 @@ export function CommandPalette() {
   useEffect(() => {
     if (!q) return;
     const control = new AbortController();
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
           signal: control.signal,
         });
-        const json = (await res.json()) as {
-          results?: Hit[];
-          indices?: IndexHit[];
-          commodities?: CommodityHit[];
-          currencies?: CurrencyHit[];
-        };
-        setResultado({
-          q,
-          hits: json.results ?? [],
-          indices: json.indices ?? [],
-          commodities: json.commodities ?? [],
-          currencies: json.currencies ?? [],
-        });
+        const json = (await response.json()) as { ranked?: RankedSearchResult[] };
+        setResultado({ q, ranked: json.ranked ?? [] });
       } catch {
-        // Petición cancelada al seguir escribiendo
+        // Petición cancelada al seguir escribiendo.
       }
-    }, 160);
+    }, 140);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       control.abort();
     };
   }, [q]);
 
   const ir = useCallback(
-    (ticker: string) => {
+    (href: string) => {
       setAbierto(false);
       setConsulta("");
-      router.push(`/ticker/${ticker.toUpperCase()}`);
-    },
-    [router],
-  );
-
-  const irIndice = useCallback(
-    (slug: string) => {
-      setAbierto(false);
-      setConsulta("");
-      router.push(`/indices/${slug}`);
-    },
-    [router],
-  );
-
-  const irCommodity = useCallback(
-    (slug: string) => {
-      setAbierto(false);
-      setConsulta("");
-      router.push(`/commodities/${slug}`);
-    },
-    [router],
-  );
-
-  const irDivisa = useCallback(
-    (slug: string) => {
-      setAbierto(false);
-      setConsulta("");
-      router.push(`/divisas/${slug}`);
+      router.push(href);
     },
     [router],
   );
@@ -135,113 +114,98 @@ export function CommandPalette() {
     <CommandDialog
       open={abierto}
       onOpenChange={setAbierto}
-      title="Buscar empresa, índice, materia prima o divisa"
-      description="Busca por ticker, índice, materia prima o tipo de cambio oficial en mercados globales"
+      title="Buscar empresas y mercados"
+      description="Resultados globales ordenados por coincidencia y relevancia"
+      className="sm:max-w-2xl"
     >
-      <Command>
+      <Command shouldFilter={false}>
         <CommandInput
-          placeholder="Busca por ticker, índice, commodity o divisa — EUR/USD, Oro, DAX, AAPL, ASML…"
+          placeholder="Escribe una empresa o ticker — Apple, AAPL, Inditex, ASML…"
           value={consulta}
           onValueChange={setConsulta}
         />
-        <CommandList>
+        <CommandList className="max-h-[min(65vh,32rem)]">
           {!q ? (
-            <div className="text-muted-foreground px-4 py-8 text-center text-sm">
-              <Search className="mx-auto mb-2 size-5 opacity-40" />
-              Más de 10.000 empresas de la SEC, selectivos bursátiles, materias primas y tipos de cambio Forex.
+            <div className="text-muted-foreground px-5 py-10 text-center text-sm">
+              <Search className="mx-auto mb-3 size-5 opacity-40" />
+              <p className="text-frost font-medium">¿Qué quieres analizar?</p>
+              <p className="mt-1 text-xs">
+                Busca por nombre habitual o ticker. También puedes encontrar índices, divisas y materias primas.
+              </p>
             </div>
-          ) : cargando && hits.length === 0 && indices.length === 0 && commodities.length === 0 && currencies.length === 0 ? (
-            <div className="text-muted-foreground px-4 py-8 text-center text-sm">
-              Buscando…
+          ) : cargando ? (
+            <div className="text-muted-foreground flex items-center justify-center gap-2 px-4 py-10 text-sm">
+              <span className="border-periwinkle-glow size-4 animate-spin rounded-full border-2 border-r-transparent" />
+              Ordenando los resultados más relevantes…
             </div>
+          ) : ranked.length > 0 ? (
+            <CommandGroup heading="Mejores resultados · ordenados por relevancia" className="px-1 pb-2">
+              {ranked.map((item, index) => {
+                const appearance = RESULT_APPEARANCE[item.kind];
+                const Icon = appearance.icon;
+                const isBest = index === 0;
+                return (
+                  <CommandItem
+                    key={item.id}
+                    value={item.id}
+                    onSelect={() => ir(item.href)}
+                    className={
+                      isBest
+                        ? "border-periwinkle-glow/25 bg-periwinkle-glow/[0.07] mb-1.5 min-h-16 cursor-pointer border px-3 py-2.5"
+                        : "min-h-14 cursor-pointer border border-transparent px-3 py-2"
+                    }
+                  >
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${appearance.badge}`}
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="text-pure-white truncate text-sm font-semibold">{item.name}</span>
+                        {isBest ? (
+                          <span className="bg-periwinkle-glow/15 text-periwinkle-glow border-periwinkle-glow/20 hidden shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:flex">
+                            <Sparkles className="size-3" />
+                            Mejor coincidencia
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-muted-steel mt-0.5 flex items-center gap-1.5 truncate text-[11px]">
+                        <span className="font-mono font-semibold text-frost">{item.shortName ?? item.symbol}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{appearance.label}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="truncate">{item.meta}</span>
+                      </span>
+                    </span>
+                    <CornerDownLeft className="text-muted-steel size-3.5 opacity-0 transition-opacity group-data-selected/command-item:opacity-100" />
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          ) : directTicker ? (
+            <CommandGroup heading="Ticker internacional">
+              <CommandItem
+                value={`direct:${directTicker}`}
+                onSelect={() => ir(`/ticker/${directTicker}`)}
+                className="min-h-14 cursor-pointer gap-3 px-3 py-2"
+              >
+                <span className="border-periwinkle-glow/35 bg-periwinkle-glow/10 text-periwinkle-glow flex size-9 items-center justify-center rounded-lg border">
+                  <Building2 className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="text-pure-white block text-sm font-semibold">Abrir {directTicker}</span>
+                  <span className="text-muted-steel block text-[11px]">
+                    No está en el índice, pero puedes consultar el ticker directamente.
+                  </span>
+                </span>
+              </CommandItem>
+            </CommandGroup>
           ) : (
-            <>
-              <CommandEmpty>Sin resultados para «{q}».</CommandEmpty>
-
-              {currencies.length > 0 && (
-                <CommandGroup heading="Divisas y Tipos de Cambio (Forex)">
-                  {currencies.map((cur) => (
-                    <CommandItem
-                      key={cur.symbol}
-                      value={`${cur.symbol} ${cur.shortName} ${cur.name} divisa forex tipo de cambio`}
-                      onSelect={() => irDivisa(cur.slug)}
-                      className="flex items-center gap-3 py-2 cursor-pointer"
-                    >
-                      <span className="bg-void-black text-emerald-400 border border-emerald-500/40 min-w-16 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
-                        {cur.shortName}
-                      </span>
-                      <span className="truncate text-sm text-pure-white font-medium">{cur.name}</span>
-                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
-                        FOREX
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {commodities.length > 0 && (
-                <CommandGroup heading="Materias Primas (Commodities)">
-                  {commodities.map((com) => (
-                    <CommandItem
-                      key={com.symbol}
-                      value={`${com.symbol} ${com.shortName} ${com.name} materia prima commodity`}
-                      onSelect={() => irCommodity(com.slug)}
-                      className="flex items-center gap-3 py-2 cursor-pointer"
-                    >
-                      <span className="bg-void-black text-amber-300 border border-amber-500/40 min-w-16 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
-                        {com.shortName}
-                      </span>
-                      <span className="truncate text-sm text-pure-white font-medium">{com.name}</span>
-                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
-                        {com.unit}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {indices.length > 0 && (
-                <CommandGroup heading="Índices Bursátiles">
-                  {indices.map((idx) => (
-                    <CommandItem
-                      key={idx.symbol}
-                      value={`${idx.symbol} ${idx.shortName} ${idx.name} indice`}
-                      onSelect={() => irIndice(idx.slug)}
-                      className="flex items-center gap-3 py-2 cursor-pointer"
-                    >
-                      <span className="bg-void-black text-periwinkle-glow border border-periwinkle-glow/40 min-w-16 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
-                        {idx.shortName}
-                      </span>
-                      <span className="truncate text-sm text-pure-white font-medium">{idx.name}</span>
-                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
-                        ÍNDICE
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {hits.length > 0 && (
-                <CommandGroup heading="Empresas (SEC)">
-                  {hits.map((h) => (
-                    <CommandItem
-                      key={h.cik + h.ticker}
-                      value={`${h.ticker} ${h.name}`}
-                      onSelect={() => ir(h.ticker)}
-                      className="flex items-center gap-3 py-2 cursor-pointer"
-                    >
-                      <span className="bg-void-black text-periwinkle-glow border border-gunmetal min-w-14 rounded px-2 py-0.5 text-center font-mono text-xs font-semibold">
-                        {h.ticker}
-                      </span>
-                      <span className="truncate text-sm text-pure-white font-medium">{h.name}</span>
-                      <span className="text-muted-steel ml-auto font-mono text-[11px]">
-                        CIK {h.cik}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </>
+            <div className="px-5 py-10 text-center">
+              <p className="text-frost text-sm font-medium">No encontramos «{q}»</p>
+              <p className="text-muted-steel mt-1 text-xs">Prueba con el ticker o con un nombre más corto.</p>
+            </div>
           )}
         </CommandList>
       </Command>

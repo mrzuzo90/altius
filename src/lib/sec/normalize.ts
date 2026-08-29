@@ -32,6 +32,8 @@ export type Cell = {
   concept?: string;
   /** De dónde sale exactamente este número. Nunca `undefined`. */
   provenance: Provenance;
+  /** Valor y fecha de la primera presentación conocida, para cálculos point-in-time. */
+  firstReported?: { value: number; filed: string };
 };
 
 export type LineSeries = { line: LineDef; cells: Record<PeriodKey, Cell> };
@@ -117,7 +119,34 @@ type Resuelto = {
   form: string;
   accn: string;
   unit: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  firstValue: number;
+  firstFiled: string;
 };
+
+function factsForLine(
+  concept: { units: Record<string, XbrlFact[]> },
+  line: LineDef,
+  preferredCurrency?: string,
+): XbrlFact[] | undefined {
+  const entries = Object.entries(concept.units ?? {});
+  const candidates = entries.filter(([unit]) => {
+    if (line.unit === "USD") return /^[A-Z]{3}$/.test(unit);
+    if (line.unit === "USD/shares") return /^[A-Z]{3}\/shares$/.test(unit);
+    return unit === line.unit;
+  });
+  const preferredUnit = line.unit === "USD"
+    ? preferredCurrency
+    : line.unit === "USD/shares" && preferredCurrency
+      ? `${preferredCurrency}/shares`
+      : undefined;
+  const preferred = preferredUnit
+    ? candidates.find(([unit]) => unit === preferredUnit)?.[1]
+    : undefined;
+  if (preferred) return preferred;
+  return candidates.sort((a, b) => b[1].length - a[1].length)[0]?.[1];
+}
 
 /**
  * Recolecta los hechos de un concepto, ya filtrados y deduplicados.
@@ -132,11 +161,14 @@ function recolectar(
   linea: LineDef,
   freq: Frequency,
   ancla: FiscalAnchor,
+  preferredCurrency?: string,
 ): Map<PeriodKey, Resuelto> {
   const salida = new Map<PeriodKey, Resuelto>();
-  const gaap = facts.facts?.["us-gaap"]?.[concepto] ?? facts.facts?.["dei"]?.[concepto];
-  const hechos: XbrlFact[] | undefined = gaap?.units?.[linea.unit];
+  const namespace = ["us-gaap", "ifrs-full", "dei"].find((ns) => facts.facts?.[ns]?.[concepto]);
+  const gaap = namespace ? facts.facts[namespace]?.[concepto] : undefined;
+  const hechos = gaap ? factsForLine(gaap, linea, preferredCurrency) : undefined;
   if (!hechos) return salida;
+  const unit = Object.entries(gaap?.units ?? {}).find(([, values]) => values === hechos)?.[0] ?? linea.unit;
 
   for (const f of hechos) {
     if (linea.kind === "instant") {
@@ -159,16 +191,25 @@ function recolectar(
 
     const key = claveDe(freq, fiscalYear, quarter);
     const previo = salida.get(key);
-    if (previo && previo.filed >= f.filed) continue;
+    const firstValue = previo && previo.firstFiled <= f.filed ? previo.firstValue : f.val;
+    const firstFiled = previo && previo.firstFiled <= f.filed ? previo.firstFiled : f.filed;
+    if (previo && previo.filed >= f.filed) {
+      if (firstFiled !== previo.firstFiled) salida.set(key, { ...previo, firstValue, firstFiled });
+      continue;
+    }
     salida.set(key, {
       value: f.val,
       end: f.end,
       start: f.start ?? null,
       filed: f.filed,
-      concept: concepto,
+      concept: namespace ? `${namespace}:${concepto}` : concepto,
       form: f.form ?? "",
       accn: f.accn,
-      unit: linea.unit,
+      unit,
+      sourceUrl: f.sourceUrl,
+      sourceLabel: f.sourceLabel,
+      firstValue,
+      firstFiled,
     });
   }
   return salida;
@@ -204,6 +245,8 @@ function derivarQ4(
       form: total.form,
       accn: total.accn,
       unit: total.unit,
+      firstValue: total.firstValue - q1.firstValue - q2.firstValue - q3.firstValue,
+      firstFiled: [total.firstFiled, q1.firstFiled, q2.firstFiled, q3.firstFiled].sort().at(-1)!,
     });
     // Se conservan los cuatro hechos de origen: la procedencia de Q4 tiene que
     // citar el ejercicio completo y los tres trimestres, no el propio
@@ -218,6 +261,7 @@ export function normalizeStatement(
   lines: LineDef[],
   freq: Frequency,
   maxPeriods = 10,
+  preferredCurrency?: string,
 ): NormalizedStatement {
   const ancla = fiscalYearEndAnchor(facts);
 
@@ -237,7 +281,7 @@ export function normalizeStatement(
     // primero que tenga dato para ese periodo concreto gana. Así el histórico se
     // cose entre conceptos sin cortarse cuando la empresa cambia de etiqueta.
     for (const concepto of linea.concepts) {
-      for (const [key, r] of recolectar(facts, concepto, linea, freq, ancla)) {
+      for (const [key, r] of recolectar(facts, concepto, linea, freq, ancla, preferredCurrency)) {
         if (!acumulado.has(key)) acumulado.set(key, r);
       }
     }
@@ -246,7 +290,7 @@ export function normalizeStatement(
     if (freq === "quarterly" && linea.kind === "duration" && linea.concepts.length > 0) {
       const anual = new Map<PeriodKey, Resuelto>();
       for (const concepto of linea.concepts) {
-        for (const [key, r] of recolectar(facts, concepto, linea, "annual", ancla)) {
+        for (const [key, r] of recolectar(facts, concepto, linea, "annual", ancla, preferredCurrency)) {
           if (!anual.has(key)) anual.set(key, r);
         }
       }
@@ -292,6 +336,8 @@ export function normalizeStatement(
     form: r.form,
     filed: r.filed,
     accn: r.accn,
+    sourceUrl: r.sourceUrl,
+    sourceLabel: r.sourceLabel,
   });
 
   /**
@@ -335,6 +381,9 @@ export function normalizeStatement(
       let concept = bruto?.concept;
       let derived = derivadosLinea.has(p.key);
       let provenance: Provenance = bruto ? leerFuente(linea.id, p.key) : ABSENT;
+      let firstReported = bruto
+        ? { value: bruto.firstValue, filed: bruto.firstFiled }
+        : undefined;
 
       // Q4 se obtiene restando, no leyendo: la procedencia lo dice, con los
       // cuatro hechos reales que sostienen la resta, no el resultado de la
@@ -368,6 +417,7 @@ export function normalizeStatement(
               { label: "Coste de ventas", value: coste, source: leerFuente("costOfRevenue", p.key) },
             ],
           };
+          firstReported = undefined;
         }
       }
       if (linea.computed === "freeCashFlow") {
@@ -385,12 +435,16 @@ export function normalizeStatement(
               { label: "Inversión en inmovilizado", value: capex, source: leerFuente("capex", p.key) },
             ],
           };
+          firstReported = undefined;
         }
       }
 
-      if (value !== null && linea.negate) value = -value;
+      if (value !== null && linea.negate) value = value > 0 ? -value : value;
+      if (firstReported && linea.negate) {
+        firstReported = { ...firstReported, value: firstReported.value > 0 ? -firstReported.value : firstReported.value };
+      }
       if (value === null) provenance = ABSENT;
-      cells[p.key] = { value, derived, concept, provenance };
+      cells[p.key] = { value, derived, concept, provenance, firstReported };
     }
     return { line: linea, cells };
   });

@@ -1,4 +1,5 @@
 import { getCacheStore } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 
 /**
  * Punto de salida único hacia la SEC.
@@ -72,7 +73,7 @@ export class SecRequestError extends Error {
 
 async function rawFetch(url: string, attempt = 0): Promise<Response> {
   const res = await throttle(() =>
-    fetch(url, {
+    fetchWithTimeout(url, {
       headers: {
         "User-Agent": userAgent(),
         "Accept-Encoding": "gzip, deflate",

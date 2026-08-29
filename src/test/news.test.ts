@@ -11,7 +11,8 @@ describe("Módulo de Noticias y Hechos Relevantes", () => {
             <title><![CDATA[Apple Unveils New AI Features - Bloomberg]]></title>
             <link>https://www.bloomberg.com/news/articles/apple-ai</link>
             <pubDate>Sun, 23 Aug 2026 09:30:00 GMT</pubDate>
-            <description><![CDATA[Apple Inc. announced updates to its artificial intelligence stack.]]></description>
+            <description>&lt;a href=&quot;https://www.bloomberg.com/news/articles/apple-ai&quot;&gt;Apple Inc. announced updates to its artificial intelligence stack.&lt;/a&gt;</description>
+            <source>Bloomberg</source>
           </item>
           <item>
             <title>Apple Quarterly Earnings Beat Estimates - Reuters</title>
@@ -29,6 +30,8 @@ describe("Módulo de Noticias y Hechos Relevantes", () => {
     expect(items[0].title).toBe("Apple Unveils New AI Features");
     expect(items[0].source).toBe("Bloomberg");
     expect(items[0].url).toBe("https://www.bloomberg.com/news/articles/apple-ai");
+    expect(items[0].summary).toBe("Apple Inc. announced updates to its artificial intelligence stack.");
+    expect(items[0].summary).not.toContain("http");
     expect(items[0].category).toBe("market");
 
     expect(items[1].title).toBe("Apple Quarterly Earnings Beat Estimates");

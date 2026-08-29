@@ -90,25 +90,25 @@ export function MarketOverviewCards({
         </div>
       </div>
 
-      {/* Cobertura SEC */}
+      {/* Cobertura fundamental regulatoria */}
       <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5 flex flex-col justify-between hover:border-steel-border/40 transition-colors group">
         <div className="flex items-center justify-between">
           <span className="text-muted-steel font-mono text-[11px] uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="size-3.5 text-periwinkle-glow" />
             Universo Fundamental
           </span>
-          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-800/40">
-            ONLINE
+          <span className="text-[11px] font-mono text-periwinkle-glow bg-void-black px-2 py-0.5 rounded-full border border-gunmetal">
+            SEC + ESEF
           </span>
         </div>
         <div className="my-3">
           <div className="font-display text-pure-white text-[30px] font-medium tracking-tight tabular">
-            10.240+
+            XBRL
           </div>
-          <p className="text-muted-steel text-[12px]">Empresas con XBRL normalizado</p>
+          <p className="text-muted-steel text-[12px]">Emisores con filings estructurados</p>
         </div>
         <div className="flex items-center justify-between border-t border-gunmetal/60 pt-3 text-[12px]">
-          <span className="text-frost/80">10-K y 10-Q SEC EDGAR</span>
+          <span className="text-frost/80">10-K, 10-Q e informes ESEF</span>
           <span className="text-muted-steel font-mono text-[11px]">100% oficial</span>
         </div>
       </div>

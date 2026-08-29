@@ -7,6 +7,7 @@ export type CurrencyPairSymbol =
   | "USDJPY"
   | "USDCHF"
   | "USDCAD"
+  | "AUDUSD"
   | "USDCNY"
   | "USDMXN"
   | "DXY";
@@ -19,6 +20,7 @@ export type CurrencyPairMeta = {
   baseCurrency: string;
   quoteCurrency: string;
   fredSeriesId: string;
+  marketSymbol?: string;
   provider: string;
   description: string;
   isIndex?: boolean;

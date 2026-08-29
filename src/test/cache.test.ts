@@ -1,8 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileSystemCacheStore } from "@/lib/cache/fs-store";
+import { LayeredCacheStore, type CacheStore } from "@/lib/cache/store";
 
 let dir: string;
 let store: FileSystemCacheStore;
@@ -34,15 +35,36 @@ describe("FileSystemCacheStore", () => {
   });
 
   it("no propaga errores si el directorio no es escribible", async () => {
-    const roto = new FileSystemCacheStore("/proc/no-escribible/altius");
+    const blockedPath = join(dir, "esto-es-un-fichero");
+    writeFileSync(blockedPath, "no es un directorio");
+    const roto = new FileSystemCacheStore(blockedPath);
     await expect(roto.set("k", "v", 60)).resolves.toBeUndefined();
     await expect(roto.get("k")).resolves.toBeNull();
   });
 
   it("devuelve null si el fichero contiene JSON corrupto", async () => {
     await store.set("k", "v", 60);
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(join(dir, store.fileNameFor("k")), "{esto no es json");
     expect(await store.get("k")).toBeNull();
+  });
+});
+
+describe("LayeredCacheStore", () => {
+  function memoryStore(initial: Record<string, unknown> = {}): CacheStore {
+    const values = new Map(Object.entries(initial));
+    return {
+      async get<T>(key: string) { return (values.get(key) as T | undefined) ?? null; },
+      async set<T>(key: string, value: T) { values.set(key, value); },
+    };
+  }
+
+  it("prioriza la caché compartida", async () => {
+    const store = new LayeredCacheStore(memoryStore({ k: "shared" }), memoryStore({ k: "local" }));
+    expect(await store.get("k")).toBe("shared");
+  });
+
+  it("usa la caché local cuando la compartida no tiene la clave", async () => {
+    const store = new LayeredCacheStore(memoryStore(), memoryStore({ k: "local" }));
+    expect(await store.get("k")).toBe("local");
   });
 });

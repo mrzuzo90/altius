@@ -4,14 +4,19 @@ import { secFetchText } from "@/lib/sec/client";
 import { extractMdna } from "@/lib/sec/mdna";
 import { summarizeMdna } from "@/lib/ai/gemini";
 import { TTL } from "@/lib/cache/store";
+import { boundedText, invalidInput, rateLimit, upstreamError, validateCik } from "@/lib/api/guard";
 
 export const maxDuration = 120;
 
 export async function GET(request: Request, { params }: { params: Promise<{ cik: string }> }) {
   const { cik } = await params;
-  const nombre = new URL(request.url).searchParams.get("name") ?? "la empresa";
+  const limited = rateLimit(request, "mdna", 5, 60 * 60_000);
+  if (limited) return limited;
+  const validCik = validateCik(cik);
+  if (!validCik) return invalidInput("El CIK debe contener entre 1 y 10 dígitos.");
+  const nombre = boundedText(new URL(request.url).searchParams.get("name"), 120) ?? "la empresa";
   try {
-    const filing = await findLatestFiling(cik, ["10-K"]);
+    const filing = await findLatestFiling(validCik, ["10-K"]);
     if (!filing) {
       return NextResponse.json({ error: "Sin 10-K reciente en EDGAR." }, { status: 404 });
     }
@@ -26,7 +31,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ cik:
     const body = await summarizeMdna(seccion.text, nombre, filing.reportDate);
     return NextResponse.json({ filing, chars: seccion.chars, ...body });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return upstreamError("mdna", error);
   }
 }

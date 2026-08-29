@@ -1,4 +1,5 @@
 import { getCacheStore, TTL } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 
 export type FredPoint = { date: string; value: number };
 
@@ -81,7 +82,7 @@ export async function getFredSeries(id: FredSeriesId): Promise<FredPoint[]> {
     const url =
       `https://api.stlouisfed.org/fred/series/observations?series_id=${id}` +
       `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchWithTimeout(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${id}.`);
     const json = (await res.json()) as { observations: { date: string; value: string }[] };
     puntos = json.observations
@@ -89,7 +90,7 @@ export async function getFredSeries(id: FredSeriesId): Promise<FredPoint[]> {
       .map((o) => ({ date: o.date, value: Number.parseFloat(o.value) }))
       .filter((p) => Number.isFinite(p.value));
   } else {
-    const res = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`, {
+    const res = await fetchWithTimeout(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`, {
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${id}.`);

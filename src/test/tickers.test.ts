@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankTickers, type TickerHit, resolveTicker } from "@/lib/sec/tickers";
+import { rankTickers, type TickerHit, resolveTicker, resolveTickerFromIndex } from "@/lib/sec/tickers";
 
 // Forma real de company_tickers.json: objeto indexado por número, no array.
 const CRUDO = {
@@ -70,5 +70,33 @@ describe("resolveTicker con alias globales", () => {
   it("devuelve null con cadena vacía", async () => {
     expect(await resolveTicker("")).toBeNull();
     expect(await resolveTicker("   ")).toBeNull();
+  });
+
+  it("no confunde MC.PA (LVMH) con el ticker estadounidense MC", () => {
+    const raw = {
+      "0": { cik_str: 1596967, ticker: "MC", title: "Moelis & Co" },
+    };
+    expect(resolveTickerFromIndex(raw, "MC.PA")).toBeNull();
+  });
+});
+
+describe("búsqueda por nombres habituales", () => {
+  const CON_ALIAS = {
+    "0": { cik_str: 1652044, ticker: "GOOGL", title: "Alphabet Inc." },
+    "1": { cik_str: 1326801, ticker: "META", title: "Meta Platforms, Inc." },
+  };
+
+  it("encuentra Alphabet cuando el usuario escribe Google", () => {
+    expect(rankTickers(CON_ALIAS, "Google")[0]).toMatchObject({
+      ticker: "GOOGL",
+      matchedAlias: "GOOGLE",
+    });
+  });
+
+  it("encuentra Meta cuando el usuario escribe Facebook", () => {
+    expect(rankTickers(CON_ALIAS, "Facebook")[0]).toMatchObject({
+      ticker: "META",
+      matchedAlias: "FACEBOOK",
+    });
   });
 });

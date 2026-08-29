@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildValuationMetrics, calculateProjection } from "@/lib/valuation";
+import { buildValuationMetrics, calculateImpliedExpectations, calculateProjection } from "@/lib/valuation";
 import type { StatementBundle } from "@/lib/sec/statements";
 import type { NormalizedStatement, Period, LineSeries } from "@/lib/sec/normalize";
 
@@ -68,7 +68,7 @@ describe("buildValuationMetrics y calculateProjection", () => {
     latestPeriodEnd: "2023-09-30",
   };
 
-  it("calcula correctamente Market Cap, Deuda Neta, Enterprise Value y múltiplos LTM", () => {
+  it("calcula correctamente Market Cap, Deuda Neta, Enterprise Value y múltiplos del último FY", () => {
     const price = 50; //  por acción
     const metrics = buildValuationMetrics(bundle, price, "2023-10-01");
 
@@ -98,6 +98,76 @@ describe("buildValuationMetrics y calculateProjection", () => {
     expect(metrics.fcfYield).toBeCloseTo(49);
   });
 
+  it("usa acciones de cierre y conserva el total más completo de deuda y liquidez", () => {
+    const balanceWithAggregates = createDummyStatement(periods, {
+      sharesOutstanding: [90],
+      cash: [800],
+      shortTermInvestments: [200],
+      cashAndShortTermInvestments: [900],
+      longTermDebt: [1200],
+      shortTermDebt: [300],
+      totalDebt: [1000],
+    });
+    const bundleWithAggregates: StatementBundle = {
+      ...bundle,
+      blocks: bundle.blocks.map((block) => block.id === "balance"
+        ? { id: "balance", label: "Balance", ...balanceWithAggregates }
+        : block),
+    };
+
+    const metrics = buildValuationMetrics(bundleWithAggregates, 50);
+
+    expect(metrics.marketCap).toBe(4_500);
+    expect(metrics.totalCash).toBe(1_000);
+    expect(metrics.totalDebt).toBe(1_500);
+    expect(metrics.netDebt).toBe(500);
+  });
+
+  it("usa medianas de los últimos 20 años y no el último ejercicio como referencia", () => {
+    const years = Array.from({ length: 21 }, (_, index) => 2024 - index);
+    const historicalPeriods: Period[] = years.map((year) => ({
+      key: `FY${year}`,
+      label: `FY ${year}`,
+      end: `${year}-12-31`,
+      fiscalYear: year,
+      quarter: 4,
+      derived: false,
+    }));
+    const revenueByYear = new Map(
+      Array.from({ length: 21 }, (_, index) => {
+        const year = 2004 + index;
+        const ordinary = 100 * Math.pow(1.1, index);
+        return [year, year === 2024 ? ordinary * 2 : ordinary] as const;
+      }),
+    );
+    const revenues = years.map((year) => revenueByYear.get(year)!);
+    const operatingIncome = years.map((year) => revenues[years.indexOf(year)] * (year === 2024 ? 0.6 : year === 2004 ? 0.9 : 0.2));
+    const pretaxIncome = revenues.map((value) => value * 0.25);
+    const incomeTax = years.map((year, index) => pretaxIncome[index] * (year === 2024 ? 0.4 : year === 2004 ? 0.9 : 0.2));
+    const historicalIncome = createDummyStatement(historicalPeriods, {
+      revenue: revenues,
+      operatingIncome,
+      pretaxIncome,
+      incomeTax,
+      netIncome: pretaxIncome.map((value, index) => value - incomeTax[index]),
+      sharesDiluted: years.map(() => 100),
+    });
+    const historicalBundle: StatementBundle = {
+      ...bundle,
+      blocks: [{ id: "income", label: "Income", ...historicalIncome }],
+      latestPeriodEnd: "2024-12-31",
+    };
+
+    const metrics = buildValuationMetrics(historicalBundle, 50);
+
+    expect(metrics.historicalRevenueGrowth).toBeCloseTo(10, 5);
+    expect(metrics.historicalEbitMargin).toBeCloseTo(20, 5);
+    expect(metrics.historicalTaxRate).toBeCloseTo(20, 5);
+    expect(metrics.historicalRevenueGrowthCoverage.observations).toBe(20);
+    expect(metrics.historicalEbitMarginCoverage).toMatchObject({ observations: 20, startFiscalYear: 2005, endFiscalYear: 2024 });
+    expect(metrics.historicalTaxRateCoverage.observations).toBe(20);
+  });
+
   it("proyecta a 5 años y calcula el precio objetivo, margen de seguridad y CAGR", () => {
     const price = 50;
     const metrics = buildValuationMetrics(bundle, price);
@@ -124,8 +194,39 @@ describe("buildValuationMetrics y calculateProjection", () => {
     expect(projection.years[0].targetPrice).toBeCloseTo(396);
 
     // Al año 5:
-    expect(projection.targetPrice5Y).toBeGreaterThan(price);
-    expect(projection.marginOfSafety).toBeGreaterThan(0);
-    expect(projection.cagr5Y).toBeGreaterThan(0);
+    expect(projection.targetPrice5Y!).toBeGreaterThan(price);
+    expect(projection.marginOfSafety!).toBeGreaterThan(0);
+    expect(projection.cagr5Y!).toBeGreaterThan(0);
+  });
+
+  it("no inventa precio, ingresos ni acciones cuando faltan", () => {
+    const emptyBundle: StatementBundle = { ...bundle, blocks: [], latestPeriodEnd: null };
+    const metrics = buildValuationMetrics(emptyBundle, null);
+    const projection = calculateProjection(metrics, {
+      revenueGrowth: 8,
+      targetEbitMargin: 20,
+      targetMultiple: 15,
+      targetMultipleType: "PE",
+      taxRate: 21,
+      sharesGrowth: 0,
+    });
+    expect(metrics.price).toBeNull();
+    expect(projection.years).toEqual([]);
+    expect(projection.targetPrice5Y).toBeNull();
+    expect(projection.marginOfSafety).toBeNull();
+  });
+
+  it("calcula la expectativa de crecimiento implícita del precio", () => {
+    const metrics = buildValuationMetrics(bundle, 50);
+    const implied = calculateImpliedExpectations(metrics, {
+      revenueGrowth: 0,
+      targetEbitMargin: 30,
+      targetMultiple: 15,
+      targetMultipleType: "PE",
+      taxRate: 20,
+      sharesGrowth: 0,
+    });
+    expect(implied.reason).toBeNull();
+    expect(implied.revenueGrowth).not.toBeNull();
   });
 });

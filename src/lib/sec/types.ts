@@ -13,6 +13,8 @@ export type XbrlFact = {
   /** Fecha de presentación. Desempata reexpresiones: gana la más reciente. */
   filed: string;
   frame?: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
 };
 
 export type XbrlConcept = {
@@ -29,6 +31,8 @@ export type CompanyFacts = {
 
 export type CompanyProfile = {
   cik: string;
+  /** Identificador europeo cuando la fuente es ESEF. */
+  lei?: string;
   name: string;
   tickers: string[];
   exchanges: string[];

@@ -291,6 +291,33 @@ describe("convención de signos", () => {
   });
 });
 
+describe("selección de divisa", () => {
+  it("mantiene todas las líneas monetarias en la divisa de reporte preferida", () => {
+    const multiCurrency: CompanyFacts = {
+      cik: 1,
+      entityName: "Europea",
+      facts: {
+        "ifrs-full": {
+          Revenue: { units: {
+            USD: [
+              { start: "2023-01-01", end: "2023-12-31", val: 999, accn: "usd-1", filed: "2024-03-01" },
+              { start: "2022-01-01", end: "2022-12-31", val: 998, accn: "usd-2", filed: "2023-03-01" },
+            ],
+            EUR: [
+              { start: "2023-01-01", end: "2023-12-31", val: 100, accn: "eur-1", filed: "2024-03-01" },
+            ],
+          } },
+        },
+      },
+    };
+    const statement = normalizeStatement(multiCurrency, INCOME_STATEMENT, "annual", 10, "EUR");
+    const revenue = statement.rows.find((row) => row.line.id === "revenue")!;
+
+    expect(revenue.cells.FY2023.value).toBe(100);
+    expect(revenue.cells.FY2023.provenance).toMatchObject({ kind: "reported", unit: "EUR" });
+  });
+});
+
 describe("líneas calculadas", () => {
   it("calcula el flujo de caja libre y lo marca como derivado", () => {
     const st = normalizeStatement(AAPL, CASH_FLOW, "annual", 8);

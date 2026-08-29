@@ -64,6 +64,17 @@ const entrada = (label: string, value: number | null, source: Provenance): Entra
 const conValor = (candidatas: (Entrada | null)[]): Entrada[] =>
   candidatas.filter((c): c is Entrada => c !== null);
 
+function sumReported(values: Array<number | null>): number | null {
+  const reported = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  return reported.length > 0 ? reported.reduce((sum, value) => sum + value, 0) : null;
+}
+
+function mostCompleteTotal(reportedTotal: number | null, componentTotal: number | null): number | null {
+  if (reportedTotal === null) return componentTotal;
+  if (componentTotal === null) return reportedTotal;
+  return Math.max(reportedTotal, componentTotal);
+}
+
 /**
  * Genera el bloque normalizado de ratios a partir de los estados de ingresos, balance y flujos.
  */
@@ -116,10 +127,16 @@ export function buildRatiosStatement(
       const longTermDebtSrc = getSource(balance, "longTermDebt", p.key);
       const shortTermDebt = getVal(balance, "shortTermDebt", p.key);
       const shortTermDebtSrc = getSource(balance, "shortTermDebt", p.key);
+      const reportedTotalDebt = getVal(balance, "totalDebt", p.key);
+      const reportedTotalDebtSrc = getSource(balance, "totalDebt", p.key);
+      const reportedCashAndInvestments = getVal(balance, "cashAndShortTermInvestments", p.key);
+      const reportedCashAndInvestmentsSrc = getSource(balance, "cashAndShortTermInvestments", p.key);
+      const reportedNetDebt = getVal(balance, "netDebt", p.key);
+      const reportedNetDebtSrc = getSource(balance, "netDebt", p.key);
 
       // EBITDA
       const ebitda =
-        operatingIncome !== null ? operatingIncome + (depreciation ?? 0) : null;
+        operatingIncome !== null && depreciation !== null ? operatingIncome + depreciation : null;
       // Sus dos componentes reales, para citarlos en cualquier ratio que use EBITDA.
       const ebitdaEntradas = conValor([
         entrada("Resultado de explotación", operatingIncome, operatingIncomeSrc),
@@ -197,15 +214,23 @@ export function buildRatiosStatement(
           break;
 
         case "roic": {
-          if (operatingIncome !== null && equity !== null) {
+          const totalDebt = mostCompleteTotal(reportedTotalDebt, sumReported([longTermDebt, shortTermDebt]));
+          const totalCash = mostCompleteTotal(reportedCashAndInvestments, sumReported([cash, shortTermInvestments]));
+          const netDebt = reportedNetDebt ?? (
+            totalDebt !== null && totalCash !== null ? totalDebt - totalCash : null
+          );
+          if (
+            operatingIncome !== null &&
+            equity !== null &&
+            pretaxIncome !== null &&
+            pretaxIncome > 0 &&
+            incomeTax !== null &&
+            netDebt !== null
+          ) {
             const taxRate =
-              pretaxIncome && incomeTax !== null && pretaxIncome > 0
-                ? Math.min(Math.max(incomeTax / pretaxIncome, 0), 0.5)
-                : 0.21;
+              Math.min(Math.max(incomeTax / pretaxIncome, 0), 0.5);
             const nopat = operatingIncome * (1 - taxRate);
-            const totalDebt = (longTermDebt ?? 0) + (shortTermDebt ?? 0);
-            const totalCash = (cash ?? 0) + (shortTermInvestments ?? 0);
-            const investedCapital = equity + totalDebt - totalCash;
+            const investedCapital = equity + netDebt;
             if (investedCapital > 0) {
               val = (nopat / investedCapital) * 100;
               entradas = conValor([
@@ -215,8 +240,11 @@ export function buildRatiosStatement(
                 entrada("Patrimonio neto", equity, equitySrc),
                 entrada("Deuda a largo plazo", longTermDebt, longTermDebtSrc),
                 entrada("Deuda a corto plazo", shortTermDebt, shortTermDebtSrc),
+                entrada("Deuda financiera total", reportedTotalDebt, reportedTotalDebtSrc),
                 entrada("Efectivo y equivalentes", cash, cashSrc),
                 entrada("Inversiones a corto plazo", shortTermInvestments, shortTermInvestmentsSrc),
+                entrada("Efectivo e inversiones", reportedCashAndInvestments, reportedCashAndInvestmentsSrc),
+                entrada("Deuda financiera neta", reportedNetDebt, reportedNetDebtSrc),
               ]);
             }
           }

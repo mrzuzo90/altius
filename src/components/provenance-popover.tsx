@@ -50,12 +50,14 @@ export function ProvenanceDetail({ cik, provenance }: { cik: string; provenance:
     );
   }
 
+  const isLatestMarketBridge = provenance.form === "YAHOO-ANNUAL";
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <FileText className="text-periwinkle-glow size-4 shrink-0" />
         <span className="text-pure-white text-[13px] font-medium">
-          Dato publicado por la empresa
+          {isLatestMarketBridge ? "Dato anual agregado para mantener la actualidad" : "Dato publicado por la empresa"}
         </span>
       </div>
       <p className="text-frost bg-void-black border-gunmetal rounded-lg border px-3 py-2 font-mono text-[11px] leading-[1.4] break-all">
@@ -72,16 +74,16 @@ export function ProvenanceDetail({ cik, provenance }: { cik: string; provenance:
           }
         />
         <Fila t="Formulario" v={provenance.form} />
-        <Fila t="Presentado" v={formatDate(provenance.filed)} />
-        <Fila t="Número de acceso" v={provenance.accn} />
+        <Fila t={isLatestMarketBridge ? "Actualizado" : "Presentado"} v={formatDate(provenance.filed)} />
+        <Fila t={isLatestMarketBridge ? "Referencia" : "Número de acceso"} v={provenance.accn} />
       </dl>
       <a
-        href={edgarFilingUrl(cik, provenance.accn)}
+        href={provenance.sourceUrl ?? edgarFilingUrl(cik, provenance.accn)}
         target="_blank"
         rel="noreferrer noopener"
         className="text-periwinkle-glow inline-flex items-center gap-1.5 text-[12px] hover:underline"
       >
-        <span>Abrir la presentación en EDGAR</span>
+        <span>Abrir en {provenance.sourceLabel ?? "EDGAR"}</span>
         <ExternalLink className="size-3" />
       </a>
     </div>

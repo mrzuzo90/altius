@@ -158,4 +158,37 @@ describe("buildRatiosStatement", () => {
     // completa: detecta una línea nueva en la taxonomía sin entrada en FORMULAS.
     expect(ratios.rows).toHaveLength(14);
   });
+
+  it("no sustituye por cero los componentes ausentes de EBITDA o ROIC", () => {
+    const income = createDummyStatement(periods, {
+      operatingIncome: [300, 200],
+      pretaxIncome: [280, 190],
+      incomeTax: [56, 38],
+    });
+    const balance = createDummyStatement(periods, { equity: [1000, 800] });
+    const cashflow = createDummyStatement(periods, {});
+    const ratios = buildRatiosStatement(income, balance, cashflow, "annual");
+    const getVal = (id: string) => ratios.rows.find((r) => r.line.id === id)?.cells.FY2023.value;
+    expect(getVal("ebitda")).toBeNull();
+    expect(getVal("roic")).toBeNull();
+  });
+
+  it("calcula ROIC cuando la empresa publica totales o solo los componentes existentes", () => {
+    const income = createDummyStatement(periods, {
+      operatingIncome: [300, 200],
+      pretaxIncome: [280, 190],
+      incomeTax: [56, 38],
+    });
+    const balance = createDummyStatement(periods, {
+      equity: [1000, 800],
+      cash: [200, 150],
+      longTermDebt: [400, 300],
+    });
+    const cashflow = createDummyStatement(periods, {});
+
+    const ratios = buildRatiosStatement(income, balance, cashflow, "annual");
+    const roic = ratios.rows.find((row) => row.line.id === "roic")?.cells.FY2023.value;
+
+    expect(roic).toBeCloseTo(20);
+  });
 });

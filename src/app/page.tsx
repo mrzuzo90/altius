@@ -3,7 +3,6 @@ import { HomeSearch } from "@/components/home-search";
 import { TickerRibbon } from "@/components/home/ticker-ribbon";
 import { MarketOverviewCards } from "@/components/home/market-overview-cards";
 import { MarketLeadersTable } from "@/components/home/market-leaders-table";
-import { InteractivePreview } from "@/components/home/interactive-preview";
 import { getFredSeries, yoyChange } from "@/lib/fred/client";
 import { getAllIndicesSummary } from "@/lib/indices";
 import { getAllCommoditiesSummary } from "@/lib/commodities";
@@ -14,24 +13,47 @@ import type { RibbonItem } from "@/components/home/ticker-ribbon";
 
 export const revalidate = 3600;
 
+async function observeSource<T>(promise: Promise<T>, fallback: T) {
+  try {
+    return { data: await promise, failed: false };
+  } catch {
+    return { data: fallback, failed: true };
+  }
+}
+
 export default async function Home() {
   const [
-    cpiData,
-    fedData,
-    unrateData,
-    indicesSummaries,
-    commoditiesSummaries,
-    currenciesSummaries,
-    realLeaders,
+    cpiResult,
+    fedResult,
+    unrateResult,
+    indicesResult,
+    commoditiesResult,
+    currenciesResult,
+    leadersResult,
   ] = await Promise.all([
-    getFredSeries("CPIAUCSL").catch(() => []),
-    getFredSeries("FEDFUNDS").catch(() => []),
-    getFredSeries("UNRATE").catch(() => []),
-    getAllIndicesSummary().catch(() => []),
-    getAllCommoditiesSummary().catch(() => []),
-    getAllCurrenciesSummary().catch(() => []),
-    getDynamicMarketLeaders().catch(() => []),
+    observeSource(getFredSeries("CPIAUCSL"), []),
+    observeSource(getFredSeries("FEDFUNDS"), []),
+    observeSource(getFredSeries("UNRATE"), []),
+    observeSource(getAllIndicesSummary(), []),
+    observeSource(getAllCommoditiesSummary(), []),
+    observeSource(getAllCurrenciesSummary(), []),
+    observeSource(getDynamicMarketLeaders(), []),
   ]);
+
+  const cpiData = cpiResult.data;
+  const fedData = fedResult.data;
+  const unrateData = unrateResult.data;
+  const indicesSummaries = indicesResult.data;
+  const commoditiesSummaries = commoditiesResult.data;
+  const currenciesSummaries = currenciesResult.data;
+  const realLeaders = leadersResult.data;
+  const unavailableSources = [
+    cpiResult.failed || fedResult.failed || unrateResult.failed ? "FRED" : null,
+    indicesResult.failed ? "índices" : null,
+    commoditiesResult.failed ? "materias primas" : null,
+    currenciesResult.failed ? "divisas" : null,
+    leadersResult.failed ? "cotizaciones" : null,
+  ].filter((source): source is string => source !== null);
 
   const cpiValue = yoyChange(cpiData).at(-1)?.value;
   const fedFundsValue = fedData.at(-1)?.value;
@@ -42,7 +64,7 @@ export default async function Home() {
       type: "index" as const,
       ticker: idx.shortName,
       price: idx.currentValue,
-      changePct: idx.change1D ?? 0,
+      changePct: idx.change1D ?? null,
       href: `/indices/${idx.slug}`,
       isVix: idx.symbol === "VIXCLS",
     })),
@@ -50,7 +72,7 @@ export default async function Home() {
       type: "commodity" as const,
       ticker: com.shortName,
       price: com.currentValue,
-      changePct: com.change1D ?? 0,
+      changePct: com.change1D ?? null,
       href: `/commodities/${com.slug}`,
       unit: com.unit,
     })),
@@ -58,7 +80,7 @@ export default async function Home() {
       type: "commodity" as const,
       ticker: cur.shortName,
       price: cur.currentValue,
-      changePct: cur.change1D ?? 0,
+      changePct: cur.change1D ?? null,
       href: `/divisas/${cur.slug}`,
     })),
   ];
@@ -67,6 +89,11 @@ export default async function Home() {
     <div className="bg-void-black text-frost min-h-screen pb-20">
       {/* 1. Live Market Ticker Tape Ribbon */}
       <TickerRibbon items={ribbonItems} />
+      {unavailableSources.length > 0 ? (
+        <div className="border-amber-800/50 bg-amber-950/20 text-amber-200 mx-auto mt-4 max-w-[1160px] rounded-lg border px-4 py-2 text-center text-[12px]">
+          Datos temporalmente incompletos: {unavailableSources.join(", ")}. Los valores ausentes se muestran como —.
+        </div>
+      ) : null}
 
       {/* 2. Hero Section — Wall Street Terminal Console */}
       <section className="mx-auto max-w-[1200px] px-5 pt-12 pb-14 sm:pt-16 sm:pb-20">
@@ -81,11 +108,18 @@ export default async function Home() {
           </h1>
 
           <p className="text-frost/90 max-w-2xl mx-auto text-[18px] leading-[1.55] text-pretty font-normal">
-            Múltiplos LTM, 10 años de estados financieros XBRL consolidados y calculadora de valoración a 5 años leídos directamente de la SEC y la Reserva Federal.
+            PER histórico, hasta 30 ejercicios financieros XBRL consolidados y valoración a 5 años con fuentes regulatorias SEC y ESEF.
           </p>
 
           <div className="pt-2 max-w-xl mx-auto">
             <HomeSearch />
+            <Link
+              href="/companies"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-periwinkle-glow/35 bg-periwinkle-glow/10 px-4 py-1.5 text-[12px] font-medium text-periwinkle-glow hover:bg-periwinkle-glow/15"
+            >
+              <span>Explorar 100 empresas por Las seis claves</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[12px] text-muted-steel font-mono">
               <span>Populares:</span>
               {[
@@ -128,17 +162,12 @@ export default async function Home() {
         />
       </section>
 
-      {/* 4. Interactive Terminal Preview Showcase */}
-      <section className="mx-auto max-w-[1200px] px-5 mb-14">
-        <InteractivePreview />
-      </section>
-
-      {/* 5. Market Leaders & Valuation Table (TIKR Screener Style) */}
+      {/* 4. Market Leaders & Valuation Table */}
       <section className="mx-auto max-w-[1200px] px-5 mb-20">
         <MarketLeadersTable leaders={realLeaders} />
       </section>
 
-      {/* 6. Feature Blocks */}
+      {/* 5. Feature Blocks */}
       <section className="mx-auto max-w-[1200px] px-5 py-12 border-t border-gunmetal/80">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-periwinkle-glow font-mono text-[11px] uppercase tracking-wider font-semibold">
@@ -172,14 +201,14 @@ export default async function Home() {
             icon={<Sparkles className="size-5 text-periwinkle-glow" />}
             index="03"
             title="Auditoría de Calidad (Moats)"
-            text="Checklist automatizado de 6 filtros cuantitativos (ROIC > 15%, márgenes, conversión de FCF y recompras de acciones) para detectar Compounders al instante."
+            text="Las seis claves estudian crecimiento, retornos, caja, balance, disciplina por acción y valoración con varios años de datos y criterios adaptados al sector."
             href="/ticker/AAPL"
-            cta="Ver scorecard de calidad"
+            cta="Ver Las seis claves"
           />
         </div>
       </section>
 
-      {/* 7. Methodology & Integrity Banner */}
+      {/* 6. Methodology & Integrity Banner */}
       <section className="mx-auto max-w-[1200px] px-5">
         <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="max-w-2xl space-y-3">

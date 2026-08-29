@@ -1,4 +1,5 @@
 import { getCacheStore, TTL } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 import { parseFredCsv, type FredPoint } from "@/lib/fred/client";
 import type { PricePoint } from "@/lib/prices/types";
 import { buildTechnicalDataset } from "@/lib/technical";
@@ -72,6 +73,18 @@ export const CURRENCY_PAIRS: Record<CurrencyPairSymbol, CurrencyPairMeta> = {
     description:
       "Tipo de cambio de referencia entre las economías de América del Norte (USD/CAD).",
   },
+  AUDUSD: {
+    symbol: "AUDUSD",
+    slug: "aud-usd",
+    name: "Dólar Australiano / Dólar Estadounidense (AUD/USD)",
+    shortName: "AUD/USD",
+    baseCurrency: "AUD",
+    quoteCurrency: "USD",
+    fredSeriesId: "DEXUSAL",
+    provider: "Board of Governors of the Federal Reserve System (H.10) · respaldo Yahoo Finance",
+    description:
+      "Cotización del Dólar australiano expresada en Dólares estadounidenses, con histórico oficial H.10.",
+  },
   USDCNY: {
     symbol: "USDCNY",
     slug: "usd-cny",
@@ -104,6 +117,7 @@ export const CURRENCY_PAIRS: Record<CurrencyPairSymbol, CurrencyPairMeta> = {
     baseCurrency: "USD",
     quoteCurrency: "PTS",
     fredSeriesId: "DTWEXAFEGS",
+    marketSymbol: "DX-Y.NYB",
     provider: "Federal Reserve Economic Data (FRED)",
     description:
       "Índice ponderado por el comercio exterior de EE. UU. que mide la fortaleza global del dólar frente a las principales divisas mundiales.",
@@ -136,6 +150,11 @@ const CURRENCY_ALIASES: Record<string, CurrencyPairSymbol> = {
   "USD/CAD": "USDCAD",
   "USD-CAD": "USDCAD",
   CAD: "USDCAD",
+  AUDUSD: "AUDUSD",
+  "AUD/USD": "AUDUSD",
+  "AUD-USD": "AUDUSD",
+  AUD: "AUDUSD",
+  "DOLAR AUSTRALIANO": "AUDUSD",
   USDCNY: "USDCNY",
   "USD/CNY": "USDCNY",
   "USD-CNY": "USDCNY",
@@ -173,6 +192,47 @@ export function getAllCurrencyPairs(): CurrencyPairMeta[] {
   return Object.values(CURRENCY_PAIRS);
 }
 
+async function fetchYahooCurrencyPoints(meta: CurrencyPairMeta): Promise<PricePoint[]> {
+  const directSymbol = meta.marketSymbol ?? `${meta.baseCurrency}${meta.quoteCurrency}=X`;
+  const symbols = meta.isIndex
+    ? [{ symbol: directSymbol, inverse: false }]
+    : [
+        { symbol: directSymbol, inverse: false },
+        { symbol: `${meta.quoteCurrency}${meta.baseCurrency}=X`, inverse: true },
+      ];
+
+  for (const candidate of symbols) for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
+    try {
+      const response = await fetchWithTimeout(
+        `https://${host}/v8/finance/chart/${encodeURIComponent(candidate.symbol)}?interval=1d&range=max`,
+        { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 AppleWebKit/537.36" } },
+        20_000,
+      );
+      if (!response.ok) continue;
+      const payload = await response.json() as {
+        chart?: { result?: Array<{
+          timestamp?: number[];
+          indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+        }> };
+      };
+      const result = payload.chart?.result?.[0];
+      const closes = result?.indicators?.quote?.[0]?.close ?? [];
+      const points = (result?.timestamp ?? []).flatMap((timestamp, index): PricePoint[] => {
+        const raw = closes[index];
+        if (raw === null || raw === undefined || !Number.isFinite(raw) || raw <= 0) return [];
+        return [{
+          date: new Date(timestamp * 1000).toISOString().slice(0, 10),
+          close: candidate.inverse ? 1 / raw : raw,
+        }];
+      });
+      if (points.length > 0) return points;
+    } catch {
+      // Se prueba el host alternativo y después el par inverso.
+    }
+  }
+  return [];
+}
+
 /**
  * Obtiene la serie histórica de un tipo de cambio oficial desde FRED (H.10 Release).
  */
@@ -181,34 +241,43 @@ export async function getCurrencySeries(symbol: CurrencyPairSymbol): Promise<Pri
   if (!meta) throw new Error(`Par de divisas no reconocido: ${symbol}`);
 
   const cache = getCacheStore();
-  const cacheKey = `currencies:series:${symbol}`;
+  const cacheKey = `currencies:series:v2:${symbol}`;
   const cached = await cache.get<PricePoint[]>(cacheKey);
   if (cached && cached.length > 0) return cached;
 
   const apiKey = process.env.FRED_API_KEY?.trim();
   let points: PricePoint[];
 
-  if (apiKey) {
-    const url =
-      `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
-      `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-    const json = (await res.json()) as { observations: { date: string; value: string }[] };
-    points = json.observations
-      .filter((o) => o.value !== "." && o.value !== "")
-      .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
-      .filter((p) => Number.isFinite(p.close));
-  } else {
-    const res = await fetch(
-      `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-    const fredPoints: FredPoint[] = parseFredCsv(await res.text());
-    points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+  try {
+    if (apiKey) {
+      const url =
+        `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
+        `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
+      const res = await fetchWithTimeout(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
+      const json = (await res.json()) as { observations: { date: string; value: string }[] };
+      points = json.observations
+        .filter((o) => o.value !== "." && o.value !== "")
+        .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
+        .filter((p) => Number.isFinite(p.close));
+    } else {
+      const res = await fetchWithTimeout(
+        `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
+      const fredPoints: FredPoint[] = parseFredCsv(await res.text());
+      points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+    }
+  } catch {
+    points = await fetchYahooCurrencyPoints(meta);
   }
 
+  if (points.length === 0) points = await fetchYahooCurrencyPoints(meta);
+
+  if (points.length === 0) {
+    throw new Error(`FRED no devolvió observaciones para ${meta.fredSeriesId}.`);
+  }
   points.sort((a, b) => (a.date < b.date ? -1 : 1));
   await cache.set(cacheKey, points, TTL.currencies);
   return points;

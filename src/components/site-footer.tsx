@@ -17,6 +17,9 @@ export function SiteFooter() {
             <a href="https://www.sec.gov/edgar" target="_blank" rel="noreferrer noopener" className="hover:text-frost transition-colors">
               SEC EDGAR
             </a>
+            <a href="https://filings.xbrl.org/" target="_blank" rel="noreferrer noopener" className="hover:text-frost transition-colors">
+              ESEF XBRL
+            </a>
             <a href="https://fred.stlouisfed.org/" target="_blank" rel="noreferrer noopener" className="hover:text-frost transition-colors">
               FRED
             </a>

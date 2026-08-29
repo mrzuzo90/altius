@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrencyDetail, resolveCurrencySymbol } from "@/lib/currencies";
+import { upstreamError } from "@/lib/api/guard";
 
 export const revalidate = 3600;
 
@@ -21,7 +22,6 @@ export async function GET(
     const detail = await getCurrencyDetail(meta.symbol);
     return NextResponse.json(detail);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return upstreamError("currency-detail", error);
   }
 }

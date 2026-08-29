@@ -1,5 +1,6 @@
 import { SYSTEM_MDNA, userPromptMdna } from "./prompts";
 import { getCacheStore, TTL } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 
 export type MdnaBody = {
   drivers: string[];
@@ -15,7 +16,7 @@ export type MdnaBody = {
  * Modelos disponibles con cuota gratuita activa en Google AI Studio.
  * Se prueba en orden de preferencia (`gemini-flash-latest` -> `gemini-flash-lite-latest`).
  */
-const MODELOS_CANDIDATOS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
+export const MODELOS_CANDIDATOS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
 
 function endpoints(): string[] {
   const custom = process.env.GEMINI_MODEL?.trim();
@@ -122,7 +123,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /**
  * Ejecuta la llamada a Gemini probando la lista de modelos compatibles.
  */
-async function pedirConModelos(body: string, apiKey: string): Promise<Response> {
+export async function pedirConModelos(body: string, apiKey: string): Promise<Response> {
   const urls = endpoints();
   let ultima: Response | null = null;
 
@@ -130,12 +131,12 @@ async function pedirConModelos(body: string, apiKey: string): Promise<Response> 
     for (let intento = 0; intento < 2; intento++) {
       if (intento > 0) await sleep(500);
       try {
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           body,
           cache: "no-store",
-        });
+        }, 30_000);
         if (res.ok) return res;
         ultima = res;
         // Si es 404, salta de inmediato al siguiente modelo sin reintentar

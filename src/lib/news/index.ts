@@ -2,6 +2,7 @@ import { getCacheStore, TTL } from "@/lib/cache/store";
 import { trimCik } from "@/lib/sec/client";
 import { getSubmissions } from "@/lib/sec/submissions";
 import type { CompanyNewsResult, NewsItem } from "./types";
+import { fetchWithTimeout } from "@/lib/http";
 
 export * from "./types";
 
@@ -9,14 +10,19 @@ export * from "./types";
  * Decodifica entidades HTML básicas y limpia etiquetas HTML.
  */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
+  const decoded = html
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, value: string) => String.fromCodePoint(Number(value)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, value: string) => String.fromCodePoint(Number.parseInt(value, 16)));
+  return decoded
+    .replace(/<[^>]*>/g, " ")
+    .replace(/https?:\/\/\S+|www\.\S+/gi, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -54,9 +60,20 @@ export function parseRssFeed(xml: string, defaultSource = "Mercado"): NewsItem[]
       }
     }
 
-    const title = stripHtml(rawTitle);
-    const summary = stripHtml(rawDesc);
     const source = stripHtml(rawSource) || defaultSource;
+    let title = stripHtml(rawTitle);
+    const visibleSuffix = ` - ${source}`;
+    if (title.toLocaleLowerCase("en").endsWith(visibleSuffix.toLocaleLowerCase("en"))) {
+      title = title.slice(0, -visibleSuffix.length).trim();
+    }
+    if (!/[\p{L}\p{N}]{3}/u.test(title)) title = "Nueva información relevante del mercado";
+    const extractedSummary = stripHtml(rawDesc);
+    const normalizedTitle = title.toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, "");
+    const normalizedSummary = extractedSummary.toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, "");
+    const summary = normalizedSummary === normalizedTitle
+      || normalizedSummary === `${normalizedTitle}${source.toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, "")}`
+      ? ""
+      : extractedSummary;
 
     let isoDate: string;
     try {
@@ -72,7 +89,7 @@ export function parseRssFeed(xml: string, defaultSource = "Mercado"): NewsItem[]
       source,
       url: rawLink,
       publishedAt: isoDate,
-      summary: summary.length > 0 && summary !== title ? summary.slice(0, 240) : undefined,
+      summary: summary.length > 0 ? summary.slice(0, 240) : undefined,
       isRegulatory: false,
       category: /earnings|results|dividend|revenue|profit/i.test(title) ? "earnings" : "market",
     });
@@ -106,7 +123,7 @@ export async function getSecRegulatoryNews(cik: string, companyName: string): Pr
 
         items.push({
           id: `sec-8k-${accessionNumber}`,
-          title: `Hecho Relevante Formulario ${form} · Presentado ante la SEC`,
+          title: `${companyName} comunica un nuevo hecho relevante mediante un ${form}`,
           source: "SEC EDGAR Form 8-K",
           url: documentUrl,
           publishedAt: `${filingDate}T00:00:00.000Z`,
@@ -135,7 +152,7 @@ export async function fetchRssNews(ticker: string, companyName: string): Promise
   try {
     const query = `${cleanTicker} stock OR "${cleanName}"`;
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       cache: "no-store",
       headers: { "User-Agent": "AltiusTerminal/1.0 (financial-research-terminal)" },
     });
@@ -151,7 +168,7 @@ export async function fetchRssNews(ticker: string, companyName: string): Promise
   // 2. Yahoo Finance RSS como refuerzo
   try {
     const yUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(cleanTicker)}`;
-    const yRes = await fetch(yUrl, {
+    const yRes = await fetchWithTimeout(yUrl, {
       cache: "no-store",
       headers: { "User-Agent": "AltiusTerminal/1.0" },
     });
@@ -176,7 +193,8 @@ export async function getCompanyNews(
   cik?: string,
 ): Promise<CompanyNewsResult> {
   const cache = getCacheStore();
-  const cacheKey = `news:${ticker.toUpperCase()}`;
+  const companyIdentity = cik ?? companyName.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 80);
+  const cacheKey = `news:v2:${ticker.toUpperCase()}:${companyIdentity}`;
 
   const cached = await cache.get<CompanyNewsResult>(cacheKey);
   if (cached) return cached;

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search } from "lucide-react";
+import { Heart, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 
 import { ThemeToggle } from "./theme-toggle";
 
 const NAV = [
   { href: "/", label: "Observatorio" },
+  { href: "/companies", label: "Empresas" },
   { href: "/indices", label: "Índices" },
   { href: "/commodities", label: "Materias Primas" },
   { href: "/divisas", label: "Divisas" },
@@ -17,6 +19,7 @@ const NAV = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { items } = useWatchlist();
 
   return (
     <header className="bg-void-black/90 border-gunmetal sticky top-0 z-40 border-b backdrop-blur-md">
@@ -48,6 +51,21 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
+          <Link
+            href="/watchlist"
+            aria-label={`Mis acciones favoritas${items.length ? `, ${items.length}` : ""}`}
+            className={cn(
+              "border-gunmetal relative flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] transition-colors",
+              pathname.startsWith("/watchlist")
+                ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
+                : "bg-carbon-surface text-muted-steel hover:text-frost",
+            )}
+          >
+            <Heart className={cn("size-4", items.length > 0 && "fill-rose-300 text-rose-300")} />
+            <span className="hidden lg:inline">Favoritas</span>
+            {items.length > 0 ? <span className="bg-rose-400 text-void-black flex min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold">{items.length}</span> : null}
+          </Link>
+
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event("altius:open-search"))}

@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import { BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatValue, type Scale } from "@/lib/format";
 import type { Cell, LineSeries, Period } from "@/lib/sec/normalize";
 import { ProvenancePopover } from "@/components/provenance-popover";
+import { StatementSeriesDialog } from "@/components/statement-series-dialog";
 
 /**
  * Tabla financiera densa.
@@ -27,23 +30,28 @@ export function FinancialTable({
   periods,
   rows,
   scale,
+  currency,
   cik,
 }: {
   periods: Period[];
   rows: LineSeries[];
   scale: Scale;
+  currency: string;
   cik: string;
 }) {
+  const [selectedRow, setSelectedRow] = useState<LineSeries | null>(null);
+
   if (periods.length === 0) {
     return (
       <p className="text-slate px-4 py-14 text-center text-[15px]">
-        La SEC no publica datos XBRL estructurados para esta combinación.
+        La fuente regulatoria no publica datos XBRL estructurados para esta combinación.
       </p>
     );
   }
 
   return (
-    <div className="bg-carbon-surface border-gunmetal relative overflow-x-auto rounded-2xl border">
+    <>
+      <div className="bg-carbon-surface border-gunmetal relative overflow-x-auto rounded-2xl border">
       <table className="tabular w-full border-collapse text-[14px]">
         <thead>
           <tr className="border-gunmetal border-b">
@@ -96,7 +104,21 @@ export function FinancialTable({
                   )}
                   style={{ paddingLeft: `${1 + (row.line.indent ?? 0) * 0.85}rem` }}
                 >
-                  {row.line.label}
+                  <button
+                    type="button"
+                    disabled={vacia}
+                    onClick={() => setSelectedRow(row)}
+                    className="focus-visible:ring-periwinkle-glow/70 -my-1 flex w-full items-center justify-between gap-2 rounded-md py-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
+                    aria-label={`Ver evolución de ${row.line.label} en un gráfico`}
+                  >
+                    <span className="truncate">{row.line.label}</span>
+                    {!vacia && (
+                      <BarChart3
+                        aria-hidden="true"
+                        className="text-muted-steel size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      />
+                    )}
+                  </button>
                 </th>
                 <td className="px-2 py-2 text-center whitespace-nowrap">
                   <Sparkline
@@ -120,7 +142,19 @@ export function FinancialTable({
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+
+      <StatementSeriesDialog
+        row={selectedRow}
+        periods={periods}
+        scale={scale}
+        currency={currency}
+        open={selectedRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRow(null);
+        }}
+      />
+    </>
   );
 }
 

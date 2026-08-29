@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMdna, htmlToText, limpiarMobiliarioDePagina } from "@/lib/sec/mdna";
+import { extractBusinessSection, extractBusinessSummary, extractMdna, htmlToText, limpiarMobiliarioDePagina } from "@/lib/sec/mdna";
 
 const relleno = (n: number) =>
   Array.from(
@@ -76,6 +76,57 @@ describe("extractMdna", () => {
     const q = extractMdna(diezQ, "10-Q");
     expect(q!.text).toContain("MARCADOR_Q");
     expect(q!.text).not.toContain("FUERA");
+  });
+});
+
+describe("extractBusinessSummary", () => {
+  it("extrae una descripción operativa del Item 1 del 10-K", () => {
+    const summary = extractBusinessSummary(DIEZ_K, "10-K");
+
+    expect(summary).toContain("designs, manufactures and markets smartphones");
+    expect(summary).not.toContain("MARCADOR_CUERPO_INICIO");
+  });
+
+  it("usa el Item 4 para emisores internacionales con 20-F", () => {
+    const veinteF = `<html><body>
+      <table><tr><td>Item 4. Information on the Company</td></tr><tr><td>Item 5. Operating and Financial Review</td></tr></table>
+      <h2>Item 4. Information on the Company</h2>
+      <p>We design and manufacture advanced lithography systems that semiconductor customers use to produce integrated circuits at industrial scale.</p>
+      <p>Our installed base is supported through upgrades, maintenance services and computational software sold across global markets.</p>
+      <h2>Item 5. Operating and Financial Review</h2><p>FUERA_DEL_NEGOCIO</p>
+    </body></html>`;
+
+    const summary = extractBusinessSummary(veinteF, "20-F");
+    expect(summary).toContain("lithography systems");
+    expect(summary).not.toContain("FUERA_DEL_NEGOCIO");
+  });
+
+  it("encuentra una frase operativa aunque el 40-F no conserve un índice estándar", () => {
+    const cuarentaF = `<html><body>
+      <p>Annual report to shareholders</p>
+      <p>The bank provides personal and commercial banking, wealth management and capital markets services to millions of customers across Canada.</p>
+      <p>Forward-looking statements involve risks and uncertainties described elsewhere.</p>
+    </body></html>`;
+
+    expect(extractBusinessSummary(cuarentaF, "40-F")).toContain("commercial banking");
+  });
+
+  it("conserva contexto suficiente del negocio para traducirlo a lenguaje sencillo", () => {
+    const section = extractBusinessSection(DIEZ_K, "10-K", 20_000);
+    expect(section?.text).toContain("designs, manufactures and markets smartphones");
+    expect(section?.text).not.toContain("RISK_FACTORS_FUERA");
+  });
+
+  it("tolera letras separadas por el maquetador Inline XBRL en los encabezados", () => {
+    const html = `<html><body>
+      <h2>ITEM 1. B USINESS</h2>
+      <p>Microsoft develops Windows, Azure and Microsoft 365 for consumers and companies around the world.</p>
+      <p>Customers pay for licenses, subscriptions and cloud usage across these products and services.</p>
+      <h2>ITEM 1A. RIS K FACTORS</h2><p>FUERA</p>
+    </body></html>`;
+    const section = extractBusinessSection(html, "10-K");
+    expect(section?.text).toContain("Windows, Azure and Microsoft 365");
+    expect(section?.text).not.toContain("FUERA");
   });
 });
 

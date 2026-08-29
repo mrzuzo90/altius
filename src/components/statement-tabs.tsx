@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FinancialTable } from "./financial-table";
+import { FinancialSummary, summaryBlockForCopy } from "./financial-summary";
 import { SCALES, type Scale, formatValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Copy, Check } from "lucide-react";
@@ -17,12 +18,14 @@ export function StatementTabs({
   frequency: "annual" | "quarterly";
   onFrequencyChange: (f: "annual" | "quarterly") => void;
 }) {
-  const [tabActiva, setTabActiva] = useState<string>("income");
+  const [tabActiva, setTabActiva] = useState<string>("summary");
   const [scale, setScale] = useState<Scale>("millions");
   const [copiado, setCopiado] = useState(false);
 
   const copiarTabla = useCallback(() => {
-    const block = bundle.blocks.find((b) => b.id === tabActiva) ?? bundle.blocks[0];
+    const block = tabActiva === "summary"
+      ? summaryBlockForCopy(bundle)
+      : bundle.blocks.find((b) => b.id === tabActiva) ?? bundle.blocks[0];
     if (!block || block.periods.length === 0) return;
 
     const cabecera = ["Concepto", ...block.periods.map((p) => p.label)].join("\t");
@@ -46,6 +49,12 @@ export function StatementTabs({
       <div className="flex flex-wrap items-center gap-4">
         {/* Píldora de navegación de pestañas estilo Better Stack */}
         <TabsList className="bg-carbon-surface border-gunmetal max-w-full justify-start overflow-x-auto rounded-full border p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsTrigger
+            value="summary"
+            className="font-display shrink-0 rounded-full px-4 py-1.5 text-[13px] font-medium tracking-tight data-[state=active]:bg-gunmetal data-[state=active]:text-white text-muted-steel hover:text-frost transition-colors"
+          >
+            Resumen financiero
+          </TabsTrigger>
           {bundle.blocks.map((b) => (
             <TabsTrigger
               key={b.id}
@@ -72,7 +81,7 @@ export function StatementTabs({
             ) : (
               <>
                 <Copy className="size-3.5 text-muted-steel" />
-                <span>Copiar tabla</span>
+                <span>{tabActiva === "summary" ? "Copiar resumen" : "Copiar tabla"}</span>
               </>
             )}
           </button>
@@ -96,11 +105,24 @@ export function StatementTabs({
         </div>
       </div>
 
-      <p className="text-muted-steel max-w-3xl text-[13px] leading-[1.5]">
-        Cifras en {SCALES[scale].label} de dólares salvo datos por acción y ratios porcentuales. Las
-        celdas marcadas las calcula Altius; el resto procede literalmente del XBRL de la
-        SEC. Una raya significa que la empresa no reporta ese concepto.
-      </p>
+      {tabActiva === "summary" ? (
+        <p className="text-muted-steel max-w-3xl text-[13px] leading-[1.5]">
+          Selección visual de las partidas que mejor resumen el negocio. Las tablas completas permanecen intactas en sus pestañas.
+        </p>
+      ) : (
+        <p className="text-muted-steel max-w-3xl text-[13px] leading-[1.5]">
+          Cifras en {SCALES[scale].label} de {bundle.currency ?? "USD"} salvo datos por acción y ratios porcentuales. Las
+          celdas marcadas las calcula Altius; el resto conserva su procedencia individual: XBRL regulatorio y, cuando
+          ESEF aún no ha indexado el último ejercicio, la fuente de actualidad indicada. Una raya significa que la
+          empresa no reporta ese concepto.
+        </p>
+      )}
+
+      <TabsContent value="summary">
+        <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+          <FinancialSummary bundle={bundle} scale={scale} />
+        </div>
+      </TabsContent>
 
       {bundle.blocks.map((b) => (
         <TabsContent key={b.id} value={b.id}>
@@ -112,6 +134,7 @@ export function StatementTabs({
               periods={b.periods}
               rows={b.rows}
               scale={scale}
+              currency={bundle.currency ?? "USD"}
               cik={bundle.profile.cik}
             />
           </div>

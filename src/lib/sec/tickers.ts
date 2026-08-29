@@ -1,9 +1,18 @@
 import { padCik, secFetchJson } from "./client";
 import { TTL } from "@/lib/cache/store";
+import { normalizeSearchText, scoreSearchCandidate } from "@/lib/search/ranking";
 
 const TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
 
-export type TickerHit = { ticker: string; cik: string; name: string };
+const LOCAL_MARKET_SUFFIXES = [
+  // Europa
+  ".AS", ".AT", ".BR", ".CO", ".DE", ".HE", ".IR", ".L", ".LS", ".MC",
+  ".MI", ".OL", ".PA", ".PR", ".ST", ".SW", ".VI", ".WA",
+  // Canadá y Australia; también mercados globales con emisores registrados en SEC.
+  ".TO", ".V", ".CN", ".NE", ".AX", ".HK", ".T", ".SI", ".JO", ".NZ",
+] as const;
+
+export type TickerHit = { ticker: string; cik: string; name: string; matchedAlias?: string };
 
 /** Forma cruda del fichero de la SEC: objeto indexado por número, no array. */
 type RawTickerFile = Record<string, { cik_str: number; ticker: string; title: string }>;
@@ -106,19 +115,38 @@ const GLOBAL_COMPANY_ALIASES: Record<string, string> = {
   SPOTIFY: "SPOT",
 };
 
+const SEARCH_ALIASES_BY_TICKER = Object.entries(GLOBAL_COMPANY_ALIASES).reduce<Record<string, string[]>>(
+  (aliases, [name, ticker]) => {
+    (aliases[ticker] ??= []).push(name);
+    return aliases;
+  },
+  {},
+);
+
 /**
  * Puntuación de relevancia. La coincidencia exacta de ticker gana siempre:
  * quien teclea "AAP" busca AAP, no AAPL.
  */
-function score(hit: TickerHit, q: string): number {
-  const ticker = hit.ticker.toLowerCase();
-  const name = hit.name.toLowerCase();
-  if (ticker === q) return 100;
-  if (ticker.startsWith(q)) return 60 - ticker.length;
-  if (name.startsWith(q)) return 40;
-  if (name.includes(q)) return 20;
-  if (ticker.includes(q)) return 10;
-  return 0;
+function score(hit: TickerHit, q: string): { score: number; matchedAlias?: string } {
+  const aliases = SEARCH_ALIASES_BY_TICKER[hit.ticker.toUpperCase()] ?? [];
+  const candidate = {
+    id: hit.ticker,
+    kind: "company" as const,
+    symbol: hit.ticker,
+    name: hit.name,
+    href: "",
+    meta: "",
+  };
+  const nativeScore = scoreSearchCandidate(candidate, q).score;
+  const withAliases = scoreSearchCandidate({ ...candidate, aliases }, q).score;
+  if (withAliases <= nativeScore) return { score: nativeScore };
+
+  const normalizedQuery = normalizeSearchText(q);
+  const matchedAlias = aliases.find((alias) => {
+    const normalizedAlias = normalizeSearchText(alias);
+    return normalizedAlias === normalizedQuery || normalizedAlias.startsWith(normalizedQuery);
+  });
+  return { score: withAliases, matchedAlias };
 }
 
 export function rankTickers(raw: RawTickerFile, query: string, limit = 10): TickerHit[] {
@@ -132,8 +160,13 @@ export function rankTickers(raw: RawTickerFile, query: string, limit = 10): Tick
       cik: padCik(entry.cik_str),
       name: entry.title,
     };
-    const s = score(hit, q);
-    if (s > 0) scored.push({ hit, s });
+    const ranked = score(hit, q);
+    if (ranked.score > 0) {
+      scored.push({
+        hit: ranked.matchedAlias ? { ...hit, matchedAlias: ranked.matchedAlias } : hit,
+        s: ranked.score,
+      });
+    }
   }
 
   return scored
@@ -147,8 +180,14 @@ export function rankTickers(raw: RawTickerFile, query: string, limit = 10): Tick
     .map((x) => x.hit);
 }
 
+let indexPromise: Promise<RawTickerFile> | null = null;
+
 function loadIndex(): Promise<RawTickerFile> {
-  return secFetchJson<RawTickerFile>(TICKERS_URL, TTL.tickerIndex);
+  indexPromise ??= secFetchJson<RawTickerFile>(TICKERS_URL, TTL.tickerIndex);
+  return indexPromise.catch((error) => {
+    indexPromise = null;
+    throw error;
+  });
 }
 
 export async function searchTickers(query: string, limit = 10): Promise<TickerHit[]> {
@@ -159,23 +198,42 @@ export async function searchTickers(query: string, limit = 10): Promise<TickerHi
 export async function resolveTicker(tickerOrName: string): Promise<TickerHit | null> {
   const rawInput = tickerOrName.trim().toUpperCase();
   if (!rawInput) return null;
+  return resolveTickerFromIndex(await loadIndex(), rawInput);
+}
+
+/** Variante pura usada para impedir colisiones entre tickers locales y estadounidenses. */
+export function resolveTickerFromIndex(raw: RawTickerFile, tickerOrName: string): TickerHit | null {
+  const rawInput = tickerOrName.trim().toUpperCase();
+  if (!rawInput) return null;
 
   const normalizedKey = rawInput.replace(/[\^/_\- .]/g, "");
+  const explicitAlias = GLOBAL_COMPANY_ALIASES[rawInput] ?? GLOBAL_COMPANY_ALIASES[normalizedKey];
   const aliasResolved =
-    GLOBAL_COMPANY_ALIASES[rawInput] ??
-    GLOBAL_COMPANY_ALIASES[normalizedKey] ??
+    explicitAlias ??
     rawInput;
-
-  const raw = await loadIndex();
 
   // 1. Coincidencia exacta por ticker resuelto o directo
   for (const entry of Object.values(raw)) {
     if (entry.ticker.toUpperCase() === aliasResolved || entry.ticker.toUpperCase() === rawInput) {
-      return { ticker: entry.ticker, cik: padCik(entry.cik_str), name: entry.title };
+      const preserveLocalListing = rawInput.includes(".") && GLOBAL_COMPANY_ALIASES[rawInput] === aliasResolved;
+      return { ticker: preserveLocalListing ? rawInput : entry.ticker, cik: padCik(entry.cik_str), name: entry.title };
     }
   }
 
-  // 2. Coincidencia por búsqueda de nombre en el índice oficial de la SEC
+  // 2. Una cotización local puede corresponder al mismo emisor que presenta
+  // estados en la SEC (SHOP.TO → SHOP, BHP.AX → BHP, SHEL.L → SHEL). Se
+  // conserva el ticker local para precio/divisa y solo se reutiliza el CIK.
+  const localSuffix = LOCAL_MARKET_SUFFIXES.find((suffix) => rawInput.endsWith(suffix));
+  const baseTicker = localSuffix ? rawInput.slice(0, -localSuffix.length) : null;
+  if (baseTicker && !explicitAlias) {
+    for (const entry of Object.values(raw)) {
+      if (entry.ticker.toUpperCase() === baseTicker) {
+        return { ticker: rawInput, cik: padCik(entry.cik_str), name: entry.title };
+      }
+    }
+  }
+
+  // 3. Coincidencia por búsqueda de nombre en el índice oficial de la SEC
   const ranked = rankTickers(raw, rawInput, 1);
   if (ranked.length > 0) {
     return ranked[0];

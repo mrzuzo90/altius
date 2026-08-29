@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { CompanyHeader } from "@/components/company-header";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { TechnicalChart } from "@/components/technical/technical-chart";
+import { OptionsPressurePanel } from "@/components/technical/options-pressure-panel";
 import { TechnicalScorecard } from "@/components/technical/technical-scorecard";
 import { getPriceSeries } from "@/lib/prices";
 import { getCompanyProfile } from "@/lib/sec/submissions";
@@ -10,8 +11,11 @@ import { buildTechnicalDataset } from "@/lib/technical";
 import { resolveIndexSymbol } from "@/lib/indices";
 import { resolveCommoditySymbol } from "@/lib/commodities";
 import { resolveCurrencySymbol } from "@/lib/currencies";
+import { resolveEsefCompanyDynamic } from "@/lib/esef/resolve";
+import { getEsefCompanyProfile } from "@/lib/esef";
+import { getOptionsMarketAnalysis } from "@/lib/options";
 
-export const revalidate = 21600;
+export const revalidate = 900;
 
 export async function generateMetadata({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params;
@@ -34,13 +38,19 @@ export default async function TechnicalPage({
   const currencyHit = resolveCurrencySymbol(rawQuery);
   if (currencyHit) redirect(`/divisas/${currencyHit.slug}`);
 
-  const hit = await resolveTicker(rawQuery);
-  if (!hit) notFound();
-  const ticker = hit.ticker;
+  const [esefCompany, hit] = await Promise.all([
+    resolveEsefCompanyDynamic(rawQuery),
+    resolveTicker(rawQuery),
+  ]);
+  if (!hit && !esefCompany) notFound();
+  const ticker = esefCompany?.ticker ?? hit!.ticker;
 
-  const [profile, precios] = await Promise.all([
-    getCompanyProfile(hit.cik, hit.name, hit.ticker),
+  const [profile, precios, optionsAnalysis] = await Promise.all([
+    esefCompany
+      ? Promise.resolve(getEsefCompanyProfile(esefCompany))
+      : getCompanyProfile(hit!.cik, hit!.name, ticker),
     getPriceSeries(ticker),
+    getOptionsMarketAnalysis(ticker),
   ]);
 
   const technical = precios.ok
@@ -49,7 +59,7 @@ export default async function TechnicalPage({
 
   return (
     <>
-      <CompanyHeader profile={profile} ticker={hit.ticker} active="/technical" />
+      <CompanyHeader profile={profile} ticker={ticker} active="/technical" />
 
       <div className="mx-auto max-w-[1200px] px-5 py-10 space-y-10">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-4">
@@ -58,30 +68,30 @@ export default async function TechnicalPage({
               Análisis Técnico e Indicadores Cuantitativos
             </h2>
             <p className="text-frost/80 text-[14px] mt-1">
-              Medias móviles institucionales (SMA 20/50/200), osciladores de momentum (RSI 14, MACD) y niveles de soporte calculados sobre cotizaciones ajustadas.
+              Tendencia de precio, momentum y una lectura separada del mercado de opciones: volumen, posiciones abiertas, bid/ask, volatilidad y rango implícito.
             </p>
           </div>
           {precios.ok && <DataSourceBadge source={precios.series.source} />}
         </div>
 
         {technical ? (
-          <>
-            <TechnicalChart
-              points={technical.points}
-              source={precios.ok ? precios.series.source : "Alpha Vantage"}
-              currency="USD"
-            />
+          <TechnicalChart
+            points={technical.points}
+            source={precios.ok ? precios.series.source : "Alpha Vantage"}
+            currency={precios.ok ? precios.series.currency ?? "USD" : "USD"}
+          />
+        ) : <SinPrecio resultado={precios} />}
 
-            <section className="space-y-4">
-              <h3 className="font-display text-pure-white text-[20px] font-medium tracking-tight">
-                Diagnóstico de Señales Técnicas
-              </h3>
-              <TechnicalScorecard stats={technical.stats} />
-            </section>
-          </>
-        ) : (
-          <SinPrecio resultado={precios} />
-        )}
+        <OptionsPressurePanel result={optionsAnalysis} />
+
+        {technical ? (
+          <section className="space-y-4">
+            <h3 className="font-display text-pure-white text-[20px] font-medium tracking-tight">
+              Diagnóstico de Señales Técnicas
+            </h3>
+            <TechnicalScorecard stats={technical.stats} />
+          </section>
+        ) : null}
       </div>
     </>
   );

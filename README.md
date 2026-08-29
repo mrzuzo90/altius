@@ -21,8 +21,8 @@ Todo dato mostrado es trazable a un documento público. En concreto:
 - **Cada celda declara su procedencia.** Si es un hecho publicado: concepto
   XBRL, unidad, periodo, formulario, fecha de presentación y número de acceso.
   Si es un cálculo de Altius: la fórmula y la procedencia de cada entrada.
-  Tipos en `src/lib/sec/provenance.ts`. Por ahora vive en el motor; todavía no
-  hay una interfaz para consultarla celda a celda.
+  Tipos en `src/lib/sec/provenance.ts`. Cada celda de los estados financieros
+  abre un panel con el hecho o fórmula exactos y el enlace al filing de EDGAR.
 
 ## Puesta en marcha
 
@@ -52,7 +52,7 @@ macro funcionan sin credenciales.
 | `ALPHAVANTAGE_API_KEY` | No | Activa el gráfico de cotización. Clave gratuita en [alphavantage.co](https://www.alphavantage.co/support/#api-key). Su plan gratuito permite 25 peticiones diarias |
 | `GEMINI_MODEL` | No | Modelo de Gemini. Por defecto `gemini-flash-latest`, con salto automático a `gemini-flash-lite-latest` si falla |
 | `FRED_API_KEY` | No | Conmuta al API JSON de FRED. Sin ella se usa el CSV público, que da los mismos datos |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Sin efecto todavía. El adaptador (`src/lib/cache/supabase-store.ts`) existe pero `getCacheStore()` no lo selecciona aún |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Activa la caché compartida de producción; el disco queda como respaldo oportunista |
 
 ## Fuentes de datos
 
@@ -61,9 +61,10 @@ macro funcionan sin credenciales.
 | [SEC EDGAR](https://www.sec.gov/edgar) | Estados financieros, perfil de empresa, texto de los informes | No, pero exige User-Agent |
 | [FRED](https://fred.stlouisfed.org/) | IPC, tipo de los fondos federales, tasa de paro | No |
 | [Alpha Vantage](https://www.alphavantage.co/) | Cotización semanal de cierre | Sí, gratuita |
+| Yahoo Finance | Cotización y sparkline de portada; fallback de precios históricos | No |
 | [Google Gemini](https://ai.google.dev/) | Resumen del MD&A | Sí, gratuita |
 
-**Sobre las cotizaciones:** se usa la serie **semanal**, no la diaria. En el plan
+**Sobre las cotizaciones:** con Alpha Vantage se usa la serie **semanal**, no la diaria. En el plan
 gratuito de Alpha Vantage el histórico completo del endpoint diario es una
 función de pago, y sin ella quedan unas cien sesiones —cinco meses—, lo que
 vacía de sentido cualquier rango de años. La serie semanal sí devuelve el
@@ -75,7 +76,9 @@ El diseño original usaba Stooq, que servía CSV sin
 registro. Desde 2026 responde con un reto de prueba de trabajo en JavaScript
 para bloquear el acceso automatizado, y sortearlo sería evadir una medida
 antibot deliberada del sitio. Por eso la capa de precios está tras una interfaz
-de proveedor: cambiar de fuente es escribir un fichero en `src/lib/prices/`.
+de proveedor. Cuando Alpha Vantage no está configurado o falla, se usa el feed
+de mercado de Yahoo Finance y se declara expresamente en la interfaz; no se
+presenta como fuente oficial.
 
 ## Arquitectura
 
@@ -140,12 +143,24 @@ npx vercel
 Define las variables de entorno en el panel del proyecto. `SEC_USER_AGENT` es la
 única imprescindible.
 
-**Sobre la caché en producción:** el adaptador de disco escribe en `/tmp`, que en
-Vercel es efímero y no se comparte entre invocaciones concurrentes. Allí es una
-caché oportunista de instancia. Hoy la única caché compartida real la aporta
-`revalidate` de Next. El adaptador de Postgres (`supabase/migrations/0001_cache_tables.sql`,
-`src/lib/cache/supabase-store.ts`) está escrito pero `getCacheStore()` todavía
-no lo selecciona, así que conectar Supabase no activa nada por sí solo.
+**Sobre la caché en producción:** si existen las dos variables de Supabase,
+Altius usa Postgres como capa compartida y `/tmp` como respaldo oportunista de
+instancia. Hay que aplicar primero `supabase/migrations/0001_cache_tables.sql`.
+Sin credenciales, se conserva el comportamiento local basado en disco.
+
+## Calidad y seguridad
+
+```bash
+npm run check
+```
+
+El comando ejecuta TypeScript, lint, tests y build. La misma secuencia corre en
+GitHub Actions. Las APIs públicas validan sus parámetros, tienen límites
+oportunistas por instancia y devuelven un identificador de diagnóstico sin
+exponer detalles internos. En producción, el endpoint de Gemini debe
+complementarse con límites distribuidos en el WAF o autenticación por usuario.
+
+El estado del plan de mejora está en `docs/IMPROVEMENT_PLAN.md`.
 
 ## Alcance
 

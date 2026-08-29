@@ -26,7 +26,7 @@ export default async function DivisasPage() {
             Observatorio de Divisas (Forex)
           </h1>
           <p className="text-frost mt-2 max-w-2xl text-[16px] leading-[1.6]">
-            Tipos de cambio oficiales de las principales monedas globales (EUR/USD, GBP/USD, USD/JPY, USD/CHF, etc.) e Índice Dólar (DXY) sincronizados diariamente con la Junta de Gobernadores de la Reserva Federal (H.10 Release).
+            Tipos de cambio de las principales monedas globales (EUR/USD, GBP/USD, AUD/USD, USD/JPY, USD/CAD, etc.) e Índice Dólar, con FRED H.10 como fuente principal y respaldo de mercado si el servicio oficial no responde.
           </p>
         </div>
 
@@ -106,7 +106,7 @@ export default async function DivisasPage() {
                 Pares de Divisas Principales (Majors)
               </h2>
               <p className="text-muted-steel text-[12px]">
-                Euro, Libra esterlina, Yen japonés, Franco suizo, Dólar canadiense, Yuan y Peso mexicano frente al USD.
+                Euro, Libra esterlina, Dólar australiano, Yen, Franco suizo, Dólar canadiense, Yuan y Peso mexicano frente al USD.
               </p>
             </div>
           </div>

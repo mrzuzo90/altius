@@ -43,9 +43,44 @@ export function htmlToText(html: string): string {
 
 type Patrones = { inicio: RegExp; fines: RegExp[] };
 
-const PATRON_NEGOCIO: Patrones = {
-  inicio: /item\s*1\s*[.:—–-]?\s*business\b/gi,
-  fines: [/item\s*1a\s*[.:—–-]?\s*risk\s+factors/gi, /item\s*1a\s*[.:—–-]/gi],
+export type AnnualBusinessForm = "10-K" | "20-F" | "40-F" | "ESEF";
+
+const PATRONES_NEGOCIO: Record<AnnualBusinessForm, Patrones> = {
+  "10-K": {
+    inicio: /item\s*1\s*[.:—–-]?\s*b\s*u\s*s\s*i\s*n\s*e\s*s\s*s\b/gi,
+    fines: [/item\s*1a\s*[.:—–-]?\s*r\s*i\s*s\s*k\s+f\s*a\s*c\s*t\s*o\s*r\s*s/gi, /item\s*1a\s*[.:—–-]/gi],
+  },
+  "20-F": {
+    inicio: /item\s*4\s*[.:—–-]?\s*information\s+on\s+the\s+company\b/gi,
+    fines: [
+      /item\s*4a\s*[.:—–-]?\s*unresolved\s+staff\s+comments/gi,
+      /item\s*5\s*[.:—–-]?\s*operating\s+and\s+financial\s+review/gi,
+      /item\s*5\s*[.:—–-]/gi,
+    ],
+  },
+  "40-F": {
+    inicio: /(?:business\s+overview|description\s+of\s+(?:our|the)\s+business|our\s+business)\b/gi,
+    fines: [
+      /risk\s+factors\b/gi,
+      /management[’'`s\s]*\s*discussion\s+and\s+analysis\b/gi,
+      /audited\s+financial\s+statements\b/gi,
+    ],
+  },
+  ESEF: {
+    inicio: /(?:our\s+business|business\s+model|business\s+overview|group\s+profile|who\s+we\s+are|description\s+of\s+(?:our|the)\s+business|mod[eè]le\s+d['’]affaires|pr[eé]sentation\s+(?:du\s+groupe|des\s+activit[eé]s)|activit[eé]s\s+du\s+groupe|nos\s+activit[eé]s|modelo\s+de\s+negocio|descripci[oó]n\s+del\s+negocio|actividades\s+del\s+grupo|gesch[aä]ftsmodell|gesch[aä]ftst[aä]tigkeit|konzernprofil|bedrijfsmodel)\b/gi,
+    fines: [
+      /(?:principal|material)\s+risks\b/gi,
+      /risk\s+factors\b/gi,
+      /facteurs\s+de\s+risque\b/gi,
+      /factores\s+de\s+riesgo\b/gi,
+      /risikobericht\b/gi,
+      /corporate\s+governance\b/gi,
+      /financial\s+statements\b/gi,
+      /[eé]tats\s+financiers\b/gi,
+      /estados\s+financieros\b/gi,
+      /konzernabschluss\b/gi,
+    ],
+  },
 };
 
 const PATRONES: Record<"10-K" | "10-Q", Patrones> = {
@@ -139,12 +174,72 @@ export function extractMdna(html: string, form: "10-K" | "10-Q" = "10-K"): Secci
  * poner en boca de la empresa palabras que no ha escrito, y el registro de la
  * SEC no incluye ninguna descripción libre utilizable.
  */
-export function extractBusinessSummary(html: string, maxChars = 700): string | null {
+function businessParagraphScore(line: string): number {
+  let score = 0;
+  if (/\b(?:we|our|the company|the group)\b/i.test(line)) score += 3;
+  if (/\b(?:design|develop|manufactur|market|sell|offer|provide|operat|distribut|produc|serv|specializ)\w*/i.test(line)) score += 7;
+  if (/\b(?:product|service|customer|platform|business|subscription|software|device|medicine|energy|bank|insurance)\w*/i.test(line)) score += 3;
+  if (line.length >= 120 && line.length <= 1200) score += 2;
+  if (/forward-looking|risk factors|uncertaint|financial statements|accounting standards/i.test(line)) score -= 8;
+  return score;
+}
+
+function businessExcerpt(text: string, maxChars: number): string | null {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 60 && !/^item\s*\d/i.test(line));
+  if (lines.length === 0) return null;
+
+  const ranked = lines
+    .map((line, index) => ({ line, index, score: businessParagraphScore(line) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const explicitOperatingStatement = ranked
+    .sort((a, b) => a.index - b.index)
+    .find(({ line }) =>
+      businessParagraphScore(line) >= 5
+      && !/forward-looking|risk factors|uncertaint|financial statements|accounting standards/i.test(line)
+      && /\b(?:we|our|the company|the group)\b/i.test(line)
+      && /\b(?:design|develop|manufactur|market|sell|offer|provide|operat|distribut|produc|serv|specializ)\w*/i.test(line),
+    );
+  const best = explicitOperatingStatement ?? ranked.sort((a, b) => b.score - a.score || a.index - b.index)[0];
+  if (!best || best.score < 5) return null;
+
+  const selected = lines.slice(best.index, best.index + 3).join(" ");
+  if (selected.length <= maxChars) return selected;
+  const cut = selected.slice(0, maxChars);
+  const sentence = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
+  return sentence > maxChars * 0.45 ? cut.slice(0, sentence + 1) : `${cut.trimEnd()}…`;
+}
+
+export function extractBusinessSummary(
+  html: string,
+  form: AnnualBusinessForm = "10-K",
+  maxChars = 900,
+): string | null {
+  const section = extractBusinessSection(html, form);
+  if (section) return businessExcerpt(section.text, maxChars);
+
   const texto = limpiarMobiliarioDePagina(htmlToText(html));
-  const inicios = todasLasPosiciones(texto, PATRON_NEGOCIO.inicio);
+  return businessExcerpt(texto, maxChars);
+}
+
+/**
+ * Devuelve el cuerpo del apartado que describe el negocio. A diferencia del
+ * resumen corto, conserva suficiente contexto para identificar productos,
+ * formas de cobro y divisiones sin enviar el informe anual entero al modelo.
+ */
+export function extractBusinessSection(
+  html: string,
+  form: AnnualBusinessForm = "10-K",
+  maxChars = 45_000,
+): SeccionExtraida | null {
+  const texto = limpiarMobiliarioDePagina(htmlToText(html));
+  const patrones = PATRONES_NEGOCIO[form];
+  const inicios = todasLasPosiciones(texto, patrones.inicio);
   if (inicios.length === 0) return null;
 
-  const finales = PATRON_NEGOCIO.fines
+  const finales = patrones.fines
     .flatMap((re) => todasLasPosiciones(texto, re))
     .sort((a, b) => a - b);
 
@@ -153,19 +248,12 @@ export function extractBusinessSummary(html: string, maxChars = 700): string | n
     const hasta = finales.find((f) => f > desde) ?? texto.length;
     if (!mejor || hasta - desde > mejor.hasta - mejor.desde) mejor = { desde, hasta };
   }
-  if (!mejor || mejor.hasta - mejor.desde < 1000) return null;
+  if (!mejor) return null;
 
-  const cuerpo = texto
-    .slice(mejor.desde, mejor.hasta)
-    // Descarta el propio encabezado y los rótulos cortos de subapartado.
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 120 && !/^item\s*1\b/i.test(l))
-    .join(" ");
-  if (!cuerpo) return null;
-
-  if (cuerpo.length <= maxChars) return cuerpo;
-  const recorte = cuerpo.slice(0, maxChars);
-  const corte = recorte.lastIndexOf(". ");
-  return corte > maxChars * 0.4 ? recorte.slice(0, corte + 1) : `${recorte.trimEnd()}…`;
+  const bruto = limpiarMobiliarioDePagina(texto.slice(mejor.desde, mejor.hasta)).trim();
+  if (bruto.length < 200) return null;
+  return {
+    text: bruto.length > maxChars ? `${bruto.slice(0, maxChars)}\n[…]` : bruto,
+    chars: bruto.length,
+  };
 }

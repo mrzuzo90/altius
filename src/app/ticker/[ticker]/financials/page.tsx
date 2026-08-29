@@ -9,6 +9,9 @@ import type { Frequency } from "@/lib/sec/normalize";
 import { resolveIndexSymbol } from "@/lib/indices";
 import { resolveCommoditySymbol } from "@/lib/commodities";
 import { resolveCurrencySymbol } from "@/lib/currencies";
+import { resolveEsefCompanyDynamic } from "@/lib/esef/resolve";
+import { buildEsefStatements } from "@/lib/esef";
+import { mergeStatementBundles } from "@/lib/financials/merge";
 
 export const revalidate = 21600;
 
@@ -37,24 +40,33 @@ export default async function FinancialsPage({
 
   const frequency: Frequency = freq === "quarterly" ? "quarterly" : "annual";
 
-  const hit = await resolveTicker(rawQuery);
-  if (!hit) notFound();
-  const ticker = hit.ticker;
+  const [esefCompany, hit] = await Promise.all([
+    resolveEsefCompanyDynamic(rawQuery),
+    resolveTicker(rawQuery),
+  ]);
+  if (!hit && !esefCompany) notFound();
+  const ticker = esefCompany?.ticker ?? hit!.ticker;
 
-  const bundle = await buildStatements(hit.cik, frequency, hit.name, hit.ticker);
+  const [secBundle, esefBundle] = await Promise.all([
+    hit ? buildStatements(hit.cik, frequency, hit.name, ticker) : Promise.resolve(null),
+    esefCompany && frequency === "annual" ? buildEsefStatements(esefCompany, frequency) : Promise.resolve(null),
+  ]);
+  const bundle = esefBundle && hasUsableData(esefBundle)
+    ? mergeStatementBundles(esefBundle, secBundle && hasUsableData(secBundle) ? secBundle : null)
+    : secBundle ?? esefBundle!;
 
   return (
     <>
-      <CompanyHeader profile={bundle.profile} ticker={hit.ticker} active="/financials" />
+      <CompanyHeader profile={bundle.profile} ticker={ticker} active="/financials" />
 
       <div className="mx-auto max-w-[1200px] px-5 py-12">
         <div className="mb-8 flex flex-wrap items-center gap-4">
           <h2 className="font-display text-graphite text-[32px] leading-[1.19] tracking-[-0.64px]">Estados financieros</h2>
           <DataSourceBadge
-            source="SEC EDGAR"
+            source={bundle.source?.label ?? "Fuente regulatoria"}
             asOf={bundle.latestPeriodEnd ? formatDate(bundle.latestPeriodEnd) : undefined}
-            detail="Hechos XBRL de la API companyfacts de la SEC. Cuando una empresa reexpresa un ejercicio, Altius muestra la versión más reciente."
-            href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${bundle.profile.cik}&type=10-K`}
+            detail={bundle.source?.detail ?? "Estados financieros estructurados publicados por la empresa."}
+            href={bundle.source?.href}
           />
         </div>
 
@@ -63,9 +75,8 @@ export default async function FinancialsPage({
         ) : (
           <div className="bg-fog border-mist rounded-[20px] border border-dashed px-8 py-16 text-center">
             <p className="text-steel mx-auto max-w-lg text-[15px] leading-[1.5] text-pretty">
-              La SEC no publica datos XBRL estructurados para esta empresa. Suele ocurrir con
-              emisores extranjeros que presentan formulario 20-F y con registros anteriores a la
-              obligatoriedad del XBRL.
+              No hay estados regulatorios estructurados suficientes para esta frecuencia y este
+              emisor. Prueba la vista anual o el ticker local con su sufijo de mercado.
             </p>
           </div>
         )}

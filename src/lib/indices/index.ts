@@ -1,4 +1,5 @@
 import { getCacheStore, TTL } from "@/lib/cache/store";
+import { fetchWithTimeout } from "@/lib/http";
 import { parseFredCsv, type FredPoint } from "@/lib/fred/client";
 import type { PricePoint } from "@/lib/prices/types";
 import { buildTechnicalDataset } from "@/lib/technical";
@@ -235,7 +236,7 @@ export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePo
   if (meta.marketSymbol) {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(meta.marketSymbol)}?interval=1d&range=5y`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         },
@@ -286,7 +287,7 @@ export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePo
       const url =
         `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
         `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetchWithTimeout(url, { cache: "no-store" });
       if (res.ok) {
         const json = (await res.json()) as { observations: { date: string; value: string }[] };
         points = json.observations
@@ -295,7 +296,7 @@ export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePo
           .filter((p) => Number.isFinite(p.close));
       }
     } else {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
         { cache: "no-store" },
       );

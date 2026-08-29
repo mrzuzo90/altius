@@ -21,6 +21,9 @@ export type ReportedProvenance = {
   filed: string;
   /** Número de acceso de la presentación. Identifica el documento exacto. */
   accn: string;
+  /** URL del documento original para fuentes distintas de EDGAR. */
+  sourceUrl?: string;
+  sourceLabel?: string;
 };
 
 export type DerivedProvenance = {

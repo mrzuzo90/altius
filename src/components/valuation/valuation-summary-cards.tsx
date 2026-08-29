@@ -4,7 +4,7 @@ import { formatValue } from "@/lib/format";
 import type { ValuationMetrics } from "@/lib/valuation/types";
 
 export function ValuationSummaryCards({ metrics }: { metrics: ValuationMetrics }) {
-  const precioFmt = metrics.price > 0 ? "$" + metrics.price.toFixed(2) : "—";
+  const precioFmt = metrics.price !== null && metrics.price > 0 ? formatMoney(metrics.price, metrics.currency) : "—";
   const peFmt = metrics.pe !== null ? metrics.pe.toFixed(1) + "x" : "—";
   const evEbitdaFmt = metrics.evEbitda !== null ? metrics.evEbitda.toFixed(1) + "x" : "—";
   const evFcfFmt = metrics.evFcf !== null ? metrics.evFcf.toFixed(1) + "x" : "—";
@@ -12,21 +12,21 @@ export function ValuationSummaryCards({ metrics }: { metrics: ValuationMetrics }
   const netDebtEbitdaFmt = metrics.netDebtEbitda !== null ? metrics.netDebtEbitda.toFixed(2) + "x" : "—";
 
   const sharesFmt = metrics.sharesDiluted !== null ? formatValue(metrics.sharesDiluted, "shares", "millions") + " M" : "—";
-  const marketCapFmt = metrics.marketCap !== null ? "$" + formatValue(metrics.marketCap, "USD", "millions") + " M" : "—";
-  const evFmt = metrics.enterpriseValue !== null ? "$" + formatValue(metrics.enterpriseValue, "USD", "millions") + " M" : "—";
-  const cashFmt = metrics.totalCash !== null ? "$" + formatValue(metrics.totalCash, "USD", "millions") + " M" : "—";
-  const debtFmt = metrics.totalDebt !== null ? "$" + formatValue(metrics.totalDebt, "USD", "millions") + " M" : "—";
+  const marketCapFmt = metrics.marketCap !== null ? formatMillions(metrics.marketCap, metrics.currency) : "—";
+  const evFmt = metrics.enterpriseValue !== null ? formatMillions(metrics.enterpriseValue, metrics.currency) : "—";
+  const cashFmt = metrics.totalCash !== null ? formatMillions(metrics.totalCash, metrics.currency) : "—";
+  const debtFmt = metrics.totalDebt !== null ? formatMillions(metrics.totalDebt, metrics.currency) : "—";
   const netDebtFmt = metrics.netDebt !== null
     ? metrics.netDebt < 0
-      ? "$" + formatValue(Math.abs(metrics.netDebt), "USD", "millions") + " M (Caja)"
-      : "$" + formatValue(metrics.netDebt, "USD", "millions") + " M"
+      ? `${formatMillions(Math.abs(metrics.netDebt), metrics.currency)} (Caja)`
+      : formatMillions(metrics.netDebt, metrics.currency)
     : "—";
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaMultiplo
-          titulo="PER (LTM)"
+          titulo="PER (FY)"
           valor={peFmt}
           subtitulo="Capitalización / Beneficio Neto"
           descripcion="Años de beneficio neto necesarios para pagar el valor en bolsa actual."
@@ -47,7 +47,7 @@ export function ValuationSummaryCards({ metrics }: { metrics: ValuationMetrics }
           titulo="FCF Yield"
           valor={fcfYieldFmt}
           subtitulo="Free Cash Flow / Market Cap"
-          descripcion="Rentabilidad anual en flujo de caja libre por cada dólar invertido."
+          descripcion="Rentabilidad anual en flujo de caja libre por cada unidad monetaria invertida."
         />
       </div>
 
@@ -68,6 +68,19 @@ export function ValuationSummaryCards({ metrics }: { metrics: ValuationMetrics }
       </div>
     </div>
   );
+}
+
+function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatMillions(value: number, currency: string): string {
+  return `${formatValue(value, "USD", "millions")} M ${currency}`;
 }
 
 function TarjetaMultiplo({

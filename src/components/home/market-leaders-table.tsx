@@ -2,12 +2,39 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MARKET_LEADERS, type MarketLeader } from "@/lib/home/leaders-data";
+import type { MarketLeader } from "@/lib/home/leaders-data";
 import { Sparkline } from "@/components/sparkline";
 import { TrendingUp, TrendingDown, Table, Copy, Check } from "lucide-react";
 
+function formatCurrency(value: number, currency: string | null, maximumFractionDigits = 2) {
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: currency ?? "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits,
+    }).format(value);
+  } catch {
+    return `${currency ?? "USD"} ${value.toFixed(maximumFractionDigits)}`;
+  }
+}
+
+function formatMarketCap(valueInMillions: number, currency: string | null) {
+  const billions = valueInMillions / 1_000;
+  const amount = new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(billions);
+  const prefix = currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : `${currency ?? ""} `;
+  return `${prefix}${amount} B`;
+}
+
+function formatSignedPercent(value: number, decimals: number) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(decimals)}%`;
+}
+
 export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: MarketLeader[] }) {
-  const leadersList = providedLeaders && providedLeaders.length > 0 ? providedLeaders : MARKET_LEADERS;
+  const leadersList = providedLeaders ?? [];
   const [regionFilter, setRegionFilter] = useState<"all" | "us" | "europe">("all");
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [copiado, setCopiado] = useState(false);
@@ -21,14 +48,16 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
   });
 
   const copiarTabla = () => {
-    const cabecera = ["Ticker", "Empresa", "Sector", "Precio", "Var %", "Market Cap ($M)", "PER", "EV/EBITDA", "Margen FCF %", "ROIC %", "Crecimiento %"].join("\t");
+    const cabecera = ["Ticker", "Empresa", "Sector", "Precio", "Divisa precio", "Var. diaria %", "Market Cap (millones)", "Divisa fundamentales", "PER (último FY)", "EV/EBITDA", "Margen FCF %", "ROIC %", "Crecimiento ventas YoY %"].join("\t");
     const filas = filtered.map((m) => [
       m.ticker,
       m.name,
       m.sector,
-      m.price > 0 ? m.price : "—",
-      m.price > 0 ? m.changePct : "—",
-      m.marketCap > 0 ? m.marketCap : "—",
+      m.price !== null ? m.price : "—",
+      m.priceCurrency ?? "—",
+      m.changePct !== null ? m.changePct : "—",
+      m.marketCap !== null ? m.marketCap : "—",
+      m.fundamentalCurrency ?? "—",
       m.pe ?? "—",
       m.evEbitda ?? "—",
       m.fcfMargin !== null ? m.fcfMargin : "—",
@@ -51,7 +80,7 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
             </h3>
           </div>
           <p className="text-muted-steel text-[13px] mt-1">
-            Métricas fundamentales, rentabilidad sobre capital y valoración LTM de las mayores cotizadas.
+            Cotización en vivo y métricas calculadas con el último ejercicio fiscal comparable.
           </p>
         </div>
 
@@ -131,7 +160,11 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {filtered.length === 0 ? (
+        <div className="border-gunmetal bg-void-black text-muted-steel rounded-xl border border-dashed px-6 py-10 text-center text-[13px]">
+          No se han podido obtener cotizaciones verificables en este momento.
+        </div>
+      ) : <div className="overflow-x-auto">
         <table className="w-full text-left text-[13px] border-collapse tabular font-sans">
           <thead>
             <tr className="border-b border-gunmetal/80 text-muted-steel font-mono text-[11px] uppercase tracking-wider">
@@ -140,19 +173,20 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
               <th className="pb-3 text-right font-medium">Precio</th>
               <th className="pb-3 text-right font-medium">Var %</th>
               <th className="pb-3 text-right font-medium">Market Cap</th>
-              <th className="pb-3 text-right font-medium">PER (LTM)</th>
+              <th className="pb-3 text-right font-medium">PER (FY)</th>
               <th className="pb-3 text-right font-medium">EV/EBITDA</th>
               <th className="pb-3 text-right font-medium">Margen FCF</th>
-              <th className="pb-3 text-right font-medium">ROIC</th>
-              <th className="pb-3 text-right font-medium">Crec. Ventas</th>
+              <th className="pb-3 text-right font-medium">ROIC / ROE*</th>
+              <th className="pb-3 text-right font-medium">Crec. ventas YoY</th>
               <th className="pb-3 text-center font-medium w-20">Histórico</th>
               <th className="pb-3 text-right pr-2 font-medium">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gunmetal/40">
             {filtered.map((item) => {
-              const isUp = item.changePct >= 0;
-              const hasPrice = item.price > 0;
+              const isUp = item.changePct !== null && item.changePct >= 0;
+              const hasPrice = item.price !== null && item.price > 0;
+              const isFinancial = /bank|financ|insurance/i.test(item.sector);
 
               return (
                 <tr key={item.ticker} className="hover:bg-gunmetal/30 transition-colors group">
@@ -167,7 +201,7 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
                     </Link>
                   </td>
                   <td className="py-3.5 text-right font-mono text-pure-white font-medium">
-                    {hasPrice ? `$${item.price.toFixed(2)}` : "—"}
+                    {hasPrice && item.price !== null ? formatCurrency(item.price, item.priceCurrency) : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono">
                     {hasPrice ? (
@@ -179,29 +213,29 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
                         }`}
                       >
                         {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                        {isUp ? "+" : ""}{item.changePct.toFixed(2)}%
+                        {item.changePct !== null ? formatSignedPercent(item.changePct, 2) : "—"}
                       </span>
                     ) : (
                       <span className="text-muted-steel">—</span>
                     )}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    {item.marketCap > 0 ? `$${(item.marketCap / 1000).toFixed(1)} B` : "—"}
+                    {item.marketCap !== null && item.marketCap > 0 ? formatMarketCap(item.marketCap, item.fundamentalCurrency) : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-pure-white font-medium">
                     {item.pe !== null ? `${item.pe.toFixed(1)}x` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    {item.evEbitda !== null ? `${item.evEbitda.toFixed(1)}x` : "—"}
+                    {item.evEbitda !== null ? `${item.evEbitda.toFixed(1)}x` : isFinancial ? "N/A" : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    {item.fcfMargin !== null ? `${item.fcfMargin.toFixed(1)}%` : "—"}
+                    {item.fcfMargin !== null ? `${item.fcfMargin.toFixed(1)}%` : isFinancial ? "N/A" : "—"}
                   </td>
-                  <td className="py-3.5 text-right font-mono text-emerald-400 font-semibold">
+                  <td className="py-3.5 text-right font-mono text-emerald-400 font-semibold" title={isFinancial ? "ROE: rentabilidad sobre fondos propios" : "ROIC: retorno sobre capital invertido"}>
                     {item.roic !== null ? `${item.roic.toFixed(1)}%` : "—"}
                   </td>
                   <td className="py-3.5 text-right font-mono text-frost">
-                    {item.revenueGrowth !== null ? `+${item.revenueGrowth.toFixed(1)}%` : "—"}
+                    {item.revenueGrowth !== null ? formatSignedPercent(item.revenueGrowth, 1) : isFinancial ? "N/A" : "—"}
                   </td>
                   <td className="py-3.5 text-center">
                     <div className="w-16 mx-auto">
@@ -235,7 +269,10 @@ export function MarketLeadersTable({ leaders: providedLeaders }: { leaders?: Mar
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
+      <p className="text-muted-steel text-right text-[11px]">
+        Cotización: Yahoo Finance · fundamentales: XBRL oficial; Yahoo solo completa celdas ausentes · * en bancos se muestra ROE y los múltiplos operativos no aplicables figuran como N/A.
+      </p>
     </div>
   );
 }

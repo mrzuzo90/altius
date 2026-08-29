@@ -7,7 +7,7 @@ export type RibbonItem = {
   type: "stock" | "index" | "commodity";
   ticker: string;
   price: number;
-  changePct: number;
+  changePct: number | null;
   href: string;
   isVix?: boolean;
   unit?: string;
@@ -23,7 +23,7 @@ export function TickerRibbon({ items: providedItems }: { items?: RibbonItem[] })
     <div className="bg-carbon-surface/80 border-b border-gunmetal overflow-hidden py-2 backdrop-blur-sm">
       <div className="flex w-max animate-[scroll_55s_linear_infinite] hover:[animation-play-state:paused]">
         {loopedItems.map((item, idx) => {
-          const isUp = item.changePct >= 0;
+          const isUp = item.changePct !== null && item.changePct >= 0;
           const isIndexOrCommodity = item.type === "index" || item.type === "commodity";
 
           return (
@@ -46,7 +46,7 @@ export function TickerRibbon({ items: providedItems }: { items?: RibbonItem[] })
                   ? item.price.toFixed(2)
                   : `$${item.price.toLocaleString("es-ES", { maximumFractionDigits: 2 })}`}
               </span>
-              {item.changePct !== undefined && (
+              {item.changePct !== null && (
                 <span
                   className={`flex items-center gap-0.5 font-mono text-[11px] font-medium px-1.5 py-0.5 rounded ${
                     isUp

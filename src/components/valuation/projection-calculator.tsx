@@ -1,24 +1,34 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { calculateProjection } from "@/lib/valuation";
+import { calculateImpliedExpectations, calculateProjection } from "@/lib/valuation";
 import { formatValue } from "@/lib/format";
-import type { ValuationMetrics, ProjectionInputs } from "@/lib/valuation/types";
+import type { HistoricalPeSeries } from "@/lib/valuation/historical-pe";
+import type { HistoricalMetricCoverage, ValuationMetrics, ProjectionInputs } from "@/lib/valuation/types";
+import { AlertTriangle } from "lucide-react";
 
-export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics }) {
+export function ProjectionCalculator({
+  metrics,
+  historicalPe,
+}: {
+  metrics: ValuationMetrics;
+  historicalPe: HistoricalPeSeries;
+}) {
   const [revenueGrowth, setRevenueGrowth] = useState<number>(() => {
-    return Math.round(metrics.historicalRevenueGrowth ?? 10);
+    return clamp(Math.round(metrics.historicalRevenueGrowth ?? 8), -10, 40);
   });
   const [targetEbitMargin, setTargetEbitMargin] = useState<number>(() => {
-    return Math.round(metrics.historicalEbitMargin ?? 25);
+    return clamp(Math.round(metrics.historicalEbitMargin ?? 25), 0, 60);
   });
   const [targetMultiple, setTargetMultiple] = useState<number>(() => {
-    if (metrics.pe && metrics.pe > 5 && metrics.pe < 60) return Math.round(metrics.pe);
+    if (historicalPe.median20Y && historicalPe.median20Y > 0) {
+      return clamp(Math.round(historicalPe.median20Y), 5, 60);
+    }
     return 20;
   });
   const [targetMultipleType, setTargetMultipleType] = useState<"PE" | "EV_FCF" | "EV_EBITDA">("PE");
   const [taxRate, setTaxRate] = useState<number>(() => {
-    return Math.round(metrics.historicalTaxRate ?? 21);
+    return clamp(Math.round(metrics.historicalTaxRate ?? 21), 10, 35);
   });
 
   const inputs: ProjectionInputs = useMemo(
@@ -34,8 +44,9 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
   );
 
   const projection = useMemo(() => calculateProjection(metrics, inputs), [metrics, inputs]);
+  const implied = useMemo(() => calculateImpliedExpectations(metrics, inputs), [metrics, inputs]);
 
-  const precioActual = metrics.price > 0 ? metrics.price : 0;
+  const precioActual = metrics.price !== null && metrics.price > 0 ? metrics.price : null;
   const targetPrice = projection.targetPrice5Y;
   const margenSeguridad = projection.marginOfSafety;
   const cagr = projection.cagr5Y;
@@ -57,6 +68,10 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
             </h3>
             <p className="text-frost mt-1 text-[13px]">
               Ajusta las hipótesis de crecimiento, rentabilidad operativa y múltiplo objetivo de salida.
+            </p>
+            <p className="text-amber-300 mt-2 inline-flex items-center gap-1.5 text-[12px]">
+              <AlertTriangle className="size-3.5" />
+              Todos los controles son supuestos editables, no estimaciones publicadas por la empresa.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -101,7 +116,12 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               onChange={(e) => setRevenueGrowth(Number(e.target.value))}
               className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-muted-steel/70 text-[11px]">Histórico LTM: ~{metrics.historicalRevenueGrowth?.toFixed(1) ?? "8"}%</span>
+            <ReferenceValue
+              label="Mediana últimos 20 años"
+              value={metrics.historicalRevenueGrowth}
+              suffix="%"
+              coverage={metrics.historicalRevenueGrowthCoverage}
+            />
           </div>
 
           <div>
@@ -118,7 +138,12 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               onChange={(e) => setTargetEbitMargin(Number(e.target.value))}
               className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-muted-steel/70 text-[11px]">Histórico LTM: ~{metrics.historicalEbitMargin?.toFixed(1) ?? "25"}%</span>
+            <ReferenceValue
+              label="Mediana últimos 20 años"
+              value={metrics.historicalEbitMargin}
+              suffix="%"
+              coverage={metrics.historicalEbitMarginCoverage}
+            />
           </div>
 
           <div>
@@ -136,7 +161,15 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
             <span className="text-muted-steel/70 text-[11px]">
-              {currentMultiple !== null ? `Actual ${targetMultipleType}: ~${currentMultiple.toFixed(1)}x` : "Ajusta tu estimación"}
+              {targetMultipleType === "PE"
+                ? historicalPe.median20Y !== null
+                  ? `Mediana últimos 20 años: ~${historicalPe.median20Y.toFixed(1)}x · ${coverageLabel(historicalPe.observations20Y, historicalPe.startFiscalYear20Y, historicalPe.endFiscalYear20Y)}`
+                  : historicalPe.observations20Y > 0
+                    ? `Mediana 20 años no disponible · ${coverageLabel(historicalPe.observations20Y, historicalPe.startFiscalYear20Y, historicalPe.endFiscalYear20Y)}`
+                    : "Mediana 20 años no disponible · sin observaciones"
+                : currentMultiple !== null
+                  ? `Actual ${targetMultipleType}: ~${currentMultiple.toFixed(1)}x`
+                  : "Ajusta tu estimación"}
             </span>
           </div>
 
@@ -154,7 +187,12 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               onChange={(e) => setTaxRate(Number(e.target.value))}
               className="accent-periwinkle-glow mt-2.5 w-full cursor-pointer"
             />
-            <span className="text-muted-steel/70 text-[11px]">Efectivo: ~{metrics.historicalTaxRate?.toFixed(1) ?? "21"}%</span>
+            <ReferenceValue
+              label="Mediana efectiva · 20 años"
+              value={metrics.historicalTaxRate}
+              suffix="%"
+              coverage={metrics.historicalTaxRateCoverage}
+            />
           </div>
         </div>
 
@@ -165,10 +203,10 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
               Precio Objetivo (Año 5)
             </span>
             <div className="font-display text-pure-white mt-1.5 text-[32px] font-medium tracking-tight tabular">
-              ${targetPrice.toFixed(2)}
+              {targetPrice !== null ? formatMoney(targetPrice, metrics.currency) : "—"}
             </div>
             <p className="text-muted-steel text-[12px] mt-1">
-              Cotización actual: ${precioActual.toFixed(2)}
+              Cotización actual: {precioActual !== null ? formatMoney(precioActual, metrics.currency) : "— (sin cotización)"}
             </p>
           </div>
 
@@ -178,10 +216,12 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
             </span>
             <div
               className={`font-display mt-1.5 text-[32px] font-medium tracking-tight tabular ${
-                margenSeguridad >= 0 ? "text-emerald-400" : "text-rose-400"
+                margenSeguridad === null
+                  ? "text-muted-steel"
+                  : margenSeguridad >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
-              {margenSeguridad >= 0 ? "+" : ""}{margenSeguridad.toFixed(1)} %
+              {formatProjectedPercent(margenSeguridad)}
             </div>
             <p className="text-muted-steel text-[12px] mt-1">
               Potencial frente al precio de mercado
@@ -194,25 +234,55 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
             </span>
             <div
               className={`font-display mt-1.5 text-[32px] font-medium tracking-tight tabular ${
-                cagr >= 0 ? "text-emerald-400" : "text-rose-400"
+                cagr === null
+                  ? "text-muted-steel"
+                  : cagr >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
-              {cagr >= 0 ? "+" : ""}{cagr.toFixed(1)} %
+              {formatProjectedPercent(cagr)}
             </div>
             <p className="text-muted-steel text-[12px] mt-1">
               Rentabilidad anual estimada 5 años
             </p>
           </div>
         </div>
+
+        <div className="border-periwinkle-glow/30 bg-void-black mt-6 rounded-xl border p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className="text-periwinkle-glow font-mono text-[11px] uppercase tracking-wider">
+                Valoración inversa · expectativa implícita
+              </span>
+              <p className="text-frost mt-1 max-w-2xl text-[13px] leading-relaxed">
+                Crecimiento anual de ventas necesario para que, con los supuestos elegidos, el precio
+                objetivo dentro de cinco años sea igual a la cotización de hoy.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="font-display text-pure-white text-[30px] tabular">
+                {implied.revenueGrowth !== null ? `${implied.revenueGrowth.toFixed(1)} % anual` : "—"}
+              </div>
+              <span className="text-muted-steel text-[11px]">Resultado matemático según estos supuestos</span>
+            </div>
+          </div>
+          {implied.reason ? <p className="text-amber-300 mt-3 text-[12px]">{implied.reason}</p> : null}
+        </div>
       </div>
 
+      {projection.unavailableReason ? (
+        <div className="border-amber-800/60 bg-amber-950/20 text-amber-200 flex items-start gap-2 rounded-xl border px-4 py-3 text-[13px]">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p>{projection.unavailableReason} Altius no sustituye los datos ausentes por cifras ficticias.</p>
+        </div>
+      ) : null}
+
       {/* Tabla detallada de la proyección año a año */}
-      <div className="border-gunmetal bg-carbon-surface relative overflow-x-auto rounded-2xl border">
+      {projection.years.length > 0 ? <div className="border-gunmetal bg-carbon-surface relative overflow-x-auto rounded-2xl border">
         <table className="tabular w-full border-collapse text-[14px]">
           <thead>
             <tr className="border-gunmetal border-b bg-void-black">
               <th scope="col" className="text-muted-steel font-mono uppercase px-4 py-3 text-left text-[12px] font-medium tracking-wider">
-                Línea Proyectada (M$)
+                Línea Proyectada (M {metrics.currency})
               </th>
               {projection.years.map((y) => (
                 <th key={y.label} scope="col" className="text-muted-steel font-mono uppercase px-4 py-3 text-right text-[12px] font-medium tracking-wider">
@@ -236,23 +306,70 @@ export function ProjectionCalculator({ metrics }: { metrics: ValuationMetrics })
             />
             <FilaTabla
               concepto="Flujo de caja libre (FCF)"
-              valores={projection.years.map((y) => formatValue(y.fcf, "USD", "millions"))}
+              valores={projection.years.map((y) => y.fcf !== null ? formatValue(y.fcf, "USD", "millions") : "—")}
             />
             <FilaTabla
               concepto="Capitalización objetivo"
-              valores={projection.years.map((y) => formatValue(y.targetMarketCap, "USD", "millions"))}
+              valores={projection.years.map((y) => y.targetMarketCap !== null ? formatValue(y.targetMarketCap, "USD", "millions") : "—")}
               total
             />
             <FilaTabla
-              concepto="Precio por acción objetivo ($)"
-              valores={projection.years.map((y) => `$${y.targetPrice.toFixed(2)}`)}
+              concepto={`Precio por acción objetivo (${metrics.currency})`}
+              valores={projection.years.map((y) => y.targetPrice !== null ? formatMoney(y.targetPrice, metrics.currency) : "—")}
               total
             />
           </tbody>
         </table>
-      </div>
+      </div> : null}
     </div>
   );
+}
+
+function ReferenceValue({
+  label,
+  value,
+  suffix,
+  coverage,
+}: {
+  label: string;
+  value: number | null;
+  suffix: string;
+  coverage: HistoricalMetricCoverage;
+}) {
+  return (
+    <span className="text-muted-steel/70 text-[11px]">
+      {label}: {value !== null
+        ? `~${value.toFixed(1)}${suffix} · ${coverageLabel(coverage.observations, coverage.startFiscalYear, coverage.endFiscalYear)}`
+        : coverage.observations > 0
+          ? `— histórico insuficiente · ${coverageLabel(coverage.observations, coverage.startFiscalYear, coverage.endFiscalYear)}`
+          : "— (sin observaciones históricas)"}
+    </span>
+  );
+}
+
+function coverageLabel(observations: number, startYear?: number | null, endYear?: number | null): string {
+  const count = observations === 1 ? "1 observación" : `${observations} observaciones`;
+  return startYear !== null && startYear !== undefined && endYear !== null && endYear !== undefined
+    ? `${count} · ${startYear === endYear ? `FY ${startYear}` : `FY ${startYear}–${endYear}`}`
+    : count;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function formatProjectedPercent(value: number | null): string {
+  if (value === null) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)} %`;
+}
+
+function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function FilaTabla({

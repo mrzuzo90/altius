@@ -3,15 +3,59 @@ import { searchTickers } from "@/lib/sec/tickers";
 import { getAllMarketIndices } from "@/lib/indices";
 import { getAllCommodities } from "@/lib/commodities";
 import { getAllCurrencyPairs } from "@/lib/currencies";
+import { boundedText, invalidInput, rateLimit, upstreamError } from "@/lib/api/guard";
+import { searchEsefCompanies } from "@/lib/esef/resolve";
+import { coreSearchQuery, rankGlobalSearch, type SearchCandidate } from "@/lib/search/ranking";
 
 export const revalidate = 3600;
 
+const INDEX_ALIASES: Record<string, string[]> = {
+  SP500: ["S&P 500", "SP 500", "SP500"],
+  NASDAQCOM: ["NASDAQ", "NASDAQ COMPOSITE"],
+  DJIA: ["DOW", "DOW JONES", "WALL STREET 30"],
+  DAX: ["DAX", "DAX 40"],
+  IBEX35: ["IBEX", "IBEX 35"],
+  STOXX50E: ["STOXX", "EURO STOXX 50"],
+  FTSE100: ["FTSE", "FTSE 100"],
+  CAC40: ["CAC", "CAC 40"],
+  VIXCLS: ["VIX", "INDICE DEL MIEDO"],
+};
+
+const COMMODITY_ALIASES: Record<string, string[]> = {
+  GOLD: ["ORO", "GOLD"],
+  SILVER: ["PLATA", "SILVER"],
+  BRENT: ["PETROLEO", "PETROLEO BRENT", "CRUDO", "OIL"],
+  WTI: ["PETROLEO", "PETROLEO WTI", "CRUDO", "OIL"],
+  NATGAS: ["GAS", "GAS NATURAL"],
+  COPPER: ["COBRE", "COPPER"],
+  WHEAT: ["TRIGO", "WHEAT"],
+  CORN: ["MAIZ", "CORN"],
+};
+
+const CURRENCY_ALIASES: Record<string, string[]> = {
+  EURUSD: ["EUR/USD", "EURO", "EURO DOLAR"],
+  GBPUSD: ["GBP/USD", "LIBRA", "LIBRA DOLAR"],
+  USDJPY: ["USD/JPY", "YEN", "DOLAR YEN"],
+  USDCHF: ["USD/CHF", "FRANCO", "FRANCO SUIZO"],
+  USDCAD: ["USD/CAD", "DOLAR CANADIENSE"],
+  AUDUSD: ["AUD/USD", "DOLAR AUSTRALIANO"],
+  USDCNY: ["USD/CNY", "YUAN", "RENMINBI"],
+  USDMXN: ["USD/MXN", "PESO", "PESO MEXICANO"],
+  DXY: ["DXY", "INDICE DOLAR", "DOLAR"],
+};
+
 export async function GET(request: Request) {
-  const q = new URL(request.url).searchParams.get("q") ?? "";
+  const limited = rateLimit(request, "search", 60, 60_000);
+  if (limited) return limited;
+  const rawQuery = new URL(request.url).searchParams.get("q");
+  if (rawQuery && rawQuery.length > 80) return invalidInput("La búsqueda es demasiado larga.");
+  const q = boundedText(rawQuery, 80) ?? "";
   const query = q.trim().toLowerCase();
+  const sourceQuery = coreSearchQuery(q);
 
   try {
-    const tickersPromise = searchTickers(q, 10);
+    const tickersPromise = searchTickers(sourceQuery, 10).catch(() => []);
+    const europeanPromise = searchEsefCompanies(sourceQuery, 8);
     const allIndices = getAllMarketIndices();
     const allCommodities = getAllCommodities();
     const allCurrencies = getAllCurrencyPairs();
@@ -89,19 +133,79 @@ export async function GET(request: Request) {
         )
       : [];
 
-    const results = await tickersPromise;
+    const [results, european] = await Promise.all([tickersPromise, europeanPromise]);
+    const candidates: SearchCandidate[] = [
+      ...european.map((company) => ({
+        id: `company:europe:${company.ticker}`,
+        kind: "company" as const,
+        symbol: company.ticker,
+        name: company.name,
+        aliases: company.aliases,
+        href: `/ticker/${company.ticker.toUpperCase()}`,
+        meta: `${company.exchange} · ${company.country}`,
+      })),
+      ...results.map((company) => ({
+        id: `company:sec:${company.cik}:${company.ticker}`,
+        kind: "company" as const,
+        symbol: company.ticker,
+        name: company.name,
+        aliases: company.matchedAlias ? [company.matchedAlias] : undefined,
+        href: `/ticker/${company.ticker.toUpperCase()}`,
+        meta: "Empresa cotizada · SEC",
+      })),
+      ...allIndices.map((index) => ({
+        id: `index:${index.symbol}`,
+        kind: "index" as const,
+        symbol: index.symbol,
+        shortName: index.shortName,
+        name: index.name,
+        aliases: ["ÍNDICE", "ÍNDICES", ...(INDEX_ALIASES[index.symbol] ?? [])],
+        href: `/indices/${index.slug}`,
+        meta: "Índice bursátil",
+      })),
+      ...allCommodities.map((commodity) => ({
+        id: `commodity:${commodity.symbol}`,
+        kind: "commodity" as const,
+        symbol: commodity.symbol,
+        shortName: commodity.shortName,
+        name: commodity.name,
+        aliases: [
+          "MATERIA PRIMA",
+          "MATERIAS PRIMAS",
+          "COMMODITY",
+          ...(COMMODITY_ALIASES[commodity.symbol] ?? []),
+        ],
+        href: `/commodities/${commodity.slug}`,
+        meta: `Materia prima · ${commodity.unit}`,
+      })),
+      ...allCurrencies.map((currency) => ({
+        id: `currency:${currency.symbol}`,
+        kind: "currency" as const,
+        symbol: currency.symbol,
+        shortName: currency.shortName,
+        name: currency.name,
+        aliases: [
+          "DIVISA",
+          "DIVISAS",
+          "FOREX",
+          "TIPO DE CAMBIO",
+          ...(CURRENCY_ALIASES[currency.symbol] ?? []),
+        ],
+        href: `/divisas/${currency.slug}`,
+        meta: "Divisa · Forex",
+      })),
+    ];
+    const ranked = rankGlobalSearch(q, candidates);
+
     return NextResponse.json({
+      ranked,
       results,
+      european,
       indices: matchingIndices,
       commodities: matchingCommodities,
       currencies: matchingCurrencies,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
-    return NextResponse.json(
-      { results: [], indices: [], commodities: [], currencies: [], error: message },
-      { status: 502 },
-    );
+    return upstreamError("search", error);
   }
 }
-

@@ -27,9 +27,10 @@ describe("Módulo de Divisas y Tipos de Cambio (Forex)", () => {
 
   it("devuelve la lista completa de pares oficiales", () => {
     const all = getAllCurrencyPairs();
-    expect(all.length).toBe(8);
+    expect(all.length).toBe(9);
     const symbols = all.map((c) => c.symbol);
     expect(symbols).toContain("EURUSD");
+    expect(symbols).toContain("AUDUSD");
     expect(symbols).toContain("GBPUSD");
     expect(symbols).toContain("USDJPY");
     expect(symbols).toContain("USDCHF");

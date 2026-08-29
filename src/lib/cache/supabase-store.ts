@@ -1,10 +1,10 @@
 import type { CacheStore } from "./store";
 
 /**
- * Adaptador de Postgres, escrito y listo pero inactivo.
+ * Adaptador de Postgres para la caché compartida.
  *
- * Se activa en cuanto existan `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`;
- * basta con devolverlo desde `getCacheStore()`. Usa la API REST de Supabase
+ * Se activa cuando existen `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+ * Usa la API REST de Supabase
  * por `fetch`, sin cliente, para no añadir dependencias hasta que haga falta.
  *
  * Esquema en `supabase/migrations/0001_cache_tables.sql`.
@@ -28,7 +28,7 @@ export class SupabaseCacheStore implements CacheStore {
     try {
       const res = await fetch(
         `${this.url}/rest/v1/${this.table}?key=eq.${encodeURIComponent(key)}&select=value,expires_at`,
-        { headers: this.headers(), cache: "no-store" },
+        { headers: this.headers(), cache: "no-store", signal: AbortSignal.timeout(5_000) },
       );
       if (!res.ok) return null;
       const rows = (await res.json()) as { value: T; expires_at: string }[];
@@ -48,6 +48,7 @@ export class SupabaseCacheStore implements CacheStore {
         method: "POST",
         headers: { ...this.headers(), Prefer: "resolution=merge-duplicates" },
         body: JSON.stringify([{ key, value, expires_at: expiresAt }]),
+        signal: AbortSignal.timeout(5_000),
       });
     } catch {
       // Silencioso a propósito.
