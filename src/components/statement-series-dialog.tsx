@@ -295,13 +295,6 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
   const slitY = y + merlonH + Math.min(12, Math.max(5, (h - merlonH) * 0.12));
   const slitX = props.x + (w - slitW) / 2;
 
-  // Aspillera en cruz para castillos muy altos
-  const hasCrossSlit = h >= 85;
-  const crossW = Math.min(10, slitW * 2.8);
-  const crossH = 1.8;
-  const crossX = props.x + (w - crossW) / 2;
-  const crossY = slitY + slitH * 0.35;
-
   // Moldura decorativa bajo las almenas
   const corniceY = y + merlonH + 2;
   const hasCornice = h >= 22;
@@ -422,16 +415,6 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
             stroke="rgba(255, 255, 255, 0.15)"
             strokeWidth={0.5}
           />
-          {hasCrossSlit && (
-            <rect
-              x={crossX}
-              y={crossY}
-              width={crossW}
-              height={crossH}
-              rx={0.6}
-              fill="#0b0d14"
-            />
-          )}
         </g>
       )}
 
