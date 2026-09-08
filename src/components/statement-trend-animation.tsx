@@ -425,23 +425,9 @@ export function AdaptiveCharacter({
   const timeline = buildPhaseOpacityTimeline(plan, duration);
   const keyTimes = timeline.keyTimes.map(formatProgress).join(";");
   const initialPhase = plan.phases[0];
-  const shadowValues = timeline.values.parachute.map((value) => 1 - value);
 
   return (
     <g className={styles.figure}>
-      <ellipse className={styles.shadow} cx="0" cy="2" rx="14" ry="3.5" fill="rgba(0,0,0,0.25)" opacity={initialPhase === "parachute" ? 0 : 1}>
-        <animate
-          attributeName="opacity"
-          begin="indefinite"
-          values={shadowValues.join(";")}
-          keyTimes={keyTimes}
-          calcMode="linear"
-          dur={`${duration}s`}
-          repeatCount="1"
-          fill="freeze"
-        />
-      </ellipse>
-
       {CHARACTER_PHASES.map((phase) => (
         <g key={phase} className={styles.poseLayer} opacity={initialPhase === phase ? 1 : 0}>
           <animate
@@ -470,7 +456,6 @@ export function StaticAdaptiveCharacter({
 }) {
   return (
     <g className={styles.figure}>
-      {phase !== "parachute" && <ellipse className={styles.shadow} cx="0" cy="2" rx="14" ry="3.5" fill="rgba(0,0,0,0.25)" />}
       <CharacterPose phase={phase} direction={direction} />
     </g>
   );
