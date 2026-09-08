@@ -103,14 +103,14 @@ export function analyzeStatementTrend(data: readonly TrendPoint[]): TrendAnalysi
     );
   }
 
-  if (annualGrowthPct < -50 || (latestChangePct !== null && latestChangePct < -50)) {
-    const causedByLatest = annualGrowthPct >= -50 && latestChangePct !== null;
+  if (annualGrowthPct < -30 || (latestChangePct !== null && latestChangePct < -30)) {
+    const causedByLatest = annualGrowthPct >= -30 && latestChangePct !== null;
     return result(
       "distress",
-      "Caída extrema",
+      "Caída extrema (Desplome)",
       causedByLatest
-        ? "El último dato interanual pierde más de la mitad y el personaje abre el paracaídas."
-        : "La serie pierde más de la mitad de su altura y el personaje desciende con paracaídas.",
+        ? "El último dato interanual pierde más del 30 % y el personaje abre el paracaídas."
+        : "La serie pierde más del 30 % de su altura y el personaje desciende con paracaídas.",
       annualGrowthPct,
       latestChangePct,
     );
@@ -148,11 +148,11 @@ export function analyzeStatementTrend(data: readonly TrendPoint[]): TrendAnalysi
     );
   }
 
-  if (annualGrowthPct > 50) {
+  if (annualGrowthPct > 30) {
     return result(
       "rocket",
-      "Crecimiento explosivo",
-      "El crecimiento supera el 50 % y el personaje recorre el salto montado en su cohete.",
+      "Subida explosiva",
+      "El crecimiento supera el 30 % y el personaje recorre el salto montado en su cohete.",
       annualGrowthPct,
       latestChangePct,
     );
@@ -329,6 +329,90 @@ const CHARACTER_PHASES: CharacterPhase[] = [
   "parachute",
 ];
 
+export type MascotPhaseConfig = {
+  src: string;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  label: string;
+};
+
+export const ALTI_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
+  rocket: {
+    src: "/alti/rocket.svg",
+    width: 64,
+    height: 62,
+    x: -32,
+    y: -60,
+    label: "Subida explosiva (+30%)",
+  },
+  climb: {
+    src: "/alti/climb.svg",
+    width: 32,
+    height: 54,
+    x: -16,
+    y: -53,
+    label: "Crecimiento fuerte (+15% a +30%)",
+  },
+  stairs: {
+    src: "/alti/stairs.svg",
+    width: 45,
+    height: 52,
+    x: -22.5,
+    y: -51,
+    label: "Crecimiento moderado (+5% a +15%)",
+  },
+  elderly: {
+    src: "/alti/flat.svg",
+    width: 45,
+    height: 50,
+    x: -22.5,
+    y: -49,
+    label: "Estancado o plano (-5% a +5%)",
+  },
+  walk: {
+    src: "/alti/flat.svg",
+    width: 45,
+    height: 50,
+    x: -22.5,
+    y: -49,
+    label: "Estancado o plano (-5% a +5%)",
+  },
+  snowboard: {
+    src: "/alti/snowboard.svg",
+    width: 51,
+    height: 50,
+    x: -25.5,
+    y: -49,
+    label: "Caída moderada (-5% a -30%)",
+  },
+  parachute: {
+    src: "/alti/parachute.svg",
+    width: 66,
+    height: 68,
+    x: -33,
+    y: -67,
+    label: "Desplome (<-30%)",
+  },
+};
+
+export function CharacterPose({ phase }: { phase: CharacterPhase; direction?: MetricDirection }) {
+  const mascot = ALTI_MASCOTS[phase] ?? ALTI_MASCOTS.walk;
+  return (
+    <image
+      href={mascot.src}
+      xlinkHref={mascot.src}
+      x={mascot.x}
+      y={mascot.y}
+      width={mascot.width}
+      height={mascot.height}
+      preserveAspectRatio="xMidYMid meet"
+      aria-label={mascot.label}
+    />
+  );
+}
+
 export function AdaptiveCharacter({
   plan,
   duration,
@@ -344,8 +428,8 @@ export function AdaptiveCharacter({
   const shadowValues = timeline.values.parachute.map((value) => 1 - value);
 
   return (
-    <g className={styles.figure} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      <ellipse className={styles.shadow} cx="0" cy="2" rx="12" ry="3" opacity={initialPhase === "parachute" ? 0 : 1}>
+    <g className={styles.figure}>
+      <ellipse className={styles.shadow} cx="0" cy="2" rx="14" ry="3.5" fill="rgba(0,0,0,0.25)" opacity={initialPhase === "parachute" ? 0 : 1}>
         <animate
           attributeName="opacity"
           begin="indefinite"
@@ -357,9 +441,6 @@ export function AdaptiveCharacter({
           fill="freeze"
         />
       </ellipse>
-
-      <path d="M0-25L-2-8" className={styles.bodyLine} />
-      <circle cx="0" cy="-35" r="10" className={styles.head} />
 
       {CHARACTER_PHASES.map((phase) => (
         <g key={phase} className={styles.poseLayer} opacity={initialPhase === phase ? 1 : 0}>
@@ -376,7 +457,6 @@ export function AdaptiveCharacter({
           <CharacterPose phase={phase} direction={direction} />
         </g>
       ))}
-
     </g>
   );
 }
@@ -389,170 +469,9 @@ export function StaticAdaptiveCharacter({
   direction?: MetricDirection;
 }) {
   return (
-    <g className={styles.figure} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      {phase !== "parachute" && <ellipse className={styles.shadow} cx="0" cy="2" rx="12" ry="3" />}
-      <path d="M0-25L-2-8" className={styles.bodyLine} />
-      <circle cx="0" cy="-35" r="10" className={styles.head} />
+    <g className={styles.figure}>
+      {phase !== "parachute" && <ellipse className={styles.shadow} cx="0" cy="2" rx="14" ry="3.5" fill="rgba(0,0,0,0.25)" />}
       <CharacterPose phase={phase} direction={direction} />
-    </g>
-  );
-}
-
-function CharacterPose({ phase, direction }: { phase: CharacterPhase; direction: MetricDirection }) {
-  if (phase === "elderly") {
-    return (
-      <g className={styles.poseElderly}>
-        <CharacterFace phase={phase} direction={direction} />
-        <g className={styles.armA}><path d="M-1-21L-13-12" /></g>
-        <g className={styles.armB}><path d="M-1-20Q8-16 12-9" /></g>
-        <g className={styles.legA}><path d="M-2-8L-11 0" /></g>
-        <g className={styles.legB}><path d="M-2-8L7 0" /></g>
-        <path d="M12-17L16 1Q16 5 21 4" className={styles.transformingStaff} />
-      </g>
-    );
-  }
-
-  if (phase === "climb") {
-    return (
-      <g className={styles.poseClimb}>
-        <CharacterFace phase={phase} direction={direction} />
-        <g className={styles.armA}><path d="M0-21L-13-31" /></g>
-        <g className={styles.armB}><path d="M0-20L12-12" /></g>
-        <g className={styles.legA}><path d="M-2-8L-12-1" /></g>
-        <g className={styles.legB}><path d="M-2-8L8 1" /></g>
-        <path d="M12-12L18-32M11-30Q18-36 26-30" className={styles.transformingStaff} />
-      </g>
-    );
-  }
-
-  if (phase === "stairs") {
-    return (
-      <g className={styles.poseStairs}>
-        <CharacterFace phase={phase} direction={direction} />
-        <g className={styles.armA}><path d="M0-21L-12-27" /></g>
-        <g className={styles.armB}><path d="M0-21L11-14" /></g>
-        <g className={styles.legA}><path d="M-2-8L-11-7L-12 1" /></g>
-        <g className={styles.legB}><path d="M-2-8L8-1L13-1" /></g>
-      </g>
-    );
-  }
-
-  if (phase === "rocket") {
-    return (
-      <g className={styles.poseRocket}>
-        <CharacterFace phase={phase} direction={direction} />
-        <g className={styles.armA}><path d="M0-21L-12-27" /></g>
-        <g className={styles.armB}><path d="M0-21L12-27" /></g>
-        <g className={styles.legA}><path d="M-2-8L-11-2" /></g>
-        <g className={styles.legB}><path d="M-2-8L8-2" /></g>
-        <path d="M-11-3Q0-21 11-3L7 2H-7Z" className={styles.rocketBody} />
-        <circle cx="0" cy="-8" r="3.2" className={styles.rocketWindow} />
-        <path d="M-7 0L-14 5L-8 6M7 0L14 5L8 6" className={styles.rocketFin} />
-        <path d="M-5 3Q0 17 5 3Q0 10-5 3Z" className={styles.rocketFlame} />
-      </g>
-    );
-  }
-
-  if (phase === "parachute") {
-    return (
-      <g className={styles.poseParachute}>
-        <CharacterFace phase={phase} direction={direction} />
-        <g className={styles.armA}><path d="M0-21L-11-34L-19-51" /></g>
-        <g className={styles.armB}><path d="M0-21L11-34L19-51" /></g>
-        <g className={styles.legA}><path d="M-2-8L-8 2" /></g>
-        <g className={styles.legB}><path d="M-2-8L5 2" /></g>
-        <path d="M-27-58Q0-82 27-58Q14-67 0-56Q-14-67-27-58Z" className={styles.canopySail} />
-        <path d="M-24-58L-10-35M24-58L10-35" className={styles.canopyCord} />
-      </g>
-    );
-  }
-
-  if (phase === "snowboard") {
-    return (
-      <g className={styles.poseSnowboard}>
-        <CharacterFace phase={phase} direction={direction} />
-        <path d="M-25-23L-17-23M-28-17L-20-17M-24-11L-16-11" className={styles.speedLines} />
-        <g className={styles.armA}><path d="M0-21L-14-27" /></g>
-        <g className={styles.armB}><path d="M0-21L13-15" /></g>
-        <g className={styles.legA}><path d="M-2-8L-10-2L-2 1" /></g>
-        <g className={styles.legB}><path d="M-2-8L8-3L14 0" /></g>
-        <path d="M-25 1Q-20 5-13 5H15Q22 5 26 0Q19 3 12 2H-14Q-21 2-25-1Z" className={styles.snowboard} />
-      </g>
-    );
-  }
-
-  return (
-      <g className={styles.poseWalk}>
-      <CharacterFace phase={phase} direction={direction} />
-      <g className={styles.armA}><path d="M0-21L-13-11" /></g>
-      <g className={styles.armB}><path d="M0-21L13-11" /></g>
-      <g className={styles.legA}><path d="M-2-8L-11 0" /></g>
-      <g className={styles.legB}><path d="M-2-8L9 0" /></g>
-    </g>
-  );
-}
-
-function CharacterFace({ phase, direction }: { phase: CharacterPhase; direction: MetricDirection }) {
-  if (phase === "elderly") {
-    return (
-      <g className={styles.elderlyFace}>
-        <path d="M-6-38Q-3-40 0-38M1-38Q4-40 7-38" className={styles.eyebrow} />
-        <path d="M-5-35Q-3-33-1-35M2-35Q4-33 6-35" className={styles.closedEye} />
-        <path d="M-8-33Q-10-27-6-23Q-4-17 0-14Q4-17 6-23Q10-27 8-33Q4-29 0-30Q-4-29-8-33Z" className={styles.beard} />
-        <path d="M-4-29Q0-31 4-29M-3-27Q0-25 3-27" className={styles.beardDetail} />
-      </g>
-    );
-  }
-
-  const mood = characterMoodForPhase(phase, direction);
-
-  if (mood === "worried") {
-    return (
-      <g className={styles.scaredFace}>
-        <path d="M-7-40Q-3-43-1-40M1-40Q4-43 7-40" className={styles.eyebrow} />
-        <circle cx="-3.5" cy="-35" r="1.7" className={styles.eye} />
-        <circle cx="3.5" cy="-35" r="1.7" className={styles.eye} />
-        <ellipse cx="0" cy="-28.5" rx="2.7" ry="3.5" className={styles.openMouth} />
-      </g>
-    );
-  }
-
-  if (mood === "sad") {
-    return (
-      <g className={styles.sadFace}>
-        <path d="M-7-38L-2-40M7-38L2-40" className={styles.eyebrow} />
-        <path d="M-6-35Q-3-37-1-35M1-35Q3-37 6-35" className={styles.closedEye} />
-        <path d="M-4-28Q0-33 4-28" className={styles.mouth} />
-        <path d="M6-33Q9-29 6-26Q3-29 6-33Z" className={styles.tear} />
-      </g>
-    );
-  }
-
-  if (mood === "happy" && phase === "rocket") {
-    return (
-      <g className={styles.rocketFace}>
-        <path d="M-6-36L-3-38L0-36L-3-34ZM1-36L4-38L7-36L4-34Z" className={styles.starEye} />
-        <path d="M-5-30Q0-24 5-30" className={styles.mouth} />
-      </g>
-    );
-  }
-
-  if (mood === "happy") {
-    return (
-      <g className={phase === "climb" ? styles.climbFace : styles.stairsFace}>
-        <path d="M-7-38Q-4-41-1-38M1-38Q4-41 7-38" className={styles.eyebrow} />
-        <circle cx="-3.5" cy="-34.5" r="1.25" className={styles.eye} />
-        <circle cx="3.5" cy="-34.5" r="1.25" className={styles.eye} />
-        <path d="M-4-30Q0-26 4-30" className={styles.mouth} />
-      </g>
-    );
-  }
-
-  return (
-    <g className={styles.walkFace}>
-      <circle cx="-3.5" cy="-35" r="1.2" className={styles.eye} />
-      <circle cx="3.5" cy="-35" r="1.2" className={styles.eye} />
-      <path d="M-4-30Q0-27 4-30" className={styles.mouth} />
     </g>
   );
 }
@@ -674,11 +593,11 @@ function phaseForTransition(changePct: number | null): CharacterPhase {
 }
 
 export function characterPhaseForChange(changePct: number): CharacterPhase {
-  if (changePct < -50) return "parachute";
+  if (changePct < -30) return "parachute";
   if (changePct < -5) return "snowboard";
   if (changePct <= 5) return "elderly";
   if (changePct < 15) return "stairs";
-  if (changePct <= 50) return "climb";
+  if (changePct <= 30) return "climb";
   return "rocket";
 }
 

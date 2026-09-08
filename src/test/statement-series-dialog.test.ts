@@ -115,7 +115,7 @@ describe("analyzeStatementTrend", () => {
   });
 
   it("exige histórico suficiente antes de declarar un salto repentino", () => {
-    expect(analyzeStatementTrend(points([100, 105, 170])).scene).toBe("climb");
+    expect(analyzeStatementTrend(points([100, 115, 140])).scene).toBe("climb");
   });
 
   it("distingue una caída reciente de un crecimiento histórico todavía positivo", () => {
@@ -214,16 +214,16 @@ describe("buildInteractiveMotionPlan", () => {
     expect(plan.path).toMatch(/195 92$/);
   });
 
-  it("usa el snowboard en una caída fuerte que no supera el 50 %", () => {
+  it("usa el snowboard en una caída fuerte que no supera el 30 %", () => {
     const descent: StatementBarGeometry[] = [
       { index: 0, key: "FY2023", x: 70, y: 80, width: 30, height: 190, value: 100 },
-      { index: 1, key: "FY2024", x: 125, y: 172, width: 30, height: 98, value: 60 },
-      { index: 2, key: "FY2025", x: 180, y: 180, width: 30, height: 90, value: 58 },
+      { index: 1, key: "FY2024", x: 125, y: 172, width: 30, height: 98, value: 80 },
+      { index: 2, key: "FY2025", x: 180, y: 180, width: 30, height: 90, value: 78 },
     ];
     const plan = buildInteractiveMotionPlan(descent);
 
     expect(plan.phases).toEqual(["snowboard", "elderly"]);
-    expect(plan.changesPct[0]).toBeCloseTo(-40);
+    expect(plan.changesPct[0]).toBeCloseTo(-20);
     expect(plan.path).toContain("Q");
     expect(plan.path).toMatch(/195 180$/);
   });
@@ -239,12 +239,11 @@ describe("buildInteractiveMotionPlan", () => {
     expect(transition(106)).toBe("stairs");
     expect(transition(114)).toBe("stairs");
     expect(transition(115)).toBe("climb");
-    expect(transition(150)).toBe("climb");
-    expect(transition(151)).toBe("rocket");
+    expect(transition(130)).toBe("climb");
+    expect(transition(131)).toBe("rocket");
     expect(transition(95)).toBe("elderly");
     expect(transition(70)).toBe("snowboard");
-    expect(transition(50)).toBe("snowboard");
-    expect(transition(49)).toBe("parachute");
+    expect(transition(69)).toBe("parachute");
   });
 
   it("reserva el paracaídas a cada tramo individual que pierde más de la mitad", () => {
@@ -258,7 +257,7 @@ describe("buildInteractiveMotionPlan", () => {
   });
 
   it("mantiene un tramo largo como anciano y conserva la escalada mientras el crecimiento continúa", () => {
-    const values = [100, 102, 101, 103, 102, 145, 166, 185];
+    const values = [100, 102, 101, 103, 102, 125, 138, 152];
     const geometry = values.map((value, index): StatementBarGeometry => ({
       index,
       key: `FY${2018 + index}`,
