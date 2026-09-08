@@ -221,7 +221,6 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
   const point = props.payload as ChartPoint | undefined;
   if (!point || !Number.isFinite(props.x) || !Number.isFinite(props.y)) return null;
   const { y, height } = normalizeStatementBarRect(props.y, props.height);
-  const radius = Math.max(0, Math.min(5, props.width / 2, height / 2));
   const geometry = {
     index: props.index,
     key: point.key,
@@ -232,22 +231,222 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
     height,
   };
 
+  const w = props.width;
+  const h = height;
+  const isDerived = Boolean(point.derived);
+  const baseColor = isDerived ? "#5b63d3" : "#98a4f7";
+  const darkColor = isDerived ? "#3e4491" : "#6c7bd9";
+  const highlightColor = isDerived ? "#7a82f0" : "#b5c0ff";
+  const mortarColor = isDerived ? "rgba(40, 44, 100, 0.45)" : "rgba(60, 72, 140, 0.4)";
+  const brickLight = "rgba(255, 255, 255, 0.14)";
+
+  // Si la barra es mínima (< 6px), renderizar una base de piedra limpia
+  if (h < 6) {
+    return (
+      <rect
+        ref={(node) => {
+          if (node) props.onGeometry(geometry);
+        }}
+        x={props.x}
+        y={y}
+        width={w}
+        height={h}
+        rx={1}
+        fill={baseColor}
+        data-statement-bar-index={props.index}
+        data-statement-bar-key={point.key}
+        data-statement-bar-value={point.value}
+      />
+    );
+  }
+
+  // Cálculo de las almenas (merlons) en la cima de la torre
+  const merlonH = Math.min(8, Math.max(3, Math.round(Math.min(h * 0.22, w * 0.18))));
+  const numMerlons = w >= 36 ? 3 : 2;
+  const totalDivisions = numMerlons === 3 ? 5 : 3;
+  const partW = w / totalDivisions;
+  const bottom = y + h;
+
+  // Silueta almenada de la torre del castillo
+  let towerPath = `M ${props.x} ${bottom} L ${props.x} ${y}`;
+  if (numMerlons === 3) {
+    towerPath += ` L ${props.x + partW} ${y}`
+      + ` L ${props.x + partW} ${y + merlonH}`
+      + ` L ${props.x + 2 * partW} ${y + merlonH}`
+      + ` L ${props.x + 2 * partW} ${y}`
+      + ` L ${props.x + 3 * partW} ${y}`
+      + ` L ${props.x + 3 * partW} ${y + merlonH}`
+      + ` L ${props.x + 4 * partW} ${y + merlonH}`
+      + ` L ${props.x + 4 * partW} ${y}`
+      + ` L ${props.x + w} ${y}`;
+  } else {
+    towerPath += ` L ${props.x + partW} ${y}`
+      + ` L ${props.x + partW} ${y + merlonH}`
+      + ` L ${props.x + 2 * partW} ${y + merlonH}`
+      + ` L ${props.x + 2 * partW} ${y}`
+      + ` L ${props.x + w} ${y}`;
+  }
+  towerPath += ` L ${props.x + w} ${bottom} Z`;
+
+  // Aspillera medieval (saetera / ventana) según la altura de la torre
+  const hasSlit = h >= 38;
+  const slitW = Math.max(2.2, Math.min(3.4, w * 0.08));
+  const slitH = Math.min(14, Math.max(7, (h - merlonH) * 0.16));
+  const slitY = y + merlonH + Math.min(12, Math.max(5, (h - merlonH) * 0.12));
+  const slitX = props.x + (w - slitW) / 2;
+
+  // Aspillera en cruz para castillos muy altos
+  const hasCrossSlit = h >= 85;
+  const crossW = Math.min(10, slitW * 2.8);
+  const crossH = 1.8;
+  const crossX = props.x + (w - crossW) / 2;
+  const crossY = slitY + slitH * 0.35;
+
+  // Moldura decorativa bajo las almenas
+  const corniceY = y + merlonH + 2;
+  const hasCornice = h >= 22;
+
+  // Sillares de piedra proporcionales a la altura
+  const brickLines: number[] = [];
+  if (h >= 45) {
+    const startY = corniceY + 8;
+    const step = Math.min(22, Math.max(12, (bottom - startY) / Math.floor((bottom - startY) / 16)));
+    for (let curY = startY; curY < bottom - 4; curY += step) {
+      brickLines.push(curY);
+    }
+  }
+
   return (
-    <rect
+    <g
       ref={(node) => {
         if (node) props.onGeometry(geometry);
       }}
-      x={props.x}
-      y={y}
-      width={props.width}
-      height={height}
-      rx={radius}
-      ry={radius}
-      fill={point.derived ? "#5b63d3" : "#98a4f7"}
       data-statement-bar-index={props.index}
       data-statement-bar-key={point.key}
       data-statement-bar-value={point.value}
-    />
+      className="cursor-pointer transition-opacity hover:opacity-90"
+    >
+      {/* Cuerpo principal almenado de la torre */}
+      <path
+        d={towerPath}
+        fill={baseColor}
+      />
+
+      {/* Bisel 3D iluminado en el lateral izquierdo */}
+      <line
+        x1={props.x + 1}
+        y1={y}
+        x2={props.x + 1}
+        y2={bottom}
+        stroke={highlightColor}
+        strokeWidth={1.5}
+        strokeOpacity={0.65}
+      />
+
+      {/* Bisel 3D sombreado en el lateral derecho */}
+      <line
+        x1={props.x + w - 1}
+        y1={y}
+        x2={props.x + w - 1}
+        y2={bottom}
+        stroke={darkColor}
+        strokeWidth={1.5}
+        strokeOpacity={0.75}
+      />
+
+      {/* Moldura de piedra bajo las almenas */}
+      {hasCornice && (
+        <>
+          <line
+            x1={props.x}
+            y1={corniceY}
+            x2={props.x + w}
+            y2={corniceY}
+            stroke={darkColor}
+            strokeWidth={1.4}
+          />
+          <line
+            x1={props.x}
+            y1={corniceY - 1}
+            x2={props.x + w}
+            y2={corniceY - 1}
+            stroke={highlightColor}
+            strokeWidth={0.8}
+            strokeOpacity={0.8}
+          />
+        </>
+      )}
+
+      {/* Sillares de mampostería medieval */}
+      {brickLines.map((bY, idx) => (
+        <g key={bY}>
+          <line
+            x1={props.x + 2}
+            y1={bY}
+            x2={props.x + w - 2}
+            y2={bY}
+            stroke={mortarColor}
+            strokeWidth={1}
+          />
+          <line
+            x1={props.x + 2}
+            y1={bY + 0.8}
+            x2={props.x + w - 2}
+            y2={bY + 0.8}
+            stroke={brickLight}
+            strokeWidth={0.6}
+          />
+          {/* Junta vertical de piedra alterna */}
+          <line
+            x1={idx % 2 === 0 ? props.x + w * 0.35 : props.x + w * 0.65}
+            y1={bY}
+            x2={idx % 2 === 0 ? props.x + w * 0.35 : props.x + w * 0.65}
+            y2={bY + 12}
+            stroke={mortarColor}
+            strokeWidth={0.9}
+            strokeOpacity={0.7}
+          />
+        </g>
+      ))}
+
+      {/* Aspillera medieval */}
+      {hasSlit && (
+        <g>
+          <rect
+            x={slitX}
+            y={slitY}
+            width={slitW}
+            height={slitH}
+            rx={slitW / 2}
+            fill="#0b0d14"
+            stroke="rgba(255, 255, 255, 0.15)"
+            strokeWidth={0.5}
+          />
+          {hasCrossSlit && (
+            <rect
+              x={crossX}
+              y={crossY}
+              width={crossW}
+              height={crossH}
+              rx={0.6}
+              fill="#0b0d14"
+            />
+          )}
+        </g>
+      )}
+
+      {/* Plinto / base de piedra de la torre */}
+      {h >= 25 && (
+        <rect
+          x={props.x - 0.5}
+          y={bottom - 3}
+          width={w + 1}
+          height={3}
+          fill={darkColor}
+          fillOpacity={0.6}
+        />
+      )}
+    </g>
   );
 }
 
