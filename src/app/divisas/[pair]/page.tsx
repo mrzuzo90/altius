@@ -9,7 +9,7 @@ import { getCurrencyDetail, resolveCurrencySymbol } from "@/lib/currencies";
 import { getCompanyNews } from "@/lib/news";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ pair: string }> }) {
   const { pair } = await params;

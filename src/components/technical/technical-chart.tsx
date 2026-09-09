@@ -13,9 +13,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { IndicatorPoint } from "@/lib/technical/types";
-import { filterPricePoints, type PriceRangeId } from "@/lib/prices/ranges";
+import { filterPricePoints, priceRangeCutoff, type PriceRangeId } from "@/lib/prices/ranges";
 import {
   chartSpanDays,
   chartTimeTicks,
@@ -26,14 +27,17 @@ import {
   timestampPricePoints,
 } from "@/lib/prices/chart";
 
-const RANGOS = [
+const RANGOS: Array<{ id: string; label: string; range: PriceRangeId }> = [
+  { id: "1m", label: "1 mes", range: "1m" },
   { id: "3m", label: "3 meses", range: "3m" },
   { id: "6m", label: "6 meses", range: "6m" },
+  { id: "ytd", label: "Año actual", range: "ytd" },
   { id: "1a", label: "1 año", range: "1y" },
   { id: "3a", label: "3 años", range: "3y" },
   { id: "5a", label: "5 años", range: "5y" },
+  { id: "10a", label: "10 años", range: "10y" },
   { id: "max", label: "Máx", range: "max" },
-] as const;
+];
 
 export function TechnicalChart({
   points,
@@ -44,7 +48,13 @@ export function TechnicalChart({
   source: string;
   currency?: string;
 }) {
-  const [rango, setRango] = useState<(typeof RANGOS)[number]["id"]>("1a");
+  const firstAvailable = points[0]?.date ?? "";
+  const lastAvailable = points.at(-1)?.date ?? "";
+  const initialFrom = lastAvailable ? priceRangeCutoff(lastAvailable, "1y") : "";
+
+  const [rango, setRango] = useState<string>("1a");
+  const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
+  const [to, setTo] = useState(lastAvailable);
 
   // Toggles de indicadores superpuestos en el gráfico principal
   const [showSma20, setShowSma20] = useState(false);
@@ -55,10 +65,35 @@ export function TechnicalChart({
   // Subgráfico inferior
   const [subIndicator, setSubIndicator] = useState<"rsi" | "macd" | "none">("rsi");
 
+  const handleSelectRange = (rangeDef: (typeof RANGOS)[number]) => {
+    setRango(rangeDef.id);
+    if (rangeDef.range === "max") {
+      setFrom(firstAvailable);
+      setTo(lastAvailable);
+    } else {
+      const newFrom = priceRangeCutoff(lastAvailable, rangeDef.range);
+      setFrom(newFrom < firstAvailable ? firstAvailable : newFrom);
+      setTo(lastAvailable);
+    }
+  };
+
+  const handleCustomFrom = (val: string) => {
+    setFrom(val);
+    setRango("custom");
+  };
+
+  const handleCustomTo = (val: string) => {
+    setTo(val);
+    setRango("custom");
+  };
+
   const datos = useMemo(() => {
-    const def = RANGOS.find((r) => r.id === rango)!;
-    return filterPricePoints(points, def.range as PriceRangeId);
-  }, [points, rango]);
+    const rangeId: PriceRangeId = rango === "custom"
+      ? "custom"
+      : (RANGOS.find((r) => r.id === rango)?.range ?? "1y");
+    return filterPricePoints(points, rangeId, { from, to });
+  }, [points, rango, from, to]);
+
   const chartData = useMemo(() => timestampPricePoints(datos), [datos]);
   const spanDays = chartSpanDays(chartData);
   const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
@@ -66,8 +101,17 @@ export function TechnicalChart({
 
   if (datos.length === 0) {
     return (
-      <div className="bg-carbon-surface border-gunmetal text-muted-steel rounded-2xl border border-dashed px-6 py-16 text-center text-[13px]">
-        No hay observaciones suficientes para construir el análisis técnico.
+      <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6 space-y-4">
+        <div className="text-muted-steel rounded-xl border border-dashed border-gunmetal px-6 py-12 text-center text-[13px]">
+          <p>No hay observaciones disponibles para el rango de fechas seleccionado ({from} a {to}).</p>
+          <button
+            type="button"
+            onClick={() => handleSelectRange(RANGOS.find((r) => r.id === "1a")!)}
+            className="font-display bg-void-black border-gunmetal text-pure-white hover:text-frost mt-3 rounded-full border px-4 py-1.5 text-[12px] font-medium transition-colors cursor-pointer"
+          >
+            Restablecer a 1 año
+          </button>
+        </div>
       </div>
     );
   }
@@ -99,13 +143,13 @@ export function TechnicalChart({
         </div>
 
         {/* Selector de Rango Temporal */}
-        <div className="bg-void-black border-gunmetal inline-flex self-start rounded-full border p-1 sm:self-auto">
+        <div className="bg-void-black border-gunmetal flex max-w-full flex-wrap items-center rounded-full border p-1 sm:self-auto">
           {RANGOS.map((r) => (
             <button
               key={r.id}
               type="button"
               aria-pressed={rango === r.id}
-              onClick={() => setRango(r.id)}
+              onClick={() => handleSelectRange(r)}
               className={cn(
                 "font-display rounded-full px-3 py-1 text-[12px] font-medium tracking-tight transition-colors cursor-pointer",
                 rango === r.id ? "bg-gunmetal text-pure-white shadow-xs" : "text-muted-steel hover:text-frost",
@@ -115,6 +159,48 @@ export function TechnicalChart({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Selector de Rango Personalizado con fechas Desde y Hasta */}
+      <div className="border-gunmetal flex flex-wrap items-end gap-3 border-y border-gunmetal/60 py-3">
+        <div className="text-muted-steel flex items-center gap-2 text-[12px] font-medium font-display">
+          <CalendarRange className="size-4 text-periwinkle-glow" />
+          <span>Periodo personalizado:</span>
+        </div>
+        <label className="text-muted-steel text-[11px] font-mono uppercase tracking-wider">
+          Desde
+          <input
+            type="date"
+            value={from}
+            min={firstAvailable}
+            max={to || lastAvailable}
+            onChange={(e) => handleCustomFrom(e.target.value)}
+            className="bg-void-black border-gunmetal text-frost mt-1 block rounded-lg border px-3 py-1.5 text-[12px] font-mono normal-case [color-scheme:dark] transition-colors focus:border-periwinkle-glow focus:outline-none"
+          />
+        </label>
+        <label className="text-muted-steel text-[11px] font-mono uppercase tracking-wider">
+          Hasta
+          <input
+            type="date"
+            value={to}
+            min={from || firstAvailable}
+            max={lastAvailable}
+            onChange={(e) => handleCustomTo(e.target.value)}
+            className="bg-void-black border-gunmetal text-frost mt-1 block rounded-lg border px-3 py-1.5 text-[12px] font-mono normal-case [color-scheme:dark] transition-colors focus:border-periwinkle-glow focus:outline-none"
+          />
+        </label>
+        {rango === "custom" && (
+          <button
+            type="button"
+            onClick={() => handleSelectRange(RANGOS.find((r) => r.id === "1a")!)}
+            className="text-periwinkle-glow hover:underline font-mono text-[11px] cursor-pointer mb-1.5"
+          >
+            Restablecer a 1 año
+          </button>
+        )}
+        <span className="text-muted-steel ml-auto text-[11px] font-mono">
+          Histórico disponible: {firstAvailable} → {lastAvailable} ({points.length.toLocaleString("es-ES")} sesiones)
+        </span>
       </div>
 
       {/* Barra de Toggles de Indicadores Técnicos */}

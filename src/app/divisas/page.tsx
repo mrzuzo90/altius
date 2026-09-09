@@ -5,7 +5,7 @@ import { Sparkline } from "@/components/sparkline";
 import { getAllCurrenciesSummary, CURRENCY_PAIRS } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 export const metadata = { title: "Divisas y Tipos de Cambio (Forex) | Altius" };
 
 export default async function DivisasPage() {

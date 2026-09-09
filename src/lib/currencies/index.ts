@@ -201,12 +201,17 @@ async function fetchYahooCurrencyPoints(meta: CurrencyPairMeta): Promise<PricePo
         { symbol: `${meta.quoteCurrency}${meta.baseCurrency}=X`, inverse: true },
       ];
 
+  const now = Math.floor(Date.now() / 1000);
+
   for (const candidate of symbols) for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
     try {
       const response = await fetchWithTimeout(
-        `https://${host}/v8/finance/chart/${encodeURIComponent(candidate.symbol)}?interval=1d&range=max`,
-        { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 AppleWebKit/537.36" } },
-        20_000,
+        `https://${host}/v8/finance/chart/${encodeURIComponent(candidate.symbol)}?interval=1d&period1=0&period2=${now}`,
+        {
+          cache: "no-store",
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+        },
+        15_000,
       );
       if (!response.ok) continue;
       const payload = await response.json() as {
@@ -216,16 +221,23 @@ async function fetchYahooCurrencyPoints(meta: CurrencyPairMeta): Promise<PricePo
         }> };
       };
       const result = payload.chart?.result?.[0];
+      const timestamps = result?.timestamp ?? [];
       const closes = result?.indicators?.quote?.[0]?.close ?? [];
-      const points = (result?.timestamp ?? []).flatMap((timestamp, index): PricePoint[] => {
-        const raw = closes[index];
-        if (raw === null || raw === undefined || !Number.isFinite(raw) || raw <= 0) return [];
-        return [{
-          date: new Date(timestamp * 1000).toISOString().slice(0, 10),
-          close: candidate.inverse ? 1 / raw : raw,
-        }];
-      });
-      if (points.length > 0) return points;
+      const points: PricePoint[] = [];
+
+      for (let i = 0; i < timestamps.length; i++) {
+        const raw = closes[i];
+        const ts = timestamps[i];
+        if (raw !== null && raw !== undefined && Number.isFinite(raw) && raw > 0 && ts) {
+          const dateStr = new Date(ts * 1000).toISOString().slice(0, 10);
+          const closeVal = candidate.inverse ? 1 / raw : raw;
+          points.push({
+            date: dateStr,
+            close: Number(closeVal.toFixed(6)),
+          });
+        }
+      }
+      if (points.length > 50) return points;
     } catch {
       // Se prueba el host alternativo y después el par inverso.
     }
@@ -234,53 +246,81 @@ async function fetchYahooCurrencyPoints(meta: CurrencyPairMeta): Promise<PricePo
 }
 
 /**
- * Obtiene la serie histórica de un tipo de cambio oficial desde FRED (H.10 Release).
+ * Obtiene la serie histórica de un tipo de cambio oficial desde FRED (H.10 Release)
+ * o desde el mercado global (Yahoo Finance) con densidad diaria y cotizaciones actualizadas.
  */
 export async function getCurrencySeries(symbol: CurrencyPairSymbol): Promise<PricePoint[]> {
   const meta = CURRENCY_PAIRS[symbol];
   if (!meta) throw new Error(`Par de divisas no reconocido: ${symbol}`);
 
   const cache = getCacheStore();
-  const cacheKey = `currencies:series:v2:${symbol}`;
+  const cacheKey = `currencies:series:v4:${symbol}`;
   const cached = await cache.get<PricePoint[]>(cacheKey);
-  if (cached && cached.length > 0) return cached;
+  if (cached && cached.length > 200) return cached;
 
   const apiKey = process.env.FRED_API_KEY?.trim();
-  let points: PricePoint[];
+  let points: PricePoint[] = [];
 
-  try {
-    if (apiKey) {
+  // 1. Si hay clave oficial de FRED, consultar API de FRED
+  if (apiKey) {
+    try {
       const url =
         `https://api.stlouisfed.org/fred/series/observations?series_id=${meta.fredSeriesId}` +
         `&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-      const res = await fetchWithTimeout(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-      const json = (await res.json()) as { observations: { date: string; value: string }[] };
-      points = json.observations
-        .filter((o) => o.value !== "." && o.value !== "")
-        .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
-        .filter((p) => Number.isFinite(p.close));
-    } else {
+      const res = await fetchWithTimeout(url, { cache: "no-store" }, 5_000);
+      if (res.ok) {
+        const json = (await res.json()) as { observations: { date: string; value: string }[] };
+        points = json.observations
+          .filter((o) => o.value !== "." && o.value !== "")
+          .map((o) => ({ date: o.date, close: Number.parseFloat(o.value) }))
+          .filter((p) => Number.isFinite(p.close));
+      }
+    } catch {
+      // Fallback a mercado
+    }
+  }
+
+  // 2. Si no hay suficientes puntos o no hay API key, consultar Yahoo Finance
+  // (Aporta 20-55 años de histórico diario continuo y la cotización viva de hoy)
+  if (points.length < 500) {
+    const yahooPoints = await fetchYahooCurrencyPoints(meta);
+    if (yahooPoints.length > 0) {
+      points = yahooPoints;
+    }
+  }
+
+  // 3. Fallback adicional a CSV público de FRED (timeout rápido de 3s para evitar bloqueos)
+  if (points.length === 0) {
+    try {
       const res = await fetchWithTimeout(
         `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${meta.fredSeriesId}`,
         { cache: "no-store" },
+        3_000,
       );
-      if (!res.ok) throw new Error(`FRED devolvió ${res.status} para ${meta.fredSeriesId}.`);
-      const fredPoints: FredPoint[] = parseFredCsv(await res.text());
-      points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+      if (res.ok) {
+        const fredPoints: FredPoint[] = parseFredCsv(await res.text());
+        points = fredPoints.map((fp) => ({ date: fp.date, close: fp.value }));
+      }
+    } catch {
+      // FRED no disponible
     }
-  } catch {
-    points = await fetchYahooCurrencyPoints(meta);
   }
-
-  if (points.length === 0) points = await fetchYahooCurrencyPoints(meta);
 
   if (points.length === 0) {
-    throw new Error(`FRED no devolvió observaciones para ${meta.fredSeriesId}.`);
+    throw new Error(`No fue posible obtener cotizaciones para ${meta.symbol} (${meta.name}).`);
   }
-  points.sort((a, b) => (a.date < b.date ? -1 : 1));
-  await cache.set(cacheKey, points, TTL.currencies);
-  return points;
+
+  // Deduplicar fechas y ordenar cronológicamente
+  const uniqueMap = new Map<string, number>();
+  for (const p of points) {
+    uniqueMap.set(p.date, p.close);
+  }
+  const sorted: PricePoint[] = Array.from(uniqueMap.entries())
+    .map(([date, close]) => ({ date, close }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  await cache.set(cacheKey, sorted, TTL.currencies);
+  return sorted;
 }
 
 /**

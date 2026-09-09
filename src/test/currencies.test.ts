@@ -56,4 +56,14 @@ describe("Módulo de Divisas y Tipos de Cambio (Forex)", () => {
     expect(summary.low52w).toBe(1.05);
     expect(summary.provider).toBe(CURRENCY_PAIRS.EURUSD.provider);
   });
+
+  it("obtiene la serie histórica con amplio histórico diario", async () => {
+    const { getCurrencySeries } = await import("@/lib/currencies");
+    const points = await getCurrencySeries("EURUSD");
+    expect(points.length).toBeGreaterThan(1000);
+    expect(points[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const last = points.at(-1)!;
+    expect(last.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(last.close).toBeGreaterThan(0);
+  }, 20_000);
 });
