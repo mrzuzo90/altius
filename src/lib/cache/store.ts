@@ -70,7 +70,7 @@ export const TTL = {
   filingDocument: 60 * 60 * 24 * 30,
   mdnaSummary: 60 * 60 * 24 * 30,
   news: 60 * 60,
-  indices: 60 * 60 * 12,
+  indices: 60 * 30,
   commodities: 60 * 60 * 12,
   currencies: 60 * 30,
   quotes: 60 * 15,

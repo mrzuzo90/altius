@@ -218,66 +218,81 @@ export function getAllMarketIndices(region?: MarketIndexRegion): MarketIndexMeta
   return region ? list.filter((i) => i.region === region) : list;
 }
 
+async function fetchYahooIndexPoints(meta: MarketIndexMeta): Promise<PricePoint[]> {
+  if (!meta.marketSymbol) return [];
+  const now = Math.floor(Date.now() / 1000);
+
+  for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
+    try {
+      const url = `https://${host}/v8/finance/chart/${encodeURIComponent(meta.marketSymbol)}?interval=1d&period1=0&period2=${now}`;
+      const res = await fetchWithTimeout(
+        url,
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+          cache: "no-store",
+        },
+        15_000,
+      );
+
+      if (!res.ok) continue;
+
+      const json = (await res.json()) as {
+        chart?: {
+          result?: [
+            {
+              timestamp?: number[];
+              indicators?: {
+                quote?: [
+                  {
+                    close?: (number | null)[];
+                  },
+                ];
+              };
+            },
+          ];
+        };
+      };
+
+      const result = json.chart?.result?.[0];
+      const timestamps = result?.timestamp ?? [];
+      const closes = result?.indicators?.quote?.[0]?.close ?? [];
+      const points: PricePoint[] = [];
+
+      for (let i = 0; i < timestamps.length; i++) {
+        const c = closes[i];
+        const t = timestamps[i];
+        if (c !== null && c !== undefined && Number.isFinite(c) && c > 0 && t) {
+          const dateStr = new Date(t * 1000).toISOString().slice(0, 10);
+          points.push({ date: dateStr, close: Number(c.toFixed(2)) });
+        }
+      }
+
+      if (points.length > 50) return points;
+    } catch {
+      // Probar host alternativo
+    }
+  }
+
+  return [];
+}
+
 /**
- * Obtiene la serie histórica en puntos nominales del índice bursátil (no del ETF).
+ * Obtiene la serie histórica en puntos nominales del índice bursátil (no del ETF) con profundidad histórica completa.
  */
 export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePoint[]> {
   const meta = MARKET_INDICES[symbol];
   if (!meta) throw new Error(`Índice no reconocido: ${symbol}`);
 
   const cache = getCacheStore();
-  const cacheKey = `indices:series:v2:${symbol}`;
+  const cacheKey = `indices:series:v3:${symbol}`;
   const cached = await cache.get<PricePoint[]>(cacheKey);
-  if (cached && cached.length > 0) return cached;
+  if (cached && cached.length > 200) return cached;
 
-  let points: PricePoint[] = [];
-
-  // 1. Intentar obtener la serie histórica oficial en puntos nominales desde el feed de mercado
-  if (meta.marketSymbol) {
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(meta.marketSymbol)}?interval=1d&range=5y`;
-      const res = await fetchWithTimeout(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        },
-        cache: "no-store",
-      });
-
-      if (res.ok) {
-        const json = (await res.json()) as {
-          chart?: {
-            result?: [
-              {
-                timestamp?: number[];
-                indicators?: {
-                  quote?: [
-                    {
-                      close?: (number | null)[];
-                    },
-                  ];
-                };
-              },
-            ];
-          };
-        };
-
-        const result = json.chart?.result?.[0];
-        const timestamps = result?.timestamp ?? [];
-        const closes = result?.indicators?.quote?.[0]?.close ?? [];
-
-        for (let i = 0; i < timestamps.length; i++) {
-          const c = closes[i];
-          const t = timestamps[i];
-          if (c !== null && c !== undefined && Number.isFinite(c) && t) {
-            const dateStr = new Date(t * 1000).toISOString().slice(0, 10);
-            points.push({ date: dateStr, close: Number(c.toFixed(2)) });
-          }
-        }
-      }
-    } catch {
-      // Intento con proveedor alternativo FRED
-    }
-  }
+  // 1. Intentar obtener la serie histórica oficial completa en puntos nominales desde el feed de mercado
+  let points: PricePoint[] = await fetchYahooIndexPoints(meta);
 
   // 2. Si la serie de mercado no devolvió datos y el índice tiene serie nominal en FRED
   if (points.length === 0 && meta.fredSeriesId) {
@@ -311,9 +326,15 @@ export async function getIndexSeries(symbol: MarketIndexSymbol): Promise<PricePo
     throw new Error(`No se pudo obtener la serie oficial en puntos para el índice: ${symbol}`);
   }
 
-  points.sort((a, b) => (a.date < b.date ? -1 : 1));
-  await cache.set(cacheKey, points, TTL.indices);
-  return points;
+  // Deduplicar fechas (conservando el último valor) y ordenar cronológicamente
+  const pointsMap = new Map<string, PricePoint>();
+  for (const p of points) {
+    pointsMap.set(p.date, p);
+  }
+  const sortedPoints = Array.from(pointsMap.values()).sort((a, b) => (a.date < b.date ? -1 : 1));
+
+  await cache.set(cacheKey, sortedPoints, TTL.indices);
+  return sortedPoints;
 }
 
 /**

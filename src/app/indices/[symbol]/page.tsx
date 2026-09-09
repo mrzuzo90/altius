@@ -9,7 +9,7 @@ import { getIndexDetail, resolveIndexSymbol } from "@/lib/indices";
 import { getCompanyNews } from "@/lib/news";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;

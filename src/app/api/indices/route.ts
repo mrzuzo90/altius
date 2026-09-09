@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllIndicesSummary } from "@/lib/indices";
 import { upstreamError } from "@/lib/api/guard";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function GET() {
   try {

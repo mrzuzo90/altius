@@ -5,7 +5,7 @@ import { Sparkline } from "@/components/sparkline";
 import { getAllIndicesSummary, MARKET_INDICES } from "@/lib/indices";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 export const metadata = { title: "Índices Bursátiles Mundiales y Europeos | Altius" };
 
 export default async function IndicesPage() {
