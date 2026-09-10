@@ -109,8 +109,8 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
   if (phase === "canon") {
     patternName = "Cid cañon";
     patternDescription = "Subida explosiva (+30%)";
-  } else if (phase === "escalera") {
-    patternName = "Cid escalera";
+  } else if (phase === "cuerda") {
+    patternName = "Cid cuerda";
     patternDescription = "Crecimiento fuerte (+15% a +30%)";
   } else if (phase === "caballero") {
     patternName = "Cid caballero";

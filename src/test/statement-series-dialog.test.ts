@@ -243,8 +243,8 @@ describe("buildInteractiveMotionPlan", () => {
     expect(transition(105)).toBe("senor");
     expect(transition(106)).toBe("caballero");
     expect(transition(115)).toBe("caballero");
-    expect(transition(116)).toBe("escalera");
-    expect(transition(130)).toBe("escalera");
+    expect(transition(116)).toBe("cuerda");
+    expect(transition(130)).toBe("cuerda");
     expect(transition(131)).toBe("canon");
     expect(transition(95)).toBe("senor");
     expect(transition(90)).toBe("piedra");
@@ -275,20 +275,20 @@ describe("buildInteractiveMotionPlan", () => {
     }));
 
     expect(buildInteractiveMotionPlan(geometry).phases).toEqual([
-      "senor", "senor", "senor", "senor", "escalera", "caballero", "caballero",
+      "senor", "senor", "senor", "senor", "cuerda", "caballero", "caballero",
     ]);
   });
 
   it("funde las poses durante unas décimas en lugar de sustituir el personaje de golpe", () => {
     const timeline = buildPhaseOpacityTimeline({
-      phases: ["senor", "escalera", "apunalado"],
+      phases: ["senor", "cuerda", "apunalado"],
       keyTimes: [0, 0.4, 0.7, 1],
     }, 10);
 
     expect(timeline.keyTimes).toHaveLength(6);
     expect((timeline.keyTimes[2] - timeline.keyTimes[1]) * 10).toBeCloseTo(0.76);
     expect(timeline.values.senor.slice(0, 3)).toEqual([1, 1, 0]);
-    expect(timeline.values.escalera.slice(0, 4)).toEqual([0, 0, 1, 1]);
+    expect(timeline.values.cuerda.slice(0, 4)).toEqual([0, 0, 1, 1]);
     expect(timeline.values.apunalado.at(-1)).toBe(1);
   });
 });
@@ -318,7 +318,7 @@ describe("buildPriceMotionPlan", () => {
 
     const plan = buildPriceMotionPlan(geometry);
 
-    expect(plan.phases).toEqual(["senor", "caballero", "escalera", "canon", "apunalado", "piedra"]);
+    expect(plan.phases).toEqual(["senor", "caballero", "cuerda", "canon", "apunalado", "piedra"]);
     expect(plan.path).toMatch(/^M 70 210/);
     expect(plan.path).toContain(" C ");
     expect(plan.path).toMatch(/490 245$/);
@@ -358,12 +358,12 @@ describe("calculateOverallAnnualTrend", () => {
     expect(trend.annualizedRatePct).toBeCloseTo(10, 0);
   });
 
-  it("asigna Cid escalera a un crecimiento fuerte del 20 % (+15% a +30%)", () => {
+  it("asigna Cid cuerda a un crecimiento fuerte del 20 % (+15% a +30%)", () => {
     const trend = calculateOverallAnnualTrend(chartPoints([100, 120, 144])); // 20% anual en 2 años (100 a 144)
     expect(trend.status).toBe("up");
-    expect(trend.phase).toBe("escalera");
-    expect(trend.mascot.src).toBe("/cid/escalera.svg");
-    expect(trend.patternName).toBe("Cid escalera");
+    expect(trend.phase).toBe("cuerda");
+    expect(trend.mascot.src).toBe("/cid/cuerda.svg");
+    expect(trend.patternName).toBe("Cid cuerda");
   });
 
   it("asigna Cid cañon a una subida explosiva mayor al 30 %", () => {

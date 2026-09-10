@@ -34,7 +34,7 @@ export type CharacterPhase =
   | "piedra"
   | "senor"
   | "caballero"
-  | "escalera"
+  | "cuerda"
   | "canon";
 
 export type CharacterMood = "happy" | "neutral" | "sad" | "worried";
@@ -334,7 +334,7 @@ const CHARACTER_PHASES: CharacterPhase[] = [
   "piedra",
   "senor",
   "caballero",
-  "escalera",
+  "cuerda",
   "canon",
 ];
 
@@ -356,13 +356,13 @@ export const CID_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
     y: -60,
     label: "Cid cañon",
   },
-  escalera: {
-    src: "/cid/escalera.svg",
+  cuerda: {
+    src: "/cid/cuerda.svg",
     width: 36,
     height: 58,
     x: -18,
     y: -57,
-    label: "Cid escalera",
+    label: "Cid cuerda",
   },
   caballero: {
     src: "/cid/caballero.svg",
@@ -474,7 +474,7 @@ export function StaticAdaptiveCharacter({
 
 export function characterMoodForPhase(phase: CharacterPhase, direction: MetricDirection): CharacterMood {
   if (phase === "senor" || direction === "contextual") return "neutral";
-  const isRising = phase === "caballero" || phase === "escalera" || phase === "canon";
+  const isRising = phase === "caballero" || phase === "cuerda" || phase === "canon";
   const favorable = direction === "higher" ? isRising : !isRising;
   if (favorable) return "happy";
   return phase === "canon" || phase === "apunalado" ? "worried" : "sad";
@@ -594,7 +594,7 @@ export function characterPhaseForChange(changePct: number): CharacterPhase {
   if (changePct < -5) return "piedra";
   if (changePct <= 5) return "senor";
   if (changePct <= 15) return "caballero";
-  if (changePct <= 30) return "escalera";
+  if (changePct <= 30) return "cuerda";
   return "canon";
 }
 
@@ -614,7 +614,7 @@ function buildMotionPiece(
     };
   }
 
-  if ((phase === "escalera" || phase === "caballero") && current.y < previous.y - 3) {
+  if ((phase === "cuerda" || phase === "caballero") && current.y < previous.y - 3) {
     const wallX = current.left - 5;
     const ledgeY = current.y + Math.min(11, Math.max(5, (previous.y - current.y) * 0.12));
     const controls = [
