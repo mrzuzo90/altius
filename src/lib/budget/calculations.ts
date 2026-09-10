@@ -3,6 +3,8 @@ import {
   BUDGET_CATEGORY_ORDER,
   type BudgetCategoryId,
   type BudgetCategoryConfig,
+  type HistoricalPricePoint,
+  type HistoricalCagrResult,
 } from "./types";
 
 export type BudgetBreakdownItem = {
@@ -94,7 +96,7 @@ export function calculateCompoundInterest(
   const P = Math.max(0, Number.isFinite(principal) ? principal : 0);
   const PMT = Math.max(0, Number.isFinite(monthlyContribution) ? monthlyContribution : 0);
   const t = Math.max(0, Number.isFinite(years) ? years : 0);
-  const rate = Math.max(0, Number.isFinite(annualRatePct) ? annualRatePct : 0);
+  const rate = Number.isFinite(annualRatePct) ? annualRatePct : 0;
 
   const n = Math.round(t * 12);
   const i = (rate / 100) / 12;
@@ -103,19 +105,21 @@ export function calculateCompoundInterest(
 
   if (n === 0) {
     futureValue = P;
-  } else if (i === 0) {
+  } else if (Math.abs(i) < 1e-9) {
     futureValue = P + PMT * n;
+  } else if (1 + i <= 0) {
+    futureValue = 0;
   } else {
     const compoundFactor = Math.pow(1 + i, n);
     const principalGrowth = P * compoundFactor;
     const contributionsGrowth = PMT * ((compoundFactor - 1) / i);
-    futureValue = principalGrowth + contributionsGrowth;
+    futureValue = Math.max(0, principalGrowth + contributionsGrowth);
   }
 
   const totalContributed = P + PMT * n;
-  const totalInterest = Math.max(0, futureValue - totalContributed);
+  const totalInterest = futureValue - totalContributed;
   const multiplier = totalContributed > 0 ? futureValue / totalContributed : 1;
-  const interestPctOfTotal = futureValue > 0 ? (totalInterest / futureValue) * 100 : 0;
+  const interestPctOfTotal = futureValue > 0 ? (Math.max(0, totalInterest) / futureValue) * 100 : 0;
 
   return {
     futureValue,
@@ -159,4 +163,82 @@ export function generateCompoundInterestYearlySeries(
   }
 
   return series;
+}
+
+/**
+ * Calcula la tasa anualizada de crecimiento compuesto (CAGR) histórica de una acción
+ * para el número de años solicitado mirando hacia atrás en el tiempo.
+ */
+export function calculateHistoricalCagr(
+  points: readonly HistoricalPricePoint[],
+  requestedYears: number,
+  ticker = "",
+  companyName = "",
+): HistoricalCagrResult | null {
+  const valid = (points ?? []).filter(
+    (p) => p && typeof p.date === "string" && Number.isFinite(p.close) && p.close > 0,
+  );
+
+  if (valid.length < 2) return null;
+
+  const sorted = [...valid].sort((a, b) => a.date.localeCompare(b.date));
+  const endPoint = sorted[sorted.length - 1];
+  const endTimestamp = new Date(endPoint.date).getTime();
+
+  const targetYears = Math.max(1, Math.round(Number.isFinite(requestedYears) ? requestedYears : 1));
+  const targetDate = new Date(endPoint.date);
+  targetDate.setUTCFullYear(targetDate.getUTCFullYear() - targetYears);
+  const targetTimestamp = targetDate.getTime();
+
+  const firstTimestamp = new Date(sorted[0].date).getTime();
+  const dayMs = 86_400_000;
+
+  let startPoint = sorted[0];
+  let hasEnoughHistory = true;
+
+  // Si la fecha objetivo queda más de 45 días antes del primer dato disponible,
+  // la cotización no tiene suficiente histórico para el plazo completo.
+  if (targetTimestamp < firstTimestamp - 45 * dayMs) {
+    startPoint = sorted[0];
+    hasEnoughHistory = false;
+  } else {
+    // Buscamos el punto de cotización más próximo a la fecha objetivo
+    let minDiff = Infinity;
+    for (const pt of sorted) {
+      const diff = Math.abs(new Date(pt.date).getTime() - targetTimestamp);
+      if (diff < minDiff) {
+        minDiff = diff;
+        startPoint = pt;
+      }
+    }
+  }
+
+  const startTimestamp = new Date(startPoint.date).getTime();
+  const diffDays = (endTimestamp - startTimestamp) / dayMs;
+  if (diffDays < 7) return null; // Menos de una semana de separación
+
+  const actualYears = Math.max(0.08, diffDays / 365.25);
+  const startPrice = startPoint.close;
+  const endPrice = endPoint.close;
+  const totalReturnPct = ((endPrice - startPrice) / startPrice) * 100;
+
+  let cagrPct = 0;
+  if (startPrice > 0 && endPrice > 0) {
+    const ratio = endPrice / startPrice;
+    cagrPct = (Math.pow(ratio, 1 / actualYears) - 1) * 100;
+  }
+
+  return {
+    ticker: ticker.toUpperCase(),
+    companyName: companyName || ticker.toUpperCase(),
+    startDate: startPoint.date,
+    endDate: endPoint.date,
+    startPrice,
+    endPrice,
+    actualYears: Number(actualYears.toFixed(1)),
+    requestedYears: targetYears,
+    hasEnoughHistory,
+    totalReturnPct: Number(totalReturnPct.toFixed(2)),
+    cagrPct: Number(cagrPct.toFixed(2)),
+  };
 }

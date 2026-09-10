@@ -96,7 +96,27 @@ export type CompoundInterestPresetId =
   | "eurostoxx"
   | "ibex35"
   | "bono_renta_fija"
+  | "company"
   | "custom";
+
+export type HistoricalPricePoint = {
+  date: string;
+  close: number;
+};
+
+export type HistoricalCagrResult = {
+  ticker: string;
+  companyName: string;
+  startDate: string;
+  endDate: string;
+  startPrice: number;
+  endPrice: number;
+  actualYears: number;
+  requestedYears: number;
+  hasEnoughHistory: boolean;
+  totalReturnPct: number;
+  cagrPct: number;
+};
 
 export type CompoundInterestPreset = {
   id: CompoundInterestPresetId;

@@ -3,6 +3,7 @@ import {
   calculateBudgetBreakdown,
   calculateCompoundInterest,
   generateCompoundInterestYearlySeries,
+  calculateHistoricalCagr,
 } from "@/lib/budget/calculations";
 import { BUDGET_CATEGORIES, COMPOUND_INTEREST_PRESETS } from "@/lib/budget/types";
 
@@ -130,6 +131,16 @@ describe("calculateCompoundInterest", () => {
     expect(res.multiplier).toBe(1);
   });
 
+  it("maneja tasas de interés negativas reflejando depreciación del capital", () => {
+    // 1.000 € inicial + 100 €/mes durante 5 años a una tasa anual del -10%
+    const res = calculateCompoundInterest(1000, 100, 5, -10);
+    // Total aportado = 1.000 + 100 * 60 = 7.000 €
+    expect(res.totalContributed).toBe(7000);
+    expect(res.futureValue).toBeLessThan(res.totalContributed);
+    expect(res.totalInterest).toBeLessThan(0); // Pérdida de capital
+    expect(res.multiplier).toBeLessThan(1);
+  });
+
   it("genera la serie anual completa para el gráfico", () => {
     const series = generateCompoundInterestYearlySeries(1000, 200, 5, 8);
     expect(series).toHaveLength(6); // Año 0 (Inicio) hasta Año 5
@@ -138,5 +149,68 @@ describe("calculateCompoundInterest", () => {
     expect(series[0].totalAccumulated).toBe(1000);
     expect(series[5].year).toBe(5);
     expect(series[5].totalAccumulated).toBeGreaterThan(series[5].totalContributed);
+  });
+});
+
+describe("calculateHistoricalCagr", () => {
+  it("calcula el CAGR exacto a 10 años cuando existe histórico suficiente", () => {
+    // Simulación: Apple pasando de 25$ a 100$ en 10 años exactos
+    const points = [
+      { date: "2016-01-01", close: 25 },
+      { date: "2018-06-01", close: 45 },
+      { date: "2021-01-01", close: 70 },
+      { date: "2026-01-01", close: 100 },
+    ];
+
+    const cagr = calculateHistoricalCagr(points, 10, "AAPL", "Apple Inc.");
+    expect(cagr).not.toBeNull();
+    expect(cagr?.ticker).toBe("AAPL");
+    expect(cagr?.companyName).toBe("Apple Inc.");
+    expect(cagr?.hasEnoughHistory).toBe(true);
+    expect(cagr?.startDate).toBe("2016-01-01");
+    expect(cagr?.endDate).toBe("2026-01-01");
+    expect(cagr?.startPrice).toBe(25);
+    expect(cagr?.endPrice).toBe(100);
+    expect(cagr?.totalReturnPct).toBe(300);
+    // (100/25)^(1/10) - 1 = 4^0.1 - 1 = 14.87%
+    expect(cagr?.cagrPct).toBeCloseTo(14.87, 1);
+  });
+
+  it("calcula el CAGR sobre el histórico disponible si la empresa cotiza desde hace menos tiempo que los años solicitados", () => {
+    // Usuario solicita 10 años, pero la empresa cotiza desde 2021 (5 años)
+    const points = [
+      { date: "2021-01-01", close: 50 },
+      { date: "2023-01-01", close: 75 },
+      { date: "2026-01-01", close: 100 },
+    ];
+
+    const cagr = calculateHistoricalCagr(points, 10, "UBER", "Uber Technologies");
+    expect(cagr).not.toBeNull();
+    expect(cagr?.hasEnoughHistory).toBe(false);
+    expect(cagr?.requestedYears).toBe(10);
+    expect(cagr?.actualYears).toBeCloseTo(5, 0);
+    expect(cagr?.startDate).toBe("2021-01-01");
+    expect(cagr?.totalReturnPct).toBe(100);
+    // (100/50)^(1/5) - 1 = 2^0.2 - 1 = 14.87%
+    expect(cagr?.cagrPct).toBeCloseTo(14.87, 1);
+  });
+
+  it("gestiona rentabilidades históricas negativas (depreciación de la acción)", () => {
+    // Acción que cae de 100$ a 50$ en 5 años (-50% total)
+    const points = [
+      { date: "2021-01-01", close: 100 },
+      { date: "2026-01-01", close: 50 },
+    ];
+
+    const cagr = calculateHistoricalCagr(points, 5, "FALL", "Falling Stock");
+    expect(cagr).not.toBeNull();
+    expect(cagr?.totalReturnPct).toBe(-50);
+    // (50/100)^(1/5) - 1 = 0.5^0.2 - 1 = -12.94%
+    expect(cagr?.cagrPct).toBeCloseTo(-12.94, 1);
+  });
+
+  it("maneja series vacías o con datos insuficientes devolviendo null", () => {
+    expect(calculateHistoricalCagr([], 10)).toBeNull();
+    expect(calculateHistoricalCagr([{ date: "2026-01-01", close: 100 }], 10)).toBeNull();
   });
 });
