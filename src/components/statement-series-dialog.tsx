@@ -357,7 +357,8 @@ export function StatementSeriesDialog({
 
           <div className="text-muted-steel flex items-center justify-between px-2 pt-2 text-[11px]">
             <div className="flex items-center gap-4">
-              <Legend color="#98a4f7" label="Reportado" />
+              <Legend color="#98a4f7" label="Castillo (positivo)" />
+              <Legend color="#1d4ed8" label="Foso (negativo)" />
               <Legend color="#5b63d3" label="Calculado" />
             </div>
             <span>Los periodos sin cifra no se convierten en cero.</span>
@@ -376,12 +377,146 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
   const w = props.width;
   const h = height;
   const bottom = y + h;
+  const isNegative = (point.value ?? 0) < 0;
 
   // Altura mínima garantizada para que las barras pequeñas (ej: primeros años de NVIDIA)
-  // nunca se vean como simples líneas, sino siempre como castillos en miniatura.
+  // nunca se vean como simples líneas, sino con volumen distinguible.
   const visualH = Math.max(16, h);
   const towerY = bottom - visualH;
+  const isDerived = Boolean(point.derived);
 
+  // 1. Caso Negativo (< 0): Foso medieval excavado hacia abajo desde la línea de tierra
+  if (isNegative) {
+    const moatTop = y;
+    const moatBottom = y + visualH;
+    const inset = Math.min(3.5, w * 0.1);
+    const waterH = Math.min(visualH * 0.5, Math.max(7, visualH * 0.32));
+    const waterY = moatBottom - waterH;
+    const rimW = Math.min(6, Math.max(2.5, w * 0.2));
+
+    const moatGeometry: StatementBarGeometry = {
+      index: props.index,
+      key: point.key,
+      value: point.value,
+      x: props.x,
+      y: moatTop,
+      width: props.width,
+      height: visualH,
+    };
+
+    // Paleta Opción 1: Piedra oscura de foso y agua profunda
+    const rockBaseColor = isDerived ? "#1e1e38" : "#131722";
+    const rockWallStroke = isDerived ? "#3730a3" : "#1e293b";
+    const waterFill = isDerived ? "#1e1b4b" : "#0f2347";
+    const waterHighlight = isDerived ? "#818cf8" : "#38bdf8";
+
+    // Foso con talud inclinado hacia el fondo
+    const moatPath = `M ${props.x} ${moatTop}`
+      + ` L ${props.x + inset} ${moatBottom}`
+      + ` L ${props.x + w - inset} ${moatBottom}`
+      + ` L ${props.x + w} ${moatTop} Z`;
+
+    const waterPath = `M ${props.x + inset * (1 - waterH / visualH)} ${waterY}`
+      + ` L ${props.x + inset} ${moatBottom}`
+      + ` L ${props.x + w - inset} ${moatBottom}`
+      + ` L ${props.x + w - inset * (1 - waterH / visualH)} ${waterY} Z`;
+
+    return (
+      <g
+        ref={(node) => {
+          if (node) props.onGeometry(moatGeometry);
+        }}
+        data-statement-bar-index={props.index}
+        data-statement-bar-key={point.key}
+        data-statement-bar-value={point.value}
+        className="cursor-pointer transition-opacity hover:opacity-90"
+      >
+        {/* Cuerpo excavado del foso (roca y fondo de fosa) */}
+        <path d={moatPath} fill={rockBaseColor} />
+
+        {/* Masa de agua profunda en el fondo del foso */}
+        <path d={waterPath} fill={waterFill} />
+
+        {/* Superficie del agua del foso con destello */}
+        <line
+          x1={props.x + inset * (1 - waterH / visualH)}
+          y1={waterY}
+          x2={props.x + w - inset * (1 - waterH / visualH)}
+          y2={waterY}
+          stroke={waterHighlight}
+          strokeWidth={1.5}
+          strokeOpacity={0.85}
+        />
+
+        {/* Ondas sutiles de agua en el foso */}
+        {waterH >= 10 && (
+          <line
+            x1={props.x + inset + 2}
+            y1={waterY + waterH * 0.45}
+            x2={props.x + w - inset - 2}
+            y2={waterY + waterH * 0.45}
+            stroke={waterHighlight}
+            strokeWidth={1}
+            strokeDasharray="3 3"
+            strokeOpacity={0.4}
+          />
+        )}
+
+        {/* Muros laterales de piedra / talud del foso */}
+        <line
+          x1={props.x}
+          y1={moatTop}
+          x2={props.x + inset}
+          y2={moatBottom}
+          stroke={rockWallStroke}
+          strokeWidth={1.5}
+        />
+        <line
+          x1={props.x + w}
+          y1={moatTop}
+          x2={props.x + w - inset}
+          y2={moatBottom}
+          stroke={rockWallStroke}
+          strokeWidth={1.5}
+        />
+
+        {/* Bisel sombreado en la pared izquierda */}
+        <line
+          x1={props.x + 0.5}
+          y1={moatTop}
+          x2={props.x + inset + 0.5}
+          y2={moatBottom}
+          stroke="#0b0f19"
+          strokeWidth={1.2}
+          strokeOpacity={0.9}
+        />
+
+        {/* Brocales de piedra de cantería en el borde de tierra (nivel cero) */}
+        <rect
+          x={props.x - 1}
+          y={moatTop - 1.5}
+          width={rimW}
+          height={2.5}
+          fill="#475569"
+          stroke="#334155"
+          strokeWidth={0.5}
+          rx={0.5}
+        />
+        <rect
+          x={props.x + w - rimW + 1}
+          y={moatTop - 1.5}
+          width={rimW}
+          height={2.5}
+          fill="#475569"
+          stroke="#334155"
+          strokeWidth={0.5}
+          rx={0.5}
+        />
+      </g>
+    );
+  }
+
+  // 2. Caso Positivo (>= 0): Torre de castillo medieval con almenas
   const geometry = {
     index: props.index,
     key: point.key,
@@ -392,7 +527,6 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
     height: visualH,
   };
 
-  const isDerived = Boolean(point.derived);
   const baseColor = isDerived ? "#5b63d3" : "#98a4f7";
   const darkColor = isDerived ? "#3e4491" : "#6c7bd9";
   const highlightColor = isDerived ? "#7a82f0" : "#b5c0ff";

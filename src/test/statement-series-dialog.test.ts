@@ -53,6 +53,16 @@ describe("buildStatementChartData", () => {
     expect(negative.height).toBeCloseTo(220.15);
     expect(normalizeStatementBarRect(58, 120)).toEqual({ y: 58, height: 120 });
   });
+
+  it("calcula correctamente el rango geométrico para barras negativas (foso medieval)", () => {
+    // Cuando Recharts genera una barra negativa con baseline y = 200 y altura invertida -75:
+    const normalized = normalizeStatementBarRect(200, -75);
+    expect(normalized.y).toBeCloseTo(125);
+    expect(normalized.height).toBeCloseTo(75);
+    // Visualmente el foso desciende desde el baseline (moatTop = y) hasta el fondo (moatBottom = y + height)
+    const visualH = Math.max(16, normalized.height);
+    expect(visualH).toBe(75);
+  });
 });
 
 describe("semántica financiera de Cid", () => {
