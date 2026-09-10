@@ -167,7 +167,7 @@ function evaluateGrowth(
           : status === "fail"
             ? `${historyLabel(depth)}: una de las dos series retrocede; ingresos y beneficio por acción no avanzan juntos.`
             : `${historyLabel(depth)}: ambas series se mantienen o crecen, pero alguna todavía no alcanza el 5 % anual.`
-        : `${historyLabel(depth)}: solo hay una de las dos series comparables; Alti no da el crecimiento por completo.`
+        : `${historyLabel(depth)}: solo hay una de las dos series comparables; Cid no da el crecimiento por completo.`
       : `No hay al menos dos ejercicios comparables de ${isFinancial ? "ingresos o beneficio" : "ingresos y beneficio"}.`,
     whyItMatters: "El valor sostenible nace de vender más y convertir ese avance en más beneficio por acción.",
   };

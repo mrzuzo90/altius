@@ -55,7 +55,7 @@ describe("buildStatementChartData", () => {
   });
 });
 
-describe("semántica financiera de Alti", () => {
+describe("semántica financiera de Cid", () => {
   it("define una lectura explícita para todas las partidas visibles", () => {
     const lines = [...INCOME_STATEMENT, ...BALANCE_SHEET, ...CASH_FLOW, ...RATIOS_STATEMENT];
     expect(lines.filter((line) => METRIC_SEMANTICS[line.id] === undefined).map((line) => line.id)).toEqual([]);
@@ -71,12 +71,12 @@ describe("semántica financiera de Alti", () => {
   });
 
   it("mantiene el movimiento físico pero cambia la expresión según el significado económico", () => {
-    expect(characterMoodForPhase("climb", "higher")).toBe("happy");
-    expect(characterMoodForPhase("climb", "lower")).toBe("sad");
-    expect(characterMoodForPhase("rocket", "lower")).toBe("worried");
-    expect(characterMoodForPhase("snowboard", "lower")).toBe("happy");
-    expect(characterMoodForPhase("parachute", "higher")).toBe("worried");
-    expect(characterMoodForPhase("climb", "contextual")).toBe("neutral");
+    expect(characterMoodForPhase("caballero", "higher")).toBe("happy");
+    expect(characterMoodForPhase("caballero", "lower")).toBe("sad");
+    expect(characterMoodForPhase("canon", "lower")).toBe("worried");
+    expect(characterMoodForPhase("piedra", "lower")).toBe("happy");
+    expect(characterMoodForPhase("apunalado", "higher")).toBe("worried");
+    expect(characterMoodForPhase("caballero", "contextual")).toBe("neutral");
   });
 });
 
@@ -208,10 +208,10 @@ describe("buildInteractiveMotionPlan", () => {
     { index: 2, key: "FY2024", x: 180, y: 92, width: 30, height: 178, value: 260 },
   ];
 
-  it("usa al anciano con +2 % y el cohete cuando el salto supera el 50 %", () => {
+  it("usa a Cid señor con +2 % y Cid cañon cuando el salto supera el 50 %", () => {
     const plan = buildInteractiveMotionPlan(bars);
 
-    expect(plan.phases).toEqual(["elderly", "rocket"]);
+    expect(plan.phases).toEqual(["senor", "canon"]);
     expect(plan.changesPct[0]).toBeCloseTo(2);
     expect(plan.changesPct[1]).toBeGreaterThan(150);
     expect(plan.path).toMatch(/^M 85 230/);
@@ -219,7 +219,7 @@ describe("buildInteractiveMotionPlan", () => {
     expect(plan.path).toMatch(/195 92$/);
   });
 
-  it("usa el snowboard en una caída fuerte que no supera el 30 %", () => {
+  it("usa Cid flecha en una caída fuerte que no supera el 30 %", () => {
     const descent: StatementBarGeometry[] = [
       { index: 0, key: "FY2023", x: 70, y: 80, width: 30, height: 190, value: 100 },
       { index: 1, key: "FY2024", x: 125, y: 172, width: 30, height: 98, value: 80 },
@@ -227,41 +227,42 @@ describe("buildInteractiveMotionPlan", () => {
     ];
     const plan = buildInteractiveMotionPlan(descent);
 
-    expect(plan.phases).toEqual(["snowboard", "elderly"]);
+    expect(plan.phases).toEqual(["flecha", "senor"]);
     expect(plan.changesPct[0]).toBeCloseTo(-20);
     expect(plan.path).toContain("Q");
     expect(plan.path).toMatch(/195 180$/);
   });
 
-  it("aplica los umbrales de paseo, peldaños, piolet, cohete, snowboard y paracaídas", () => {
+  it("aplica los umbrales de los 7 personajes de Cid", () => {
     const transition = (currentValue: number) => buildInteractiveMotionPlan([
       { index: 0, key: "FY2024", x: 70, y: 170, width: 30, height: 100, value: 100 },
       { index: 1, key: "FY2025", x: 125, y: currentValue >= 100 ? 120 : 200, width: 30, height: 150, value: currentValue },
     ]).phases[0];
 
-    expect(transition(102)).toBe("elderly");
-    expect(transition(105)).toBe("elderly");
-    expect(transition(106)).toBe("stairs");
-    expect(transition(114)).toBe("stairs");
-    expect(transition(115)).toBe("climb");
-    expect(transition(130)).toBe("climb");
-    expect(transition(131)).toBe("rocket");
-    expect(transition(95)).toBe("elderly");
-    expect(transition(70)).toBe("snowboard");
-    expect(transition(69)).toBe("parachute");
+    expect(transition(102)).toBe("senor");
+    expect(transition(105)).toBe("senor");
+    expect(transition(106)).toBe("caballero");
+    expect(transition(115)).toBe("caballero");
+    expect(transition(116)).toBe("escalera");
+    expect(transition(130)).toBe("escalera");
+    expect(transition(131)).toBe("canon");
+    expect(transition(95)).toBe("senor");
+    expect(transition(90)).toBe("piedra");
+    expect(transition(80)).toBe("flecha");
+    expect(transition(69)).toBe("apunalado");
   });
 
-  it("reserva el paracaídas a cada tramo individual que pierde más de la mitad", () => {
+  it("reserva el apuñalado a cada tramo individual que pierde más del 30 %", () => {
     const descent: StatementBarGeometry[] = [
       { index: 0, key: "FY2022", x: 70, y: 70, width: 30, height: 200, value: 100 },
       { index: 1, key: "FY2023", x: 125, y: 185, width: 30, height: 85, value: 40 },
       { index: 2, key: "FY2024", x: 180, y: 205, width: 30, height: 65, value: 30 },
     ];
 
-    expect(buildInteractiveMotionPlan(descent).phases).toEqual(["parachute", "snowboard"]);
+    expect(buildInteractiveMotionPlan(descent).phases).toEqual(["apunalado", "flecha"]);
   });
 
-  it("mantiene un tramo largo como anciano y conserva la escalada mientras el crecimiento continúa", () => {
+  it("mantiene un tramo largo como señor y conserva la escalada mientras el crecimiento continúa", () => {
     const values = [100, 102, 101, 103, 102, 125, 138, 152];
     const geometry = values.map((value, index): StatementBarGeometry => ({
       index,
@@ -274,21 +275,21 @@ describe("buildInteractiveMotionPlan", () => {
     }));
 
     expect(buildInteractiveMotionPlan(geometry).phases).toEqual([
-      "elderly", "elderly", "elderly", "elderly", "climb", "stairs", "stairs",
+      "senor", "senor", "senor", "senor", "escalera", "caballero", "caballero",
     ]);
   });
 
   it("funde las poses durante unas décimas en lugar de sustituir el personaje de golpe", () => {
     const timeline = buildPhaseOpacityTimeline({
-      phases: ["elderly", "climb", "parachute"],
+      phases: ["senor", "escalera", "apunalado"],
       keyTimes: [0, 0.4, 0.7, 1],
     }, 10);
 
     expect(timeline.keyTimes).toHaveLength(6);
     expect((timeline.keyTimes[2] - timeline.keyTimes[1]) * 10).toBeCloseTo(0.76);
-    expect(timeline.values.elderly.slice(0, 3)).toEqual([1, 1, 0]);
-    expect(timeline.values.climb.slice(0, 4)).toEqual([0, 0, 1, 1]);
-    expect(timeline.values.parachute.at(-1)).toBe(1);
+    expect(timeline.values.senor.slice(0, 3)).toEqual([1, 1, 0]);
+    expect(timeline.values.escalera.slice(0, 4)).toEqual([0, 0, 1, 1]);
+    expect(timeline.values.apunalado.at(-1)).toBe(1);
   });
 });
 
@@ -317,7 +318,7 @@ describe("buildPriceMotionPlan", () => {
 
     const plan = buildPriceMotionPlan(geometry);
 
-    expect(plan.phases).toEqual(["elderly", "stairs", "climb", "rocket", "parachute", "snowboard"]);
+    expect(plan.phases).toEqual(["senor", "caballero", "escalera", "canon", "apunalado", "piedra"]);
     expect(plan.path).toMatch(/^M 70 210/);
     expect(plan.path).toContain(" C ");
     expect(plan.path).toMatch(/490 245$/);
@@ -344,59 +345,73 @@ function chartPoints(values: number[]): ChartPoint[] {
 }
 
 describe("calculateOverallAnnualTrend", () => {
-  it("asigna Alti en escalera y 'Ha subido' a un ritmo anualizado del 10 %", () => {
+  it("asigna Cid caballero a un crecimiento moderado del 10 %", () => {
     // 100 * (1.10)^2 = 121 en 2 años
     const trend = calculateOverallAnnualTrend(chartPoints([100, 110, 121]));
 
     expect(trend.status).toBe("up");
     expect(trend.statusText).toBe("Ha subido");
-    expect(trend.phase).toBe("stairs");
-    expect(trend.mascot.src).toBe("/alti/stairs.svg");
-    expect(trend.patternName).toBe("Alti en escalera");
+    expect(trend.phase).toBe("caballero");
+    expect(trend.mascot.src).toBe("/cid/caballero.svg");
+    expect(trend.patternName).toBe("Cid caballero");
     expect(trend.headline).toContain("Ha subido");
     expect(trend.annualizedRatePct).toBeCloseTo(10, 0);
   });
 
-  it("asigna Alti escalando (piolet) a un crecimiento fuerte del 20 %", () => {
+  it("asigna Cid escalera a un crecimiento fuerte del 20 % (+15% a +30%)", () => {
     const trend = calculateOverallAnnualTrend(chartPoints([100, 120, 144])); // 20% anual en 2 años (100 a 144)
     expect(trend.status).toBe("up");
-    expect(trend.phase).toBe("climb");
-    expect(trend.mascot.src).toBe("/alti/climb.svg");
-    expect(trend.patternName).toContain("escalando");
+    expect(trend.phase).toBe("escalera");
+    expect(trend.mascot.src).toBe("/cid/escalera.svg");
+    expect(trend.patternName).toBe("Cid escalera");
   });
 
-  it("asigna Alti en cohete a una subida explosiva mayor al 30 %", () => {
+  it("asigna Cid cañon a una subida explosiva mayor al 30 %", () => {
     const trend = calculateOverallAnnualTrend(chartPoints([100, 180])); // +80% anual en 1 año
     expect(trend.status).toBe("up");
-    expect(trend.phase).toBe("rocket");
-    expect(trend.mascot.src).toBe("/alti/rocket.svg");
+    expect(trend.phase).toBe("canon");
+    expect(trend.mascot.src).toBe("/cid/canon.svg");
+    expect(trend.patternName).toBe("Cid cañon");
     expect(trend.headline).toContain("Ha subido");
   });
 
-  it("asigna Alti de paseo a una trayectoria plana (-5 % a +5 %)", () => {
+  it("asigna Cid señor a una trayectoria plana (-5 % a +5 %)", () => {
     const trend = calculateOverallAnnualTrend(chartPoints([100, 102, 101, 103]));
     expect(trend.status).toBe("flat");
     expect(trend.statusText).toBe("Sin variación significativa");
-    expect(trend.phase).toBe("elderly");
-    expect(trend.mascot.src).toBe("/alti/flat.svg");
+    expect(trend.phase).toBe("senor");
+    expect(trend.mascot.src).toBe("/cid/senor.svg");
+    expect(trend.patternName).toBe("Cid señor");
     expect(trend.headline).toContain("Estable");
   });
 
-  it("asigna Alti en snowboard a una caída moderada del -15 %", () => {
-    const trend = calculateOverallAnnualTrend(chartPoints([100, 85]));
+  it("asigna Cid piedra a una caída moderada del -10 % (-5 % a -15 %)", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 90]));
     expect(trend.status).toBe("down");
     expect(trend.statusText).toBe("Ha bajado");
-    expect(trend.phase).toBe("snowboard");
-    expect(trend.mascot.src).toBe("/alti/snowboard.svg");
+    expect(trend.phase).toBe("piedra");
+    expect(trend.mascot.src).toBe("/cid/piedra.svg");
+    expect(trend.patternName).toBe("Cid piedra");
     expect(trend.headline).toContain("Ha bajado");
   });
 
-  it("asigna Alti en paracaídas a una caída extrema de más del -30 %", () => {
+  it("asigna Cid flecha a una caída grande del -20 % (-15 % a -30 %)", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 80]));
+    expect(trend.status).toBe("down");
+    expect(trend.statusText).toBe("Ha bajado");
+    expect(trend.phase).toBe("flecha");
+    expect(trend.mascot.src).toBe("/cid/flecha.svg");
+    expect(trend.patternName).toBe("Cid flecha");
+    expect(trend.headline).toContain("Ha bajado");
+  });
+
+  it("asigna Cid apuñalado a un desplome de más del -30 %", () => {
     const trend = calculateOverallAnnualTrend(chartPoints([100, 50]));
     expect(trend.status).toBe("down");
     expect(trend.statusText).toBe("Ha bajado");
-    expect(trend.phase).toBe("parachute");
-    expect(trend.mascot.src).toBe("/alti/parachute.svg");
+    expect(trend.phase).toBe("apunalado");
+    expect(trend.mascot.src).toBe("/cid/apunalado.svg");
+    expect(trend.patternName).toBe("Cid apuñalado");
     expect(trend.headline).toContain("Ha bajado");
   });
 
@@ -404,6 +419,8 @@ describe("calculateOverallAnnualTrend", () => {
     const empty = calculateOverallAnnualTrend([]);
     expect(empty.status).toBe("insufficient");
     expect(empty.annualizedRatePct).toBeNull();
+    expect(empty.phase).toBe("senor");
+    expect(empty.patternName).toBe("Cid señor");
 
     const single = calculateOverallAnnualTrend(chartPoints([100]));
     expect(single.status).toBe("insufficient");

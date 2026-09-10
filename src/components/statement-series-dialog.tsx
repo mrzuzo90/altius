@@ -6,7 +6,7 @@ import { PersonStanding } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MetricDirectionNotice } from "@/components/metric-direction";
 import {
-  ALTI_MASCOTS,
+  CID_MASCOTS,
   annualizedChange,
   characterPhaseForChange,
   elapsedYears,
@@ -47,8 +47,8 @@ export type OverallAnnualTrend = {
 
 export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): OverallAnnualTrend {
   if (data.length < 2) {
-    const phase: CharacterPhase = "walk";
-    const mascot = ALTI_MASCOTS.walk;
+    const phase: CharacterPhase = "senor";
+    const mascot = CID_MASCOTS.senor;
     return {
       annualizedRatePct: null,
       phase,
@@ -56,8 +56,8 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
       status: "insufficient",
       statusText: "Datos insuficientes",
       headline: "Aún no hay suficiente histórico",
-      patternName: "Alti de paseo",
-      patternDescription: "Se necesitan al menos dos periodos comparables para clasificar el patrón general de Alti.",
+      patternName: "Cid señor",
+      patternDescription: "Se necesitan al menos dos periodos comparables para clasificar el patrón general de Cid.",
       periodSpanText: data.length === 1 ? `Solo 1 periodo registrado (${data[0].label})` : "Sin datos registrados",
       firstLabel: data[0]?.label ?? "—",
       lastLabel: data.at(-1)?.label ?? "—",
@@ -87,7 +87,7 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
 
   const rateVal = rate ?? 0;
   const phase = characterPhaseForChange(rateVal);
-  const mascot = ALTI_MASCOTS[phase] ?? ALTI_MASCOTS.walk;
+  const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
 
   let status: "up" | "down" | "flat" = "flat";
   let statusText = "Sin variación significativa";
@@ -103,24 +103,27 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
     headline = `Ha bajado un ${rateVal.toFixed(1)}% anualizado`;
   }
 
-  let patternName = "Alti de paseo";
-  let patternDescription = "Variación plana entre el -5% y +5% anualizado: avanza a paso tranquilo sin grandes pendientes.";
+  let patternName = "Cid señor";
+  let patternDescription = "Estancado o plano (-5% a +5%)";
 
-  if (phase === "rocket") {
-    patternName = "Alti en cohete";
-    patternDescription = "Subida explosiva superior al 30% anualizado: crecimiento vertiginoso sobre su cohete.";
-  } else if (phase === "climb") {
-    patternName = "Alti escalando (piolet)";
-    patternDescription = "Crecimiento fuerte del 15% al 30% anualizado: ascensión constante y vigorosa con piolet.";
-  } else if (phase === "stairs") {
-    patternName = "Alti en escalera";
-    patternDescription = "Crecimiento constante del 5% al 15% anualizado: sube peldaño a peldaño siguiendo el ritmo de la empresa.";
-  } else if (phase === "snowboard") {
-    patternName = "Alti en snowboard";
-    patternDescription = "Descenso moderado de entre el -5% y -30% anualizado: desciende la pendiente sobre su tabla de snowboard.";
-  } else if (phase === "parachute") {
-    patternName = "Alti en paracaídas";
-    patternDescription = "Caída extrema de más del -30% anualizado: descenso de emergencia con paracaídas desplegado.";
+  if (phase === "canon") {
+    patternName = "Cid cañon";
+    patternDescription = "Subida explosiva (+30%)";
+  } else if (phase === "escalera") {
+    patternName = "Cid escalera";
+    patternDescription = "Crecimiento fuerte (+15% a +30%)";
+  } else if (phase === "caballero") {
+    patternName = "Cid caballero";
+    patternDescription = "Crecimiento moderado (+5% a +15%)";
+  } else if (phase === "piedra") {
+    patternName = "Cid piedra";
+    patternDescription = "Caída moderada (-5% a -15%)";
+  } else if (phase === "flecha") {
+    patternName = "Cid flecha";
+    patternDescription = "Caída grande (-15% a -30%)";
+  } else if (phase === "apunalado") {
+    patternName = "Cid apuñalado";
+    patternDescription = "Desplome (<-30%)";
   }
 
   const periodSpanText = `Calculado sobre todos los datos registrados: ${first.label} a ${last.label} (${data.length} periodos).`;
@@ -181,7 +184,7 @@ export function StatementSeriesDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [showAlti, setShowAlti] = useState(true);
+  const [showCid, setShowCid] = useState(true);
   const [measuredChart, setMeasuredChart] = useState<{
     signature: string;
     geometry: StatementChartGeometry;
@@ -249,18 +252,18 @@ export function StatementSeriesDialog({
 
           <button
             type="button"
-            aria-pressed={showAlti}
-            aria-label={`${showAlti ? "Ocultar" : "Mostrar"} a Alti en el gráfico de ${row.line.label}`}
-            onClick={() => setShowAlti((visible) => !visible)}
+            aria-pressed={showCid}
+            aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en el gráfico de ${row.line.label}`}
+            onClick={() => setShowCid((visible) => !visible)}
             className={cn(
               "font-display inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ml-4",
-              showAlti
+              showCid
                 ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
                 : "border-gunmetal bg-carbon-surface text-muted-steel hover:text-frost",
             )}
           >
             <PersonStanding className="size-3.5" />
-            <span>Alti · {showAlti ? "activo" : "oculto"}</span>
+            <span>Cid · {showCid ? "activo" : "oculto"}</span>
           </button>
         </DialogHeader>
 
@@ -269,33 +272,28 @@ export function StatementSeriesDialog({
           <Metric label="Variación interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
           <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
             <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">
-              Patrón general
+              Rendimiento anualizado
             </p>
-            <div className="flex items-center gap-2.5 mt-0.5">
+            <div className="flex items-center gap-3 my-auto py-0.5">
               <img
                 src={overallTrend.mascot.src}
-                alt=""
-                className="size-7 object-contain shrink-0 filter drop-shadow-[0_1px_4px_rgba(152,164,247,0.3)]"
+                alt={overallTrend.patternName}
+                className="size-14 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
               />
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "tabular font-display text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight",
-                    overallTrend.status === "up"
-                      ? "text-emerald-400"
-                      : overallTrend.status === "down"
-                      ? "text-rose-400"
-                      : "text-pure-white",
-                  )}
-                >
-                  {overallTrend.annualizedRatePct !== null
-                    ? `${overallTrend.annualizedRatePct > 0 ? "+" : ""}${overallTrend.annualizedRatePct.toFixed(1)}%`
-                    : "—"}
-                </p>
-                <p className="text-muted-steel text-[11px] leading-none mt-0.5 truncate">
-                  anualizado · {overallTrend.statusText}
-                </p>
-              </div>
+              <p
+                className={cn(
+                  "tabular font-display text-[22px] sm:text-[24px] font-bold leading-none tracking-tight",
+                  overallTrend.status === "up"
+                    ? "text-emerald-400"
+                    : overallTrend.status === "down"
+                    ? "text-rose-400"
+                    : "text-pure-white",
+                )}
+              >
+                {overallTrend.annualizedRatePct !== null
+                  ? `${overallTrend.annualizedRatePct > 0 ? "+" : ""}${overallTrend.annualizedRatePct.toFixed(1)}%`
+                  : "—"}
+              </p>
             </div>
           </div>
           <Metric label="Cobertura" value={`${data.length} periodos`} detail={data.length > 1 ? `${data[0].label} — ${data.at(-1)!.label}` : data[0]?.label ?? "Sin datos"} />
@@ -304,7 +302,7 @@ export function StatementSeriesDialog({
         <MetricDirectionNotice semantics={semantics} />
 
         <div className="px-5 pt-2 pb-3">
-          <div ref={chartRef} className="relative h-[290px] w-full" role="group" aria-label={`Gráfico de barras de ${row.line.label}${showAlti ? " con personaje animado" : ""}`}>
+          <div ref={chartRef} className="relative h-[290px] w-full" role="group" aria-label={`Gráfico de barras de ${row.line.label}${showCid ? " con personaje animado" : ""}`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 80, right: 8, bottom: 4, left: 4 }}>
                 <CartesianGrid vertical={false} stroke="#1f2433" strokeDasharray="3 4" />
@@ -347,7 +345,7 @@ export function StatementSeriesDialog({
                 />
               </BarChart>
             </ResponsiveContainer>
-            {showAlti && (
+            {showCid && (
               <StatementTrendAnimation
                 data={data}
                 label={row.line.label}
@@ -514,10 +512,12 @@ function sameGeometry(current: StatementChartGeometry | null, next: StatementCha
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="bg-carbon-surface px-6 py-4">
-      <p className="text-muted-steel text-[11px] font-medium uppercase tracking-[0.12em]">{label}</p>
-      <p className="tabular font-display text-pure-white mt-1 text-[20px] tracking-tight">{value}</p>
-      <p className="text-muted-steel mt-0.5 text-[12px]">{detail}</p>
+    <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
+      <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">{label}</p>
+      <div className="my-auto py-0.5">
+        <p className="tabular font-display text-pure-white text-[20px] sm:text-[22px] font-semibold tracking-tight leading-tight">{value}</p>
+        <p className="text-muted-steel mt-0.5 text-[11px] leading-tight truncate">{detail}</p>
+      </div>
     </div>
   );
 }

@@ -54,7 +54,7 @@ export function PriceChart({
   const [range, setRange] = useState<PriceRangeId>("5y");
   const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
   const [to, setTo] = useState(lastAvailable);
-  const [showAlti, setShowAlti] = useState(true);
+  const [showCid, setShowCid] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   const [measuredChart, setMeasuredChart] = useState<{
     signature: string;
@@ -145,18 +145,18 @@ export function PriceChart({
               </span>
               <button
                 type="button"
-                aria-pressed={showAlti}
-                aria-label={`${showAlti ? "Ocultar" : "Mostrar"} a Alti en la cotización`}
-                onClick={() => setShowAlti((visible) => !visible)}
+                aria-pressed={showCid}
+                aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
+                onClick={() => setShowCid((visible) => !visible)}
                 className={cn(
                   "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
-                  showAlti
+                  showCid
                     ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
                     : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
                 )}
               >
                 <PersonStanding className="size-3.5" />
-                Alti · {showAlti ? "activo" : "oculto"}
+                Cid · {showCid ? "activo" : "oculto"}
               </button>
             </>
           )}
@@ -245,7 +245,7 @@ export function PriceChart({
               />
             </AreaChart>
           </ResponsiveContainer>
-          {range === "10y" && showAlti && (
+          {range === "10y" && showCid && (
             <PriceTrendAnimation
               label={ticker}
               geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}

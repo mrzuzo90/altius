@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AdaptiveCharacter,
   StaticAdaptiveCharacter,
-  classifyAltiProfile,
+  classifyCidProfile,
   characterPhaseForChange,
   type BusinessProfile,
   type CharacterMotionPlan,
@@ -37,7 +37,7 @@ export function analyzeTenYearPriceProfile(points: readonly PricePoint[]): Busin
   const ordered = [...points]
     .filter((point) => Number.isFinite(point.close) && Number.isFinite(Date.parse(point.date)))
     .sort((a, b) => a.date.localeCompare(b.date));
-  if (ordered.length < 2) return classifyAltiProfile([]);
+  if (ordered.length < 2) return classifyCidProfile([]);
 
   const yearEnds: PricePoint[] = [];
   ordered.forEach((point, index) => {
@@ -49,7 +49,7 @@ export function analyzeTenYearPriceProfile(points: readonly PricePoint[]): Busin
     return previous === 0 ? [] : [((point.close - previous) / Math.abs(previous)) * 100];
   });
 
-  return classifyAltiProfile(changes);
+  return classifyCidProfile(changes);
 }
 
 export function buildThreeMonthTrendPoints(
@@ -114,7 +114,7 @@ export function buildPriceMotionPlan(geometry: readonly PricePointGeometry[]): C
 
   const changesPct = points.slice(1).map((point) => point.changePct);
   const rawPhases = changesPct.map((change) => (
-    change === null ? "elderly" : characterPhaseForChange(change)
+    change === null ? "senor" : characterPhaseForChange(change)
   ));
   const phases = stabilizePricePhases(rawPhases, minimumPhaseRun(points));
   const path = buildSmoothPath(points);
@@ -163,7 +163,7 @@ export function PriceTrendAnimation({
     <div
       className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
       role="img"
-      aria-label={`Alti recorre la tendencia móvil de tres meses de ${label} durante los últimos diez años`}
+      aria-label={`Cid recorre la tendencia móvil de tres meses de ${label} durante los últimos diez años`}
     >
       <svg
         ref={animationRootRef}
@@ -190,7 +190,7 @@ export function PriceTrendAnimation({
             {!reducedMotion ? (
               <AdaptiveCharacter plan={plan} duration={duration} />
             ) : (
-              <StaticAdaptiveCharacter phase={plan.phases.at(-1) ?? "elderly"} />
+              <StaticAdaptiveCharacter phase={plan.phases.at(-1) ?? "senor"} />
             )}
           </g>
         </g>

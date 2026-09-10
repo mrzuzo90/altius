@@ -28,7 +28,14 @@ export type StatementChartGeometry = {
 
 export type TrendScene = "walk" | "stairs" | "climb" | "rocket" | "surge" | "flat" | "ski" | "distress" | "insufficient";
 
-export type CharacterPhase = "elderly" | "walk" | "stairs" | "climb" | "rocket" | "snowboard" | "parachute";
+export type CharacterPhase =
+  | "apunalado"
+  | "flecha"
+  | "piedra"
+  | "senor"
+  | "caballero"
+  | "escalera"
+  | "canon";
 
 export type CharacterMood = "happy" | "neutral" | "sad" | "worried";
 
@@ -189,10 +196,10 @@ export function analyzeStatementTrend(data: readonly TrendPoint[]): TrendAnalysi
 
 export function analyzeBusinessProfile(data: readonly TrendPoint[]): BusinessProfile {
   const rates = buildComparableAnnualRates(data).map((rate) => rate.value).slice(-10);
-  return classifyAltiProfile(rates);
+  return classifyCidProfile(rates);
 }
 
-export function classifyAltiProfile(changesPct: readonly number[]): BusinessProfile {
+export function classifyCidProfile(changesPct: readonly number[]): BusinessProfile {
   const rates = changesPct.filter(Number.isFinite).slice(-10);
   if (rates.length === 0) {
     return {
@@ -247,6 +254,8 @@ export function classifyAltiProfile(changesPct: readonly number[]): BusinessProf
   };
 }
 
+export const classifyAltiProfile = classifyCidProfile;
+
 export function StatementTrendAnimation({
   data,
   label,
@@ -284,7 +293,7 @@ export function StatementTrendAnimation({
     <div
       className={styles.overlay}
       role="img"
-      aria-label={`El personaje recorre las barras de ${label} y adapta su movimiento a cada variación.`}
+      aria-label={`Cid recorre las barras de ${label} y adapta su movimiento a cada variación.`}
     >
       <svg
         ref={animationRootRef}
@@ -311,7 +320,7 @@ export function StatementTrendAnimation({
           {!reducedMotion && motionPlan.phases.length > 0 ? (
             <AdaptiveCharacter plan={motionPlan} duration={duration} direction={direction} />
           ) : (
-            <StaticAdaptiveCharacter phase={motionPlan.phases.at(-1) ?? "walk"} direction={direction} />
+            <StaticAdaptiveCharacter phase={motionPlan.phases.at(-1) ?? "senor"} direction={direction} />
           )}
         </g>
       </svg>
@@ -320,13 +329,13 @@ export function StatementTrendAnimation({
 }
 
 const CHARACTER_PHASES: CharacterPhase[] = [
-  "elderly",
-  "walk",
-  "stairs",
-  "climb",
-  "rocket",
-  "snowboard",
-  "parachute",
+  "apunalado",
+  "flecha",
+  "piedra",
+  "senor",
+  "caballero",
+  "escalera",
+  "canon",
 ];
 
 export type MascotPhaseConfig = {
@@ -338,67 +347,69 @@ export type MascotPhaseConfig = {
   label: string;
 };
 
-export const ALTI_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
-  rocket: {
-    src: "/alti/rocket.svg",
+export const CID_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
+  canon: {
+    src: "/cid/canon.svg",
     width: 64,
     height: 62,
     x: -32,
     y: -60,
-    label: "Subida explosiva (+30%)",
+    label: "Cid cañon",
   },
-  climb: {
-    src: "/alti/climb.svg",
-    width: 32,
-    height: 54,
-    x: -16,
-    y: -53,
-    label: "Crecimiento fuerte (+15% a +30%)",
+  escalera: {
+    src: "/cid/escalera.svg",
+    width: 36,
+    height: 58,
+    x: -18,
+    y: -57,
+    label: "Cid escalera",
   },
-  stairs: {
-    src: "/alti/stairs.svg",
-    width: 45,
+  caballero: {
+    src: "/cid/caballero.svg",
+    width: 48,
+    height: 55,
+    x: -24,
+    y: -54,
+    label: "Cid caballero",
+  },
+  senor: {
+    src: "/cid/senor.svg",
+    width: 46,
+    height: 51,
+    x: -23,
+    y: -50,
+    label: "Cid señor",
+  },
+  piedra: {
+    src: "/cid/piedra.svg",
+    width: 52,
     height: 52,
-    x: -22.5,
+    x: -26,
     y: -51,
-    label: "Crecimiento moderado (+5% a +15%)",
+    label: "Cid piedra",
   },
-  elderly: {
-    src: "/alti/flat.svg",
-    width: 45,
-    height: 50,
-    x: -22.5,
-    y: -49,
-    label: "Estancado o plano (-5% a +5%)",
+  flecha: {
+    src: "/cid/flecha.svg",
+    width: 54,
+    height: 54,
+    x: -27,
+    y: -53,
+    label: "Cid flecha",
   },
-  walk: {
-    src: "/alti/flat.svg",
-    width: 45,
-    height: 50,
-    x: -22.5,
-    y: -49,
-    label: "Estancado o plano (-5% a +5%)",
-  },
-  snowboard: {
-    src: "/alti/snowboard.svg",
-    width: 51,
-    height: 50,
-    x: -25.5,
-    y: -49,
-    label: "Caída moderada (-5% a -30%)",
-  },
-  parachute: {
-    src: "/alti/parachute.svg",
-    width: 66,
-    height: 68,
-    x: -33,
-    y: -67,
-    label: "Desplome (<-30%)",
+  apunalado: {
+    src: "/cid/apunalado.svg",
+    width: 62,
+    height: 64,
+    x: -31,
+    y: -63,
+    label: "Cid apuñalado",
   },
 };
 
+export const ALTI_MASCOTS = CID_MASCOTS;
+
 export function CharacterPose({ phase }: { phase: CharacterPhase; direction?: MetricDirection }) {
-  const mascot = ALTI_MASCOTS[phase] ?? ALTI_MASCOTS.walk;
+  const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
   return (
     <image
       href={mascot.src}
@@ -462,18 +473,18 @@ export function StaticAdaptiveCharacter({
 }
 
 export function characterMoodForPhase(phase: CharacterPhase, direction: MetricDirection): CharacterMood {
-  if (phase === "elderly" || phase === "walk" || direction === "contextual") return "neutral";
-  const isRising = phase === "stairs" || phase === "climb" || phase === "rocket";
+  if (phase === "senor" || direction === "contextual") return "neutral";
+  const isRising = phase === "caballero" || phase === "escalera" || phase === "canon";
   const favorable = direction === "higher" ? isRising : !isRising;
   if (favorable) return "happy";
-  return phase === "rocket" || phase === "parachute" ? "worried" : "sad";
+  return phase === "canon" || phase === "apunalado" ? "worried" : "sad";
 }
 
 export function buildPhaseOpacityTimeline(
   plan: Pick<CharacterMotionPlan, "phases" | "keyTimes">,
   duration: number,
 ): PhaseOpacityTimeline {
-  const firstPhase = plan.phases[0] ?? "walk";
+  const firstPhase = plan.phases[0] ?? "senor";
   const samples: Array<{ time: number; phase: CharacterPhase }> = [{ time: 0, phase: firstPhase }];
   const maximumHalfBlend = 0.38 / Math.max(duration, 0.1);
 
@@ -544,7 +555,7 @@ function stabilizeMotionPhases(
 ): CharacterPhase[] {
   const phases = [...rawPhases];
   const calm = rawPhases.map((phase, index) => {
-    if (phase !== "elderly" && phase !== "walk") return false;
+    if (phase !== "senor") return false;
     const change = changesPct[index];
     const visualDelta = Math.abs(points[index + 1].y - points[index].y);
     return change === null || Math.abs(change) <= 5 || visualDelta <= 4;
@@ -563,7 +574,7 @@ function stabilizeMotionPhases(
       const monotonicallyRising = runChanges.length > 0 && runChanges.every((change) => change > 0);
       const compounded = runChanges.reduce((factor, change) => factor * (1 + change / 100), 1) - 1;
       if (!monotonicallyRising && Math.abs(compounded) <= 0.06) {
-        for (let index = runStart; index < runEnd; index += 1) phases[index] = "elderly";
+        for (let index = runStart; index < runEnd; index += 1) phases[index] = "senor";
       }
     }
     runStart = runEnd;
@@ -573,17 +584,18 @@ function stabilizeMotionPhases(
 }
 
 function phaseForTransition(changePct: number | null): CharacterPhase {
-  if (changePct === null) return "elderly";
+  if (changePct === null) return "senor";
   return characterPhaseForChange(changePct);
 }
 
 export function characterPhaseForChange(changePct: number): CharacterPhase {
-  if (changePct < -30) return "parachute";
-  if (changePct < -5) return "snowboard";
-  if (changePct <= 5) return "elderly";
-  if (changePct < 15) return "stairs";
-  if (changePct <= 30) return "climb";
-  return "rocket";
+  if (changePct < -30) return "apunalado";
+  if (changePct < -15) return "flecha";
+  if (changePct < -5) return "piedra";
+  if (changePct <= 5) return "senor";
+  if (changePct <= 15) return "caballero";
+  if (changePct <= 30) return "escalera";
+  return "canon";
 }
 
 function buildMotionPiece(
@@ -593,7 +605,7 @@ function buildMotionPiece(
 ): { command: string; length: number } {
   const midpoint = (previous.x + current.x) / 2;
 
-  if (phase === "rocket") {
+  if (phase === "canon") {
     const lift = Math.min(34, Math.max(20, Math.abs(current.y - previous.y) * 0.22 + 16));
     const apex = Math.min(previous.y, current.y) - lift;
     return {
@@ -602,7 +614,7 @@ function buildMotionPiece(
     };
   }
 
-  if (phase === "climb" && current.y < previous.y - 3) {
+  if ((phase === "escalera" || phase === "caballero") && current.y < previous.y - 3) {
     const wallX = current.left - 5;
     const ledgeY = current.y + Math.min(11, Math.max(5, (previous.y - current.y) * 0.12));
     const controls = [
@@ -621,7 +633,7 @@ function buildMotionPiece(
     };
   }
 
-  if (phase === "parachute") {
+  if (phase === "apunalado" || phase === "flecha") {
     const dx = current.x - previous.x;
     const controlA = { x: previous.x + dx * 0.28, y: previous.y + 5 };
     const controlB = { x: previous.x + dx * 0.72, y: current.y - 12 };
@@ -631,7 +643,7 @@ function buildMotionPiece(
     };
   }
 
-  if (phase === "snowboard") {
+  if (phase === "piedra") {
     const control = { x: midpoint, y: (previous.y + current.y) / 2 - 3 };
     return {
       command: ` Q ${round(control.x)} ${round(control.y)} ${round(current.x)} ${round(current.y)}`,
@@ -639,10 +651,10 @@ function buildMotionPiece(
     };
   }
 
-  const hop = phase === "elderly"
+  const hop = phase === "senor"
     ? 3
-    : phase === "stairs"
-      ? 8
+    : phase === "caballero"
+      ? 6
     : Math.min(16, Math.max(6, Math.abs(current.y - previous.y) * 0.08 + 5));
   const control = { x: midpoint, y: Math.min(previous.y, current.y) - hop };
   return {

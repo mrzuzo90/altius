@@ -102,7 +102,7 @@ export function FinancialSummary({
                 La empresa, de un vistazo
               </h3>
               <p className="text-muted-steel mt-2 max-w-2xl text-[13px] leading-relaxed">
-                Nueve cifras para entender crecimiento, fortaleza financiera y generación de caja. Pulsa cualquiera para ver todo su histórico con Alti.
+                Nueve cifras para entender crecimiento, fortaleza financiera y generación de caja. Pulsa cualquiera para ver todo su histórico con Cid.
               </p>
             </div>
             <div className="border-gunmetal bg-carbon-surface/75 flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[11px] text-muted-steel">
