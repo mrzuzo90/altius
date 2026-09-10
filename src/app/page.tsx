@@ -114,10 +114,10 @@ export default async function Home() {
           <div className="pt-2 max-w-xl mx-auto">
             <HomeSearch />
             <Link
-              href="/companies"
+              href="/presupuesto"
               className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-periwinkle-glow/35 bg-periwinkle-glow/10 px-4 py-1.5 text-[12px] font-medium text-periwinkle-glow hover:bg-periwinkle-glow/15"
             >
-              <span>Explorar 100 empresas por Las seis claves</span>
+              <span>Calculador de Presupuesto Personal e Interés Compuesto</span>
               <ArrowRight className="size-3.5" />
             </Link>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[12px] text-muted-steel font-mono">
