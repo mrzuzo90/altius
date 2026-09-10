@@ -358,7 +358,7 @@ export function StatementSeriesDialog({
           <div className="text-muted-steel flex items-center justify-between px-2 pt-2 text-[11px]">
             <div className="flex items-center gap-4">
               <Legend color="#98a4f7" label="Castillo (positivo)" />
-              <Legend color="#1d4ed8" label="Foso (negativo)" />
+              <Legend color="#0284c7" label="Foso (negativo)" />
               <Legend color="#5b63d3" label="Calculado" />
             </div>
             <span>Los periodos sin cifra no se convierten en cero.</span>
@@ -389,10 +389,12 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
   if (isNegative) {
     const moatTop = y;
     const moatBottom = y + visualH;
-    const inset = Math.min(3.5, w * 0.1);
-    const waterH = Math.min(visualH * 0.5, Math.max(7, visualH * 0.32));
+    const inset = Math.min(4, Math.max(2, w * 0.08));
+    const waterH = Math.min(visualH * 0.55, Math.max(8, visualH * 0.38));
     const waterY = moatBottom - waterH;
-    const rimW = Math.min(6, Math.max(2.5, w * 0.2));
+    const rimW = Math.min(8, Math.max(4, w * 0.18));
+    const rimH = 4;
+    const dryH = visualH - waterH;
 
     const moatGeometry: StatementBarGeometry = {
       index: props.index,
@@ -404,11 +406,11 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
       height: visualH,
     };
 
-    // Paleta Opción 1: Piedra oscura de foso y agua profunda
-    const rockBaseColor = isDerived ? "#1e1e38" : "#131722";
-    const rockWallStroke = isDerived ? "#3730a3" : "#1e293b";
-    const waterFill = isDerived ? "#1e1b4b" : "#0f2347";
-    const waterHighlight = isDerived ? "#818cf8" : "#38bdf8";
+    // Paleta de Alto Contraste: Roca esculpida y agua profunda luminosa
+    const rockBaseColor = isDerived ? "#252446" : "#222c3d";
+    const rockTopColor = isDerived ? "#3730a3" : "#334155";
+    const rockWallStroke = isDerived ? "#818cf8" : "#94a3b8";
+    const waterHighlight = isDerived ? "#c7d2fe" : "#38bdf8";
 
     // Foso con talud inclinado hacia el fondo
     const moatPath = `M ${props.x} ${moatTop}`
@@ -416,10 +418,16 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
       + ` L ${props.x + w - inset} ${moatBottom}`
       + ` L ${props.x + w} ${moatTop} Z`;
 
-    const waterPath = `M ${props.x + inset * (1 - waterH / visualH)} ${waterY}`
+    const waterTopInset = inset * (1 - waterH / visualH);
+    const waterPath = `M ${props.x + waterTopInset} ${waterY}`
       + ` L ${props.x + inset} ${moatBottom}`
       + ` L ${props.x + w - inset} ${moatBottom}`
-      + ` L ${props.x + w - inset * (1 - waterH / visualH)} ${waterY} Z`;
+      + ` L ${props.x + w - waterTopInset} ${waterY} Z`;
+
+    // Identificadores de gradiente únicos para este foso
+    const gradKey = `moat-${props.index}-${point.key.replace(/[^a-zA-Z0-9]/g, "")}`;
+    const rockGradId = `rock-wall-${gradKey}`;
+    const waterGradId = `water-flow-${gradKey}`;
 
     return (
       <g
@@ -431,86 +439,173 @@ function StatementBarShape(props: BarShapeProps & { onGeometry: (bar: StatementB
         data-statement-bar-value={point.value}
         className="cursor-pointer transition-opacity hover:opacity-90"
       >
-        {/* Cuerpo excavado del foso (roca y fondo de fosa) */}
-        <path d={moatPath} fill={rockBaseColor} />
+        <defs>
+          <linearGradient id={rockGradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={rockTopColor} />
+            <stop offset="100%" stopColor={rockBaseColor} />
+          </linearGradient>
+          <linearGradient id={waterGradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={isDerived ? "#6366f1" : "#0284c7"} stopOpacity="0.95" />
+            <stop offset="55%" stopColor={isDerived ? "#4338ca" : "#1d4ed8"} stopOpacity="0.95" />
+            <stop offset="100%" stopColor={isDerived ? "#1e1b4b" : "#0f172a"} stopOpacity="0.98" />
+          </linearGradient>
+        </defs>
 
-        {/* Masa de agua profunda en el fondo del foso */}
-        <path d={waterPath} fill={waterFill} />
+        {/* Cuerpo excavado del foso con textura de piedra tallada y borde de alto contraste */}
+        <path d={moatPath} fill={`url(#${rockGradId})`} stroke={rockWallStroke} strokeWidth={1.5} />
 
-        {/* Superficie del agua del foso con destello */}
+        {/* Líneas de sillería de piedra en las paredes secas del foso */}
+        {dryH >= 14 && (
+          <>
+            <line
+              x1={props.x + inset * (dryH * 0.5 / visualH)}
+              y1={moatTop + dryH * 0.5}
+              x2={props.x + w - inset * (dryH * 0.5 / visualH)}
+              y2={moatTop + dryH * 0.5}
+              stroke={isDerived ? "#4338ca" : "#475569"}
+              strokeWidth={1}
+            />
+            <line
+              x1={props.x + w * 0.35}
+              y1={moatTop}
+              x2={props.x + w * 0.35}
+              y2={moatTop + dryH * 0.5}
+              stroke={isDerived ? "#4338ca" : "#475569"}
+              strokeWidth={1}
+            />
+            <line
+              x1={props.x + w * 0.65}
+              y1={moatTop + dryH * 0.5}
+              x2={props.x + w * 0.65}
+              y2={waterY}
+              stroke={isDerived ? "#4338ca" : "#475569"}
+              strokeWidth={1}
+            />
+          </>
+        )}
+
+        {/* Sombra interior en la pared izquierda */}
         <line
-          x1={props.x + inset * (1 - waterH / visualH)}
-          y1={waterY}
-          x2={props.x + w - inset * (1 - waterH / visualH)}
-          y2={waterY}
-          stroke={waterHighlight}
-          strokeWidth={1.5}
-          strokeOpacity={0.85}
+          x1={props.x + 0.75}
+          y1={moatTop}
+          x2={props.x + inset + 0.75}
+          y2={moatBottom}
+          stroke="#090d16"
+          strokeWidth={2}
+          strokeOpacity={0.8}
         />
 
-        {/* Ondas sutiles de agua en el foso */}
+        {/* Destello de arista en la pared derecha */}
+        <line
+          x1={props.x + w - 0.75}
+          y1={moatTop}
+          x2={props.x + w - inset - 0.75}
+          y2={moatBottom}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+          strokeOpacity={0.6}
+        />
+
+        {/* Masa de agua profunda iluminada con gradiente acuático */}
+        <path d={waterPath} fill={`url(#${waterGradId})`} stroke={isDerived ? "#6366f1" : "#0284c7"} strokeWidth={0.75} />
+
+        {/* Superficie del agua con brillo resplandeciente */}
+        <line
+          x1={props.x + waterTopInset}
+          y1={waterY}
+          x2={props.x + w - waterTopInset}
+          y2={waterY}
+          stroke={waterHighlight}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+        <line
+          x1={props.x + w * 0.3}
+          y1={waterY}
+          x2={props.x + w * 0.7}
+          y2={waterY}
+          stroke="#ffffff"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+
+        {/* Ondas sutiles y definidas en la masa de agua */}
         {waterH >= 10 && (
           <line
-            x1={props.x + inset + 2}
-            y1={waterY + waterH * 0.45}
-            x2={props.x + w - inset - 2}
-            y2={waterY + waterH * 0.45}
+            x1={props.x + inset + 3}
+            y1={waterY + waterH * 0.4}
+            x2={props.x + w - inset - 3}
+            y2={waterY + waterH * 0.4}
             stroke={waterHighlight}
+            strokeWidth={1.2}
+            strokeDasharray="4 3"
+            strokeOpacity={0.8}
+          />
+        )}
+        {waterH >= 20 && (
+          <line
+            x1={props.x + inset + 6}
+            y1={waterY + waterH * 0.72}
+            x2={props.x + w - inset - 6}
+            y2={waterY + waterH * 0.72}
+            stroke={isDerived ? "#a5b4fc" : "#38bdf8"}
             strokeWidth={1}
-            strokeDasharray="3 3"
-            strokeOpacity={0.4}
+            strokeDasharray="2 3"
+            strokeOpacity={0.55}
           />
         )}
 
-        {/* Muros laterales de piedra / talud del foso */}
+        {/* Hueco de apertura a nivel de suelo (eje cero) */}
         <line
-          x1={props.x}
+          x1={props.x + rimW - 1}
           y1={moatTop}
-          x2={props.x + inset}
-          y2={moatBottom}
-          stroke={rockWallStroke}
-          strokeWidth={1.5}
-        />
-        <line
-          x1={props.x + w}
-          y1={moatTop}
-          x2={props.x + w - inset}
-          y2={moatBottom}
-          stroke={rockWallStroke}
-          strokeWidth={1.5}
+          x2={props.x + w - rimW + 1}
+          y2={moatTop}
+          stroke="#64748b"
+          strokeWidth={1}
+          strokeDasharray="3 2"
+          strokeOpacity={0.7}
         />
 
-        {/* Bisel sombreado en la pared izquierda */}
+        {/* Brocales de piedra de cantería a ras de tierra (nivel cero) */}
+        {/* Brocal izquierdo */}
+        <rect
+          x={props.x - 2}
+          y={moatTop - rimH + 1}
+          width={rimW}
+          height={rimH}
+          fill="#475569"
+          stroke="#94a3b8"
+          strokeWidth={1}
+          rx={1}
+        />
         <line
-          x1={props.x + 0.5}
-          y1={moatTop}
-          x2={props.x + inset + 0.5}
-          y2={moatBottom}
-          stroke="#0b0f19"
-          strokeWidth={1.2}
-          strokeOpacity={0.9}
+          x1={props.x - 1}
+          y1={moatTop - rimH + 1}
+          x2={props.x + rimW - 3}
+          y2={moatTop - rimH + 1}
+          stroke="#e2e8f0"
+          strokeWidth={1}
         />
 
-        {/* Brocales de piedra de cantería en el borde de tierra (nivel cero) */}
+        {/* Brocal derecho */}
         <rect
-          x={props.x - 1}
-          y={moatTop - 1.5}
+          x={props.x + w - rimW + 2}
+          y={moatTop - rimH + 1}
           width={rimW}
-          height={2.5}
+          height={rimH}
           fill="#475569"
-          stroke="#334155"
-          strokeWidth={0.5}
-          rx={0.5}
+          stroke="#94a3b8"
+          strokeWidth={1}
+          rx={1}
         />
-        <rect
-          x={props.x + w - rimW + 1}
-          y={moatTop - 1.5}
-          width={rimW}
-          height={2.5}
-          fill="#475569"
-          stroke="#334155"
-          strokeWidth={0.5}
-          rx={0.5}
+        <line
+          x1={props.x + w - rimW + 3}
+          y1={moatTop - rimH + 1}
+          x2={props.x + w + 1}
+          y2={moatTop - rimH + 1}
+          stroke="#e2e8f0"
+          strokeWidth={1}
         />
       </g>
     );
