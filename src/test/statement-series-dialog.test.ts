@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildStatementChartData, normalizeStatementBarRect } from "@/components/statement-series-dialog";
+import {
+  buildStatementChartData,
+  calculateOverallAnnualTrend,
+  normalizeStatementBarRect,
+  type ChartPoint,
+} from "@/components/statement-series-dialog";
 import {
   analyzeStatementTrend,
   analyzeBusinessProfile,
@@ -327,3 +332,81 @@ function points(values: number[]): TrendPoint[] {
     end: `${2023 + index}-12-31`,
   }));
 }
+
+function chartPoints(values: number[]): ChartPoint[] {
+  return values.map((value, index) => ({
+    key: `FY${2015 + index}`,
+    label: `FY ${2015 + index}`,
+    value,
+    end: `${2015 + index}-12-31`,
+    derived: false,
+  }));
+}
+
+describe("calculateOverallAnnualTrend", () => {
+  it("asigna Alti en escalera y 'Ha subido' a un ritmo anualizado del 10 %", () => {
+    // 100 * (1.10)^2 = 121 en 2 años
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 110, 121]));
+
+    expect(trend.status).toBe("up");
+    expect(trend.statusText).toBe("Ha subido");
+    expect(trend.phase).toBe("stairs");
+    expect(trend.mascot.src).toBe("/alti/stairs.svg");
+    expect(trend.patternName).toBe("Alti en escalera");
+    expect(trend.headline).toContain("Ha subido");
+    expect(trend.annualizedRatePct).toBeCloseTo(10, 0);
+  });
+
+  it("asigna Alti escalando (piolet) a un crecimiento fuerte del 20 %", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 120, 144])); // 20% anual en 2 años (100 a 144)
+    expect(trend.status).toBe("up");
+    expect(trend.phase).toBe("climb");
+    expect(trend.mascot.src).toBe("/alti/climb.svg");
+    expect(trend.patternName).toContain("escalando");
+  });
+
+  it("asigna Alti en cohete a una subida explosiva mayor al 30 %", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 180])); // +80% anual en 1 año
+    expect(trend.status).toBe("up");
+    expect(trend.phase).toBe("rocket");
+    expect(trend.mascot.src).toBe("/alti/rocket.svg");
+    expect(trend.headline).toContain("Ha subido");
+  });
+
+  it("asigna Alti de paseo a una trayectoria plana (-5 % a +5 %)", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 102, 101, 103]));
+    expect(trend.status).toBe("flat");
+    expect(trend.statusText).toBe("Sin variación significativa");
+    expect(trend.phase).toBe("elderly");
+    expect(trend.mascot.src).toBe("/alti/flat.svg");
+    expect(trend.headline).toContain("Estable");
+  });
+
+  it("asigna Alti en snowboard a una caída moderada del -15 %", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 85]));
+    expect(trend.status).toBe("down");
+    expect(trend.statusText).toBe("Ha bajado");
+    expect(trend.phase).toBe("snowboard");
+    expect(trend.mascot.src).toBe("/alti/snowboard.svg");
+    expect(trend.headline).toContain("Ha bajado");
+  });
+
+  it("asigna Alti en paracaídas a una caída extrema de más del -30 %", () => {
+    const trend = calculateOverallAnnualTrend(chartPoints([100, 50]));
+    expect(trend.status).toBe("down");
+    expect(trend.statusText).toBe("Ha bajado");
+    expect(trend.phase).toBe("parachute");
+    expect(trend.mascot.src).toBe("/alti/parachute.svg");
+    expect(trend.headline).toContain("Ha bajado");
+  });
+
+  it("maneja series con datos insuficientes sin fallar", () => {
+    const empty = calculateOverallAnnualTrend([]);
+    expect(empty.status).toBe("insufficient");
+    expect(empty.annualizedRatePct).toBeNull();
+
+    const single = calculateOverallAnnualTrend(chartPoints([100]));
+    expect(single.status).toBe("insufficient");
+    expect(single.annualizedRatePct).toBeNull();
+  });
+});

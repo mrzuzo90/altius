@@ -6,7 +6,13 @@ import { PersonStanding } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MetricDirectionNotice } from "@/components/metric-direction";
 import {
+  ALTI_MASCOTS,
+  annualizedChange,
+  characterPhaseForChange,
+  elapsedYears,
   StatementTrendAnimation,
+  type CharacterPhase,
+  type MascotPhaseConfig,
   type StatementBarGeometry,
   type StatementChartGeometry,
 } from "@/components/statement-trend-animation";
@@ -15,13 +21,126 @@ import { getMetricSemantics } from "@/lib/financials/metric-semantics";
 import { formatPct, formatValue, pctChange, SCALES, type Scale } from "@/lib/format";
 import type { LineSeries, Period } from "@/lib/sec/normalize";
 
-type ChartPoint = {
+export type ChartPoint = {
   key: string;
   label: string;
   end: string;
   value: number;
   derived: boolean;
 };
+
+export type OverallAnnualTrend = {
+  annualizedRatePct: number | null;
+  phase: CharacterPhase;
+  mascot: MascotPhaseConfig;
+  status: "up" | "down" | "flat" | "insufficient";
+  statusText: string;
+  headline: string;
+  patternName: string;
+  patternDescription: string;
+  periodSpanText: string;
+  firstLabel: string;
+  lastLabel: string;
+  totalPeriods: number;
+  years: number;
+};
+
+export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): OverallAnnualTrend {
+  if (data.length < 2) {
+    const phase: CharacterPhase = "walk";
+    const mascot = ALTI_MASCOTS.walk;
+    return {
+      annualizedRatePct: null,
+      phase,
+      mascot,
+      status: "insufficient",
+      statusText: "Datos insuficientes",
+      headline: "Aún no hay suficiente histórico",
+      patternName: "Alti de paseo",
+      patternDescription: "Se necesitan al menos dos periodos comparables para clasificar el patrón general de Alti.",
+      periodSpanText: data.length === 1 ? `Solo 1 periodo registrado (${data[0].label})` : "Sin datos registrados",
+      firstLabel: data[0]?.label ?? "—",
+      lastLabel: data.at(-1)?.label ?? "—",
+      totalPeriods: data.length,
+      years: 0,
+    };
+  }
+
+  const first = data[0];
+  const last = data.at(-1)!;
+  const rawYears = elapsedYears(first.end, last.end);
+  const years = Math.max(
+    rawYears,
+    (data.length - 1) * (data.some((p) => !p.key.startsWith("FY")) ? 0.25 : 1),
+    0.25,
+  );
+
+  let rate = annualizedChange(first.value, last.value, years);
+
+  if (rate === null) {
+    const firstNonZero = data.find((p) => p.value !== 0);
+    if (firstNonZero && firstNonZero !== last) {
+      const subYears = Math.max(elapsedYears(firstNonZero.end, last.end), 0.25);
+      rate = annualizedChange(firstNonZero.value, last.value, subYears);
+    }
+  }
+
+  const rateVal = rate ?? 0;
+  const phase = characterPhaseForChange(rateVal);
+  const mascot = ALTI_MASCOTS[phase] ?? ALTI_MASCOTS.walk;
+
+  let status: "up" | "down" | "flat" = "flat";
+  let statusText = "Sin variación significativa";
+  let headline = `Estable (${rateVal >= 0 ? "+" : ""}${rateVal.toFixed(1)}% anualizado)`;
+
+  if (rateVal > 5) {
+    status = "up";
+    statusText = "Ha subido";
+    headline = `Ha subido un +${rateVal.toFixed(1)}% anualizado`;
+  } else if (rateVal < -5) {
+    status = "down";
+    statusText = "Ha bajado";
+    headline = `Ha bajado un ${rateVal.toFixed(1)}% anualizado`;
+  }
+
+  let patternName = "Alti de paseo";
+  let patternDescription = "Variación plana entre el -5% y +5% anualizado: avanza a paso tranquilo sin grandes pendientes.";
+
+  if (phase === "rocket") {
+    patternName = "Alti en cohete";
+    patternDescription = "Subida explosiva superior al 30% anualizado: crecimiento vertiginoso sobre su cohete.";
+  } else if (phase === "climb") {
+    patternName = "Alti escalando (piolet)";
+    patternDescription = "Crecimiento fuerte del 15% al 30% anualizado: ascensión constante y vigorosa con piolet.";
+  } else if (phase === "stairs") {
+    patternName = "Alti en escalera";
+    patternDescription = "Crecimiento constante del 5% al 15% anualizado: sube peldaño a peldaño siguiendo el ritmo de la empresa.";
+  } else if (phase === "snowboard") {
+    patternName = "Alti en snowboard";
+    patternDescription = "Descenso moderado de entre el -5% y -30% anualizado: desciende la pendiente sobre su tabla de snowboard.";
+  } else if (phase === "parachute") {
+    patternName = "Alti en paracaídas";
+    patternDescription = "Caída extrema de más del -30% anualizado: descenso de emergencia con paracaídas desplegado.";
+  }
+
+  const periodSpanText = `Calculado sobre todos los datos registrados: ${first.label} a ${last.label} (${data.length} periodos).`;
+
+  return {
+    annualizedRatePct: rateVal,
+    phase,
+    mascot,
+    status,
+    statusText,
+    headline,
+    patternName,
+    patternDescription,
+    periodSpanText,
+    firstLabel: first.label,
+    lastLabel: last.label,
+    totalPeriods: data.length,
+    years,
+  };
+}
 
 export function buildStatementChartData(periods: Period[], row: LineSeries): ChartPoint[] {
   return periods
@@ -102,6 +221,7 @@ export function StatementSeriesDialog({
 
   const data = buildStatementChartData(periods, row);
   const semantics = getMetricSemantics(row.line);
+  const overallTrend = calculateOverallAnnualTrend(data);
   const latest = data.at(-1) ?? null;
   const priorComparable = latest
     ? [...data]
@@ -126,33 +246,94 @@ export function StatementSeriesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-px border-b border-gunmetal bg-gunmetal sm:grid-cols-3">
+        <div className="grid gap-px border-b border-gunmetal bg-gunmetal grid-cols-2 sm:grid-cols-4">
           <Metric label="Último periodo" value={latest ? formatValue(latest.value, row.line.unit, scale) : "—"} detail={latest?.label ?? "Sin datos"} />
-          <Metric label="Variación interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
-          <Metric label="Cobertura" value={`${data.length} periodos`} detail={data.length > 1 ? `${data[0].label} — ${data.at(-1)!.label}` : data[0]?.label ?? "Sin datos"} />
+          <Metric label="Último cambio interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
+          <Metric
+            label="Cambio anual general"
+            value={overallTrend.annualizedRatePct !== null ? `${overallTrend.annualizedRatePct > 0 ? "+" : ""}${overallTrend.annualizedRatePct.toFixed(1)}%` : "—"}
+            detail={overallTrend.annualizedRatePct !== null ? `${overallTrend.statusText} (${overallTrend.totalPeriods} periodos)` : "Sin histórico suficiente"}
+          />
+          <Metric
+            label="Patrón general Alti"
+            value={overallTrend.patternName.replace("Alti ", "")}
+            detail={overallTrend.mascot.label.split("(")[0].trim()}
+          />
         </div>
 
         <MetricDirectionNotice semantics={semantics} />
 
-        <div className="mx-3 mt-5 flex justify-end sm:mx-6">
-          <button
-            type="button"
-            aria-pressed={showAlti}
-            aria-label={`${showAlti ? "Ocultar" : "Mostrar"} a Alti en el gráfico de ${row.line.label}`}
-            onClick={() => setShowAlti((visible) => !visible)}
-            className={cn(
-              "font-display inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-[12px] font-medium transition-colors",
-              showAlti
-                ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
-                : "border-gunmetal bg-carbon-surface text-muted-steel hover:text-frost",
-            )}
-          >
-            <PersonStanding className="size-3.5" />
-            Alti · {showAlti ? "activo" : "oculto"}
-          </button>
+        {/* Tarjeta Visual: Patrón General de Alti */}
+        <div className="mx-3 mt-4 sm:mx-6 rounded-xl border border-periwinkle-glow/30 bg-gradient-to-r from-periwinkle-glow/10 via-carbon-surface to-carbon-surface p-4 sm:p-5 shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-4">
+              {/* Contenedor e Imagen del Monigote Alti */}
+              <div className="relative size-16 shrink-0 rounded-xl border border-periwinkle-glow/40 bg-void-black/80 p-2 flex items-center justify-center shadow-inner group">
+                <img
+                  src={overallTrend.mascot.src}
+                  alt={overallTrend.mascot.label}
+                  className="size-12 object-contain filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.3)] transition-transform group-hover:scale-110"
+                />
+                <div className="absolute -bottom-1 -right-1 size-4 rounded-full border border-gunmetal bg-void-black flex items-center justify-center text-[9px] font-bold font-mono text-periwinkle-glow">
+                  {overallTrend.status === "up" ? "▲" : overallTrend.status === "down" ? "▼" : "—"}
+                </div>
+              </div>
+
+              {/* Textos del Patrón General */}
+              <div className="space-y-1 text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-periwinkle-glow/15 px-2.5 py-0.5 text-[10px] font-mono font-semibold tracking-wider text-periwinkle-glow uppercase border border-periwinkle-glow/30">
+                    Patrón General · Alti
+                  </span>
+                  <span className="text-[12px] font-mono text-muted-steel">
+                    {overallTrend.patternName}
+                  </span>
+                </div>
+
+                <h3
+                  className={cn(
+                    "font-display text-[18px] sm:text-[20px] font-semibold tracking-tight",
+                    overallTrend.status === "up"
+                      ? "text-emerald-400"
+                      : overallTrend.status === "down"
+                      ? "text-rose-400"
+                      : "text-frost",
+                  )}
+                >
+                  {overallTrend.headline}
+                </h3>
+
+                <p className="text-muted-steel text-[12px] sm:text-[13px] leading-relaxed max-w-xl">
+                  {overallTrend.patternDescription} {overallTrend.periodSpanText}
+                </p>
+              </div>
+            </div>
+
+            {/* Toggle de Alti en gráfico */}
+            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gunmetal/60">
+              <button
+                type="button"
+                aria-pressed={showAlti}
+                aria-label={`${showAlti ? "Ocultar" : "Mostrar"} a Alti en el gráfico de ${row.line.label}`}
+                onClick={() => setShowAlti((visible) => !visible)}
+                className={cn(
+                  "font-display inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
+                  showAlti
+                    ? "border-periwinkle-glow/60 bg-periwinkle-glow/15 text-periwinkle-glow shadow-sm"
+                    : "border-gunmetal bg-carbon-surface text-muted-steel hover:text-frost",
+                )}
+              >
+                <PersonStanding className="size-3.5" />
+                <span>Alti en gráfico · {showAlti ? "activo" : "oculto"}</span>
+              </button>
+              <span className="text-[11px] font-mono text-muted-steel">
+                {data.length} periodos analizados
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="px-3 pt-7 pb-3 sm:px-6">
+        <div className="px-3 pt-6 pb-3 sm:px-6">
           <div ref={chartRef} className="relative h-[330px] w-full" role="group" aria-label={`Gráfico de barras de ${row.line.label}${showAlti ? " con personaje animado" : ""}`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 88, right: 8, bottom: 4, left: 4 }}>
@@ -172,19 +353,19 @@ export function StatementSeriesDialog({
                   tickFormatter={(value: number) => compactValue(value, row.line.unit, scale)}
                 />
                 <Tooltip
-                  wrapperStyle={{ zIndex: 5 }}
+                  wrapperStyle={{ zIndex: 20 }}
                   cursor={{ fill: "rgba(152, 164, 247, 0.06)" }}
-                  contentStyle={{
-                    background: "#151621",
-                    border: "1px solid #1f2433",
-                    borderRadius: 12,
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
-                    fontSize: 12,
-                    color: "#ffffff",
-                  }}
-                  labelStyle={{ color: "#c9d3ee", fontWeight: 500, marginBottom: 4 }}
-                  itemStyle={{ color: "#98a4f7" }}
-                  formatter={(value) => [formatValue(Number(value), row.line.unit, scale), row.line.label]}
+                  content={(props) => (
+                    <StatementChartTooltip
+                      active={props.active}
+                      payload={props.payload as any}
+                      label={props.label}
+                      unit={row.line.unit}
+                      scale={scale}
+                      metricLabel={row.line.label}
+                      data={data}
+                    />
+                  )}
                 />
                 <Bar
                   dataKey="value"
@@ -205,6 +386,56 @@ export function StatementSeriesDialog({
               />
             )}
           </div>
+
+          {/* Cinta de Evolución Anual Año a Año */}
+          {data.length > 1 && (
+            <div className="mt-3 px-2 pt-3 border-t border-gunmetal/60">
+              <div className="flex items-center justify-between text-[11px] font-mono text-muted-steel uppercase tracking-wider mb-2">
+                <span>Evolución anual año a año</span>
+                <span>{data.length - 1} variaciones registradas</span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                {data.map((p, idx) => {
+                  if (idx === 0) {
+                    return (
+                      <div
+                        key={p.key}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal bg-void-black/60 px-2.5 py-1 text-[11px] whitespace-nowrap"
+                        title={`Punto de partida (${p.label}): ${formatValue(p.value, row.line.unit, scale)}`}
+                      >
+                        <span className="font-mono text-frost/90">{p.label}:</span>
+                        <span className="font-mono text-muted-steel">Base</span>
+                      </div>
+                    );
+                  }
+                  const prev = data[idx - 1];
+                  const diff = prev.value !== 0 ? ((p.value - prev.value) / Math.abs(prev.value)) * 100 : null;
+                  const isUp = diff !== null && diff > 0;
+                  const isDown = diff !== null && diff < 0;
+                  const phase = diff !== null ? characterPhaseForChange(diff) : "walk";
+                  const mascot = ALTI_MASCOTS[phase];
+                  return (
+                    <div
+                      key={p.key}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal bg-void-black/60 px-2.5 py-1 text-[11px] whitespace-nowrap"
+                      title={`${p.label} frente a ${prev.label}: ${diff !== null ? (diff > 0 ? "+" : "") + diff.toFixed(1) + "%" : "Sin variación"} (${mascot.label.split("(")[0].trim()})`}
+                    >
+                      <img src={mascot.src} alt="" className="size-3.5 object-contain" />
+                      <span className="font-mono text-frost/90">{p.label}:</span>
+                      <span
+                        className={cn(
+                          "font-mono font-medium",
+                          isUp ? "text-emerald-400" : isDown ? "text-rose-400" : "text-muted-steel",
+                        )}
+                      >
+                        {diff !== null ? `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%` : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="text-muted-steel flex flex-wrap items-center gap-x-5 gap-y-2 px-2 py-3 text-[12px]">
             <Legend color="#98a4f7" label="Reportado por la empresa" />
@@ -382,4 +613,96 @@ function compactValue(value: number, unit: LineSeries["line"]["unit"], scale: Sc
   if (unit !== "USD") return formatValue(value, unit, scale);
   const scaled = value / SCALES[scale].divisor;
   return new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 }).format(scaled);
+}
+
+function StatementChartTooltip({
+  active,
+  payload,
+  label,
+  unit,
+  scale,
+  metricLabel,
+  data,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; payload: ChartPoint }>;
+  label?: string | number;
+  unit: LineSeries["line"]["unit"];
+  scale: Scale;
+  metricLabel: string;
+  data: ChartPoint[];
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0].payload;
+  const index = data.findIndex((p) => p.key === point.key);
+  const previous = index > 0 ? data[index - 1] : null;
+  const changePct = previous && previous.value !== 0
+    ? ((point.value - previous.value) / Math.abs(previous.value)) * 100
+    : null;
+  const stepPhase = changePct !== null ? characterPhaseForChange(changePct) : "walk";
+  const stepMascot = ALTI_MASCOTS[stepPhase] ?? ALTI_MASCOTS.walk;
+
+  return (
+    <div className="rounded-xl border border-gunmetal bg-void-black/95 p-3.5 shadow-2xl backdrop-blur-md min-w-[230px] text-left">
+      <div className="flex items-center justify-between border-b border-gunmetal/80 pb-2 mb-2">
+        <span className="font-mono text-[13px] font-bold text-frost">{label}</span>
+        {point.derived ? (
+          <span className="text-[10px] font-mono text-periwinkle-glow bg-periwinkle-glow/10 border border-periwinkle-glow/20 px-1.5 py-0.5 rounded">
+            Calculado
+          </span>
+        ) : (
+          <span className="text-[10px] font-mono text-muted-steel bg-carbon-surface border border-gunmetal px-1.5 py-0.5 rounded">
+            Oficial SEC
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div>
+          <span className="text-[11px] text-muted-steel block">{metricLabel}</span>
+          <span className="font-display text-[17px] font-semibold text-pure-white">
+            {formatValue(point.value, unit, scale)}
+          </span>
+        </div>
+
+        {previous ? (
+          <div className="border-t border-gunmetal/60 pt-2 space-y-1">
+            <span className="text-[10px] font-mono text-muted-steel uppercase block">
+              Cambio anual frente a {previous.label}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "font-mono text-[13px] font-bold",
+                  changePct !== null && changePct > 0
+                    ? "text-emerald-400"
+                    : changePct !== null && changePct < 0
+                    ? "text-rose-400"
+                    : "text-frost",
+                )}
+              >
+                {changePct !== null ? `${changePct > 0 ? "▲ +" : "▼ "}${changePct.toFixed(1)}%` : "—"}
+              </span>
+              <span className="text-[11px] text-muted-steel">
+                ({changePct !== null && changePct > 0 ? "Ha subido" : changePct !== null && changePct < 0 ? "Ha bajado" : "Sin cambio"})
+              </span>
+            </div>
+
+            {changePct !== null && (
+              <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-gunmetal/40 text-[11px] text-frost/90">
+                <img src={stepMascot.src} alt="" className="size-4 object-contain" />
+                <span>
+                  Forma de Alti: <strong className="text-periwinkle-glow font-medium">{stepMascot.label.split("(")[0].trim()}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="border-t border-gunmetal/60 pt-1.5 text-[11px] text-muted-steel italic">
+            Primer periodo de la serie (punto de partida)
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

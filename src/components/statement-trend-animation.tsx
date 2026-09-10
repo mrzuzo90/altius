@@ -827,7 +827,7 @@ function result(
   return { scene, title, description, annualGrowthPct, latestChangePct, breakoutIndex };
 }
 
-function annualizedChange(previous: number, current: number, years: number): number | null {
+export function annualizedChange(previous: number, current: number, years: number): number | null {
   if (!Number.isFinite(previous) || !Number.isFinite(current) || previous === 0 || years <= 0) return null;
 
   if (previous > 0 && current >= 0) {
@@ -844,7 +844,7 @@ function annualizedChange(previous: number, current: number, years: number): num
   return current > previous ? 100 : -100;
 }
 
-function elapsedYears(previousEnd: string, currentEnd: string): number {
+export function elapsedYears(previousEnd: string, currentEnd: string): number {
   const previousDate = Date.parse(previousEnd);
   const currentDate = Date.parse(currentEnd);
   if (Number.isFinite(previousDate) && Number.isFinite(currentDate) && currentDate > previousDate) {
