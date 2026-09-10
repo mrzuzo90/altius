@@ -12,6 +12,7 @@ import { resolveCurrencySymbol } from "@/lib/currencies";
 import { resolveEsefCompanyDynamic } from "@/lib/esef/resolve";
 import { buildEsefStatements } from "@/lib/esef";
 import { mergeStatementBundles } from "@/lib/financials/merge";
+import { supplementAnnualStatements } from "@/lib/financials/yahoo-supplement";
 
 export const revalidate = 21600;
 
@@ -51,9 +52,18 @@ export default async function FinancialsPage({
     hit ? buildStatements(hit.cik, frequency, hit.name, ticker) : Promise.resolve(null),
     esefCompany && frequency === "annual" ? buildEsefStatements(esefCompany, frequency) : Promise.resolve(null),
   ]);
-  const bundle = esefBundle && hasUsableData(esefBundle)
+  let bundle = esefBundle && hasUsableData(esefBundle)
     ? mergeStatementBundles(esefBundle, secBundle && hasUsableData(secBundle) ? secBundle : null)
     : secBundle ?? esefBundle!;
+
+  if (frequency === "annual" && bundle && hasUsableData(bundle)) {
+    bundle = await supplementAnnualStatements(bundle, {
+      ticker,
+      name: bundle.profile.name || esefCompany?.name || hit?.name || ticker,
+      country: esefCompany?.country ?? bundle.profile.stateOfIncorporation,
+      sector: esefCompany?.sector ?? bundle.profile.sector,
+    });
+  }
 
   return (
     <>

@@ -420,6 +420,24 @@ export function normalizeStatement(
           firstReported = undefined;
         }
       }
+      if (value === null && linea.computed === "operatingIncome") {
+        const ingresos = leer("revenue", p.key);
+        const opex = leer("operatingExpenses", p.key);
+        if (ingresos !== null && opex !== null) {
+          value = ingresos - opex;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Ingresos − Total gastos de explotación",
+            inputs: [
+              { label: "Ingresos", value: ingresos, source: leerFuente("revenue", p.key) },
+              { label: "Total gastos de explotación", value: opex, source: leerFuente("operatingExpenses", p.key) },
+            ],
+          };
+          firstReported = undefined;
+        }
+      }
       if (linea.computed === "freeCashFlow") {
         const cfo = leer("operatingCashFlow", p.key);
         const capex = leer("capex", p.key);

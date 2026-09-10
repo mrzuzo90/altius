@@ -41,7 +41,6 @@ import {
   COMPOUND_INTEREST_PRESETS,
   type CompoundInterestPresetId,
   type HistoricalPricePoint,
-  type HistoricalCagrResult,
 } from "@/lib/budget/types";
 import { CID_MASCOTS, characterPhaseForChange } from "@/components/statement-trend-animation";
 import { cn } from "@/lib/utils";
@@ -115,19 +114,25 @@ export function CompoundInterestDialog({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
 
-  // Sync monthlyContribution when initialMonthlyContribution changes or when dialog opens
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState<boolean>(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setMonthlyContribution(initialMonthlyContribution);
     }
-  }, [open, initialMonthlyContribution]);
+  }
 
   // Carga de precios históricos de la empresa seleccionada
   useEffect(() => {
     if (!selectedCompany?.ticker) return;
     let cancelled = false;
-    setIsLoadingPrices(true);
-    setCompanyFetchError(null);
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsLoadingPrices(true);
+        setCompanyFetchError(null);
+      }
+    });
 
     fetch(`/api/prices/${encodeURIComponent(selectedCompany.ticker)}`)
       .then(async (res) => {
@@ -161,8 +166,10 @@ export function CompoundInterestDialog({
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed || trimmed.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
+      queueMicrotask(() => {
+        setSearchResults([]);
+        setIsSearching(false);
+      });
       return;
     }
 

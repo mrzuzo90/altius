@@ -326,7 +326,7 @@ export function StatementSeriesDialog({
                   content={(props) => (
                     <StatementChartTooltip
                       active={props.active}
-                      payload={props.payload as any}
+                      payload={props.payload as unknown as Array<{ value: number; payload: ChartPoint }>}
                       label={props.label}
                       unit={row.line.unit}
                       scale={scale}

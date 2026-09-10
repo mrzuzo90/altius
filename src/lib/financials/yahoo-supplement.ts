@@ -13,13 +13,9 @@ import { STATEMENTS, type StatementId } from "@/lib/sec/taxonomy";
 export type YahooSupplementIdentity = {
   ticker: string;
   name: string;
-  country?: string;
-  sector?: string;
+  country?: string | null;
+  sector?: string | null;
 };
-
-function isFinancialSector(sector: string | undefined): boolean {
-  return /bank|financ|insurance/i.test(sector ?? "");
-}
 
 /**
  * Completa únicamente celdas anuales que falten en la fuente regulatoria.
@@ -30,7 +26,7 @@ export async function supplementAnnualStatements(
   primary: StatementBundle,
   identity: YahooSupplementIdentity,
 ): Promise<StatementBundle> {
-  if (primary.frequency !== "annual" || isFinancialSector(identity.sector)) return primary;
+  if (primary.frequency !== "annual") return primary;
 
   const company: EsefCompany = {
     ticker: identity.ticker,

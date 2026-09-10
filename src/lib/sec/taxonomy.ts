@@ -26,16 +26,18 @@ export type LineDef = {
   emphasis?: "total" | "subtotal";
   indent?: number;
   /** Línea calculada por Altius, no reportada. Se marca en la interfaz. */
-  computed?: "grossProfit" | "freeCashFlow" | "ratio";
+  computed?: "grossProfit" | "freeCashFlow" | "ratio" | "operatingIncome";
 };
 
 export const INCOME_STATEMENT: LineDef[] = [
   { id: "revenue", label: "Ingresos", kind: "duration", unit: "USD", emphasis: "total",
     concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet",
                "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueGoodsNet",
-               "Revenue", "RevenueFromContractsWithCustomers"] },
+               "Revenue", "RevenueFromContractsWithCustomers", "RevenuesNetOfInterestExpense",
+               "ElectricUtilityRevenue", "RegulatedOperatingRevenue", "OilAndGasRevenue"] },
   { id: "costOfRevenue", label: "Coste de ventas", kind: "duration", unit: "USD", indent: 1,
-    concepts: ["CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold", "CostOfServices", "CostOfSales"] },
+    concepts: ["CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold", "CostOfServices", "CostOfSales",
+               "ProductionAndManufacturingExpenses", "PurchasesOfCrudeOilAndProducts"] },
   { id: "grossProfit", label: "Beneficio bruto", kind: "duration", unit: "USD", emphasis: "subtotal",
     computed: "grossProfit", concepts: ["GrossProfit"] },
   // El orden importa y no es el intuitivo. JNJ usa la variante "Excluding" para
@@ -48,9 +50,9 @@ export const INCOME_STATEMENT: LineDef[] = [
   { id: "sellingGeneralAdmin", label: "Gastos generales, comerciales y administrativos", kind: "duration", unit: "USD", indent: 1,
     concepts: ["SellingGeneralAndAdministrativeExpense", "GeneralAndAdministrativeExpense"] },
   { id: "operatingExpenses", label: "Total gastos de explotación", kind: "duration", unit: "USD", emphasis: "subtotal",
-    concepts: ["OperatingExpenses", "CostsAndExpenses", "DistributionCosts", "AdministrativeExpense"] },
+    concepts: ["OperatingExpenses", "CostsAndExpenses", "DistributionCosts", "AdministrativeExpense", "NoninterestExpense"] },
   { id: "operatingIncome", label: "Resultado de explotación", kind: "duration", unit: "USD", emphasis: "subtotal",
-    concepts: ["OperatingIncomeLoss", "ProfitLossFromOperatingActivities"] },
+    computed: "operatingIncome", concepts: ["OperatingIncomeLoss", "ProfitLossFromOperatingActivities"] },
   // InterestExpenseNonoperating es la etiqueta moderna de la línea de la cuenta
   // de resultados: en Tesla coincide al céntimo con InterestExpense donde ambas
   // existen (191 y 156 M$) y es la única que continúa después. InterestExpense
@@ -100,7 +102,8 @@ export const BALANCE_SHEET: LineDef[] = [
   { id: "totalAssets", label: "Total activo", kind: "instant", unit: "USD", emphasis: "total",
     concepts: ["Assets"] },
   { id: "accountsPayable", label: "Acreedores comerciales", kind: "instant", unit: "USD", indent: 1,
-    concepts: ["AccountsPayableCurrent", "TradeAndOtherCurrentPayables"] },
+    concepts: ["AccountsPayableCurrent", "TradeAndOtherCurrentPayables",
+               "AccountsPayableAndAccruedLiabilitiesCurrentAndNoncurrent", "AccountsPayableAndOtherAccruedLiabilities"] },
   { id: "shortTermDebt", label: "Deuda a corto plazo", kind: "instant", unit: "USD", indent: 1,
     concepts: ["ShortTermBorrowings", "ShorttermBorrowings", "DebtCurrent", "CommercialPaper",
                "LinesOfCreditCurrent", "CurrentBorrowings", "CurrentPortionOfNoncurrentBorrowings",
@@ -109,9 +112,10 @@ export const BALANCE_SHEET: LineDef[] = [
   { id: "currentLiabilities", label: "Pasivo corriente", kind: "instant", unit: "USD", emphasis: "subtotal",
     concepts: ["LiabilitiesCurrent", "CurrentLiabilities"] },
   { id: "longTermDebt", label: "Deuda a largo plazo", kind: "instant", unit: "USD", indent: 1,
-    concepts: ["LongTermDebtNoncurrent", "LongtermBorrowings", "NoncurrentBorrowings", "LongTermDebt"] },
+    concepts: ["LongTermDebtNoncurrent", "LongtermBorrowings", "NoncurrentBorrowings", "LongTermDebt",
+               "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities", "LongTermDebtAndCapitalLeaseObligations"] },
   { id: "totalDebt", label: "Deuda financiera total", kind: "instant", unit: "USD", emphasis: "subtotal",
-    concepts: ["Borrowings", "LongTermDebt"] },
+    concepts: ["Borrowings", "LongTermDebt", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities", "DebtAndCapitalLeaseObligations"] },
   { id: "netDebt", label: "Deuda financiera neta", kind: "instant", unit: "USD", emphasis: "subtotal",
     concepts: ["NetDebt"] },
   { id: "totalLiabilities", label: "Total pasivo", kind: "instant", unit: "USD", emphasis: "total",

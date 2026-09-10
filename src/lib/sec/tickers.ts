@@ -201,6 +201,14 @@ export async function resolveTicker(tickerOrName: string): Promise<TickerHit | n
   return resolveTickerFromIndex(await loadIndex(), rawInput);
 }
 
+/**
+ * Emisores donde el índice de la SEC contiene entidades instrumentales o holdings
+ * que enmascaran a la compañía operativa principal con filings 10-K / 20-F.
+ */
+const KNOWN_CIK_OVERRIDES: Record<string, { cik: string; name: string }> = {
+  XOM: { cik: "0000034088", name: "EXXON MOBIL CORP" },
+};
+
 /** Variante pura usada para impedir colisiones entre tickers locales y estadounidenses. */
 export function resolveTickerFromIndex(raw: RawTickerFile, tickerOrName: string): TickerHit | null {
   const rawInput = tickerOrName.trim().toUpperCase();
@@ -211,6 +219,12 @@ export function resolveTickerFromIndex(raw: RawTickerFile, tickerOrName: string)
   const aliasResolved =
     explicitAlias ??
     rawInput;
+
+  // 0. Emisores con CIK prioritario para evitar entidades instrumentales/holdings vacíos
+  const knownOverride = KNOWN_CIK_OVERRIDES[rawInput] ?? KNOWN_CIK_OVERRIDES[aliasResolved];
+  if (knownOverride) {
+    return { ticker: rawInput, cik: padCik(knownOverride.cik), name: knownOverride.name };
+  }
 
   // 1. Coincidencia exacta por ticker resuelto o directo
   for (const entry of Object.values(raw)) {

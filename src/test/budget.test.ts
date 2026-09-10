@@ -5,7 +5,7 @@ import {
   generateCompoundInterestYearlySeries,
   calculateHistoricalCagr,
 } from "@/lib/budget/calculations";
-import { BUDGET_CATEGORIES, COMPOUND_INTEREST_PRESETS } from "@/lib/budget/types";
+import { COMPOUND_INTEREST_PRESETS } from "@/lib/budget/types";
 
 describe("calculateBudgetBreakdown", () => {
   it("calcula el desglose con las 6 proporciones recomendadas oficiales (30/20/15/15/10/10)", () => {
