@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { resolveTicker } from "@/lib/sec/tickers";
 import { findLatestFiling, getCompanyProfile } from "@/lib/sec/submissions";
 import { getPriceSeries } from "@/lib/prices";
-import { CompanyHeader } from "@/components/company-header";
+import { CompanyHeader, SHOW_TECHNICAL } from "@/components/company-header";
 import { PriceChart } from "@/components/price-chart";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { formatDate } from "@/lib/format";
@@ -196,7 +196,9 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
             <div className="mt-4 space-y-2.5">
               <Enlace href={`/ticker/${ticker}/financials`} texto="Estados financieros" />
               <Enlace href={`/ticker/${ticker}/valuation`} texto="Múltiplos y valoración" />
-              <Enlace href={`/ticker/${ticker}/technical`} texto="Análisis técnico e indicadores" />
+              {SHOW_TECHNICAL && (
+                <Enlace href={`/ticker/${ticker}/technical`} texto="Análisis técnico e indicadores" />
+              )}
               <Enlace href={`/ticker/${ticker}/ai`} texto="Copiloto de informe 10-K" />
             </div>
           </div>

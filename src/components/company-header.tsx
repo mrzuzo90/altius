@@ -4,13 +4,18 @@ import type { CompanyProfile } from "@/lib/sec/types";
 import { cn } from "@/lib/utils";
 import { WatchlistTargetButton } from "@/components/watchlist/watchlist-target-button";
 
-const TABS = [
+// Control de visibilidad del apartado de análisis técnico en la plataforma
+export const SHOW_TECHNICAL = false;
+
+const ALL_TABS = [
   { href: "", label: "Perfil" },
   { href: "/financials", label: "Estados financieros" },
   { href: "/valuation", label: "Valoración" },
   { href: "/technical", label: "Análisis técnico" },
   { href: "/ai", label: "Copiloto" },
 ];
+
+const TABS = ALL_TABS.filter((tab) => SHOW_TECHNICAL || tab.href !== "/technical");
 
 export function CompanyHeader({
   profile,

@@ -10,6 +10,7 @@ import {
   annualizedChange,
   characterPhaseForChange,
   elapsedYears,
+  getCidPatternInfo,
   StatementTrendAnimation,
   type CharacterPhase,
   type MascotPhaseConfig,
@@ -87,7 +88,8 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
 
   const rateVal = rate ?? 0;
   const phase = characterPhaseForChange(rateVal);
-  const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
+  const pattern = getCidPatternInfo(phase);
+  const mascot = pattern.mascot;
 
   let status: "up" | "down" | "flat" = "flat";
   let statusText = "Sin variación significativa";
@@ -103,28 +105,8 @@ export function calculateOverallAnnualTrend(data: readonly ChartPoint[]): Overal
     headline = `Ha bajado un ${rateVal.toFixed(1)}% anualizado`;
   }
 
-  let patternName = "Cid señor";
-  let patternDescription = "Estancado o plano (-5% a +5%)";
-
-  if (phase === "canon") {
-    patternName = "Cid cañon";
-    patternDescription = "Subida explosiva (+30%)";
-  } else if (phase === "cuerda") {
-    patternName = "Cid cuerda";
-    patternDescription = "Crecimiento fuerte (+15% a +30%)";
-  } else if (phase === "caballero") {
-    patternName = "Cid caballero";
-    patternDescription = "Crecimiento moderado (+5% a +15%)";
-  } else if (phase === "piedra") {
-    patternName = "Cid piedra";
-    patternDescription = "Caída moderada (-5% a -15%)";
-  } else if (phase === "flecha") {
-    patternName = "Cid flecha";
-    patternDescription = "Caída grande (-15% a -30%)";
-  } else if (phase === "apunalado") {
-    patternName = "Cid apuñalado";
-    patternDescription = "Desplome (<-30%)";
-  }
+  const patternName = pattern.patternName;
+  const patternDescription = pattern.patternDescription;
 
   const periodSpanText = `Calculado sobre todos los datos registrados: ${first.label} a ${last.label} (${data.length} periodos).`;
 
@@ -272,7 +254,7 @@ export function StatementSeriesDialog({
           <Metric label="Variación interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
           <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
             <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">
-              Rendimiento anualizado
+              Rentabilidad anual (Cid)
             </p>
             <div className="flex items-center gap-3 my-auto py-0.5">
               <img

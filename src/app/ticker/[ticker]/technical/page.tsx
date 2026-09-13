@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { CompanyHeader } from "@/components/company-header";
+import { CompanyHeader, SHOW_TECHNICAL } from "@/components/company-header";
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { TechnicalChart } from "@/components/technical/technical-chart";
 import { OptionsPressurePanel } from "@/components/technical/options-pressure-panel";
@@ -29,6 +29,12 @@ export default async function TechnicalPage({
 }) {
   const { ticker: bruto } = await params;
   const rawQuery = bruto.trim();
+
+  // El apartado de análisis técnico se encuentra deshabilitado/oculto temporalmente.
+  // Redirigir de inmediato al perfil de la empresa sin realizar llamadas a APIs externas ni cálculos.
+  if (!SHOW_TECHNICAL) {
+    redirect(`/ticker/${rawQuery}`);
+  }
 
   // Redirecciones directas si la URL era un índice, materia prima o divisa
   const indexHit = resolveIndexSymbol(rawQuery);

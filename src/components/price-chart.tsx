@@ -3,11 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CalendarRange, PersonStanding } from "lucide-react";
-import {
-  PriceTrendAnimation,
-  type PriceChartGeometry,
-  type PricePointGeometry,
-} from "@/components/price-trend-animation";
 import { cn } from "@/lib/utils";
 import type { PricePoint } from "@/lib/prices/types";
 import { filterPricePoints, priceRangeCutoff, type PriceRangeId } from "@/lib/prices/ranges";
@@ -21,6 +16,54 @@ import {
   timestampPricePoints,
   type Timestamped,
 } from "@/lib/prices/chart";
+import {
+  PriceTrendAnimation,
+  type PriceChartGeometry,
+  type PricePointGeometry,
+} from "@/components/price-trend-animation";
+import {
+  annualizedChange,
+  elapsedYears,
+  getCidTrendForRate,
+  type CidPatternInfo,
+} from "@/components/statement-trend-animation";
+
+export type PriceAnnualTrend = CidPatternInfo & {
+  rate: number;
+  years: number;
+  isAnnualized: boolean;
+};
+
+export function calculatePriceAnnualTrend(
+  points: readonly PricePoint[],
+  minYears: number = 1.0,
+): PriceAnnualTrend | null {
+  if (points.length < 2) return null;
+  const firstPoint = points[0];
+  const lastPoint = points.at(-1)!;
+  if (!firstPoint || !lastPoint || !firstPoint.date || !lastPoint.date) return null;
+  if (firstPoint.close <= 0 || lastPoint.close <= 0) return null;
+
+  const years = elapsedYears(firstPoint.date, lastPoint.date);
+  if (years < minYears) return null;
+
+  const rate = annualizedChange(firstPoint.close, lastPoint.close, years);
+  if (rate === null || !Number.isFinite(rate)) return null;
+
+  const info = getCidTrendForRate(rate);
+  return {
+    rate,
+    years,
+    isAnnualized: true,
+    ...info,
+  };
+}
+
+export type TenYearAnnualTrend = PriceAnnualTrend;
+
+export function calculateTenYearAnnualTrend(points: readonly PricePoint[]): TenYearAnnualTrend | null {
+  return calculatePriceAnnualTrend(points, 1.0);
+}
 
 const RANGES = [
   { id: "1m", label: "1 mes" },
@@ -50,8 +93,8 @@ export function PriceChart({
 }) {
   const firstAvailable = points[0]?.date ?? "";
   const lastAvailable = points.at(-1)?.date ?? "";
-  const initialFrom = lastAvailable ? priceRangeCutoff(lastAvailable, "5y") : "";
-  const [range, setRange] = useState<PriceRangeId>("5y");
+  const initialFrom = lastAvailable ? priceRangeCutoff(lastAvailable, "10y") : "";
+  const [range, setRange] = useState<PriceRangeId>("10y");
   const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
   const [to, setTo] = useState(lastAvailable);
   const [showCid, setShowCid] = useState(true);
@@ -73,9 +116,10 @@ export function PriceChart({
   const spanDays = chartSpanDays(chartData);
   const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
   const yDomain = useMemo(() => priceChartDomain(data), [data]);
+
   const chartSignature = `${ticker}:${range}:${data.length}:${data[0]?.date ?? "none"}:${data.at(-1)?.date ?? "none"}`;
   const capturePriceGeometry = useCallback((point: PricePointGeometry) => {
-    if (range !== "10y") return;
+    if (!showCid) return;
     if (geometryCollector.current.signature !== chartSignature) {
       geometryCollector.current = { signature: chartSignature, points: new Map() };
     }
@@ -92,7 +136,7 @@ export function PriceChart({
           : { signature: chartSignature, geometry: next }
       ));
     });
-  }, [chartSignature, data.length, range]);
+  }, [chartSignature, data.length, showCid]);
 
   useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
 
@@ -104,6 +148,21 @@ export function PriceChart({
     );
   }
 
+  const annualTrend = useMemo(() => {
+    return calculatePriceAnnualTrend(data, 1.0);
+  }, [data]);
+  const tenYearAnnualTrend = annualTrend;
+
+  const yearsLabel = useMemo(() => {
+    if (!annualTrend) return "";
+    if (annualTrend.years >= 9.5 && range === "10y") return "10 años";
+    if (range === "1y" || (annualTrend.years >= 0.9 && annualTrend.years < 1.4)) return "1 año";
+    if (range === "3y" || (annualTrend.years >= 2.5 && annualTrend.years < 3.5)) return "3 años";
+    if (range === "5y" || (annualTrend.years >= 4.5 && annualTrend.years < 5.5)) return "5 años";
+    if (range === "max") return `máx. · ${Math.round(annualTrend.years)} años`;
+    return `${Math.round(annualTrend.years * 10) / 10} años`;
+  }, [annualTrend, range]);
+
   const first = data[0]?.close ?? null;
   const last = data.at(-1)?.close ?? null;
   const rises = first !== null && last !== null ? last >= first : false;
@@ -113,14 +172,52 @@ export function PriceChart({
     : RANGES.find((item) => item.id === range)?.label ?? "periodo";
   return (
     <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5 sm:p-6">
-      <div className="flex flex-wrap items-start gap-4">
-        <div>
-          <span className="tabular font-display text-pure-white block text-[34px] font-medium leading-none tracking-tight">
-            {last === null ? "—" : formatPriceQuote(last, currency)}
-          </span>
-          <span className={cn("tabular mt-2 block text-[13px] font-mono", rises ? "text-emerald-400" : "text-rose-400")}>
-            {change === null ? "Sin datos en el periodo" : `${rises ? "+" : "−"}${Math.abs(change).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % · ${periodLabel}`}
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          <div>
+            <span className="tabular font-display text-pure-white block text-[34px] font-medium leading-none tracking-tight">
+              {last === null ? "—" : formatPriceQuote(last, currency)}
+            </span>
+            <span className={cn("tabular mt-2 block text-[13px] font-mono", rises ? "text-emerald-400" : "text-rose-400")}>
+              {change === null ? "Sin datos en el periodo" : `${rises ? "+" : "−"}${Math.abs(change).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % · ${periodLabel}`}
+            </span>
+          </div>
+
+          {showCid && annualTrend && (
+            <div className="bg-void-black/80 border-gunmetal flex items-center gap-3.5 rounded-2xl border px-3.5 py-2 sm:px-4 sm:py-2.5 shadow-md backdrop-blur-sm transition-all hover:border-periwinkle-glow/40">
+              <img
+                src={annualTrend.mascot.src}
+                alt={annualTrend.patternName}
+                className="size-11 sm:size-13 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
+              />
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-steel text-[10px] font-semibold uppercase tracking-[0.12em]">
+                    CAGR · {yearsLabel}
+                  </span>
+                  <span className="text-periwinkle-glow bg-periwinkle-glow/10 border border-periwinkle-glow/30 rounded px-1.5 py-0.5 text-[9px] font-semibold">
+                    {annualTrend.patternName}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span
+                    className={cn(
+                      "tabular font-display text-[20px] sm:text-[22px] font-bold leading-none tracking-tight",
+                      annualTrend.rate >= 0
+                        ? "text-emerald-400"
+                        : "text-rose-400"
+                    )}
+                  >
+                    {annualTrend.rate >= 0 ? "+" : ""}{annualTrend.rate.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                    <span className="text-[12px] font-normal text-muted-steel ml-1">/ año</span>
+                  </span>
+                </div>
+                <p className="text-muted-steel text-[11px] font-medium mt-0.5 hidden xs:block">
+                  {annualTrend.patternDescription}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
@@ -138,27 +235,22 @@ export function PriceChart({
               {item.label}
             </button>
           ))}
-          {range === "10y" && (
-            <>
-              <span className="border-gunmetal bg-void-black/50 text-muted-steel inline-flex items-center rounded-full border px-3 py-1.5 text-[11px]">
-                Recorrido · media móvil de 3 meses
-              </span>
-              <button
-                type="button"
-                aria-pressed={showCid}
-                aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
-                onClick={() => setShowCid((visible) => !visible)}
-                className={cn(
-                  "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
-                  showCid
-                    ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
-                    : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
-                )}
-              >
-                <PersonStanding className="size-3.5" />
-                Cid · {showCid ? "activo" : "oculto"}
-              </button>
-            </>
+          {annualTrend && (
+            <button
+              type="button"
+              aria-pressed={showCid}
+              aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
+              onClick={() => setShowCid((visible) => !visible)}
+              className={cn(
+                "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
+                showCid
+                  ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
+                  : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
+              )}
+            >
+              <PersonStanding className="size-3.5" />
+              Cid · {showCid ? "activo" : "oculto"}
+            </button>
           )}
         </div>
       </div>
@@ -196,9 +288,17 @@ export function PriceChart({
       </div>
 
       {data.length > 0 ? (
-        <div ref={chartRef} className="relative mt-5 h-[300px] w-full">
+        <div ref={chartRef} className="relative mt-5 h-[340px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: range === "10y" ? 76 : 4, right: 4, bottom: 0, left: 0 }}>
+            <AreaChart
+              data={chartData}
+              margin={{
+                top: 24,
+                right: 16,
+                bottom: 0,
+                left: 0,
+              }}
+            >
               <defs>
                 <linearGradient id="grad-precio" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#98a4f7" stopOpacity={0.25} />
@@ -217,10 +317,24 @@ export function PriceChart({
                 minTickGap={40}
                 tickFormatter={(value: number) => formatPriceChartTick(value, spanDays)}
               />
-              <YAxis domain={yDomain} tick={{ fontSize: 11, fill: "#646e87" }} tickLine={false} axisLine={false} width={68} tickFormatter={(value: number) => formatPriceQuote(value, currency, true)} />
+              <YAxis
+                domain={yDomain}
+                tick={{ fontSize: 11, fill: "#646e87" }}
+                tickLine={false}
+                axisLine={false}
+                width={68}
+                tickFormatter={(value: number) => formatPriceQuote(value, currency, true)}
+              />
               <Tooltip
                 wrapperStyle={{ zIndex: 5 }}
-                contentStyle={{ background: "#151621", border: "1px solid #1f2433", borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", fontSize: 12, color: "#ffffff" }}
+                contentStyle={{
+                  background: "#151621",
+                  border: "1px solid #1f2433",
+                  borderRadius: 10,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                  fontSize: 12,
+                  color: "#ffffff",
+                }}
                 labelStyle={{ color: "#c9d3ee", fontWeight: 500 }}
                 itemStyle={{ color: "#98a4f7" }}
                 labelFormatter={(value) => formatPriceChartDate(Number(value))}
@@ -230,25 +344,24 @@ export function PriceChart({
                 type="monotone"
                 dataKey="close"
                 stroke="#98a4f7"
-                strokeWidth={1.8}
+                strokeWidth={2}
                 fill="url(#grad-precio)"
                 isAnimationActive={false}
-                dot={range === "10y"
-                  ? (props) => (
-                      <PriceGeometryDot
-                        {...props}
-                        index={typeof props.index === "number" ? props.index : -1}
-                        onGeometry={capturePriceGeometry}
-                      />
-                    )
-                  : false}
+                dot={showCid ? (props) => (
+                  <PriceGeometryDot
+                    {...props}
+                    index={typeof props.index === "number" ? props.index : -1}
+                    onGeometry={capturePriceGeometry}
+                  />
+                ) : false}
               />
             </AreaChart>
           </ResponsiveContainer>
-          {range === "10y" && showCid && (
+          {showCid && (
             <PriceTrendAnimation
               label={ticker}
               geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
+              annualTrend={annualTrend}
             />
           )}
         </div>
@@ -257,7 +370,9 @@ export function PriceChart({
           No hay observaciones entre las fechas seleccionadas. Amplía el intervalo.
         </div>
       )}
-      <p className="text-muted-steel mt-3 text-[12px]">Cierres ajustados por splits · frecuencia diaria en el último año, semanal hasta 10 años y mensual antes · en 10 años, el personaje recorre la media móvil de 3 meses · {source} · Divisa: {currency ?? "no declarada"}</p>
+      <p className="text-muted-steel mt-3 text-[12px]">
+        Cierres ajustados por splits · frecuencia diaria en el último año, semanal hasta 10 años y mensual antes · en rangos superiores a 1 año se muestra la rentabilidad anualizada (CAGR) con el Cid correspondiente · {source} · Divisa: {currency ?? "no declarada"}
+      </p>
     </div>
   );
 }

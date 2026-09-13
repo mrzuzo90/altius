@@ -322,6 +322,37 @@ export function StatementTrendAnimation({
           ) : (
             <StaticAdaptiveCharacter phase={motionPlan.phases.at(-1) ?? "senor"} direction={direction} />
           )}
+          {trend.annualGrowthPct !== null && (
+            <g transform="translate(0, -66)">
+              <rect
+                x="-58"
+                y="-22"
+                width="116"
+                height="26"
+                rx="13"
+                fill="#151621"
+                stroke={trend.annualGrowthPct >= 0 ? "#34d399" : "#fb7185"}
+                strokeWidth="1.5"
+                filter="drop-shadow(0 4px 8px rgba(0, 0, 0, 0.75))"
+              />
+              <text
+                x="0"
+                y="-5"
+                textAnchor="middle"
+                fill={trend.annualGrowthPct >= 0 ? "#34d399" : "#fb7185"}
+                fontSize="11"
+                fontWeight="700"
+                fontFamily="var(--font-display), system-ui, sans-serif"
+                letterSpacing="-0.01em"
+              >
+                {trend.annualGrowthPct >= 0 ? "+" : ""}{trend.annualGrowthPct.toFixed(1)}% anual
+              </text>
+              <polygon
+                points="-4,4 4,4 0,8"
+                fill="#151621"
+              />
+            </g>
+          )}
         </g>
       </svg>
     </div>
@@ -366,18 +397,18 @@ export const CID_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
   },
   caballero: {
     src: "/cid/caballero.svg",
-    width: 48,
-    height: 55,
-    x: -24,
-    y: -54,
+    width: 52,
+    height: 52,
+    x: -26,
+    y: -51,
     label: "Cid caballero",
   },
   senor: {
     src: "/cid/senor.svg",
-    width: 46,
-    height: 51,
-    x: -23,
-    y: -50,
+    width: 52,
+    height: 52,
+    x: -26,
+    y: -51,
     label: "Cid señor",
   },
   piedra: {
@@ -398,15 +429,92 @@ export const CID_MASCOTS: Record<CharacterPhase, MascotPhaseConfig> = {
   },
   apunalado: {
     src: "/cid/apunalado.svg",
-    width: 62,
-    height: 64,
-    x: -31,
-    y: -63,
+    width: 54,
+    height: 54,
+    x: -27,
+    y: -53,
     label: "Cid apuñalado",
   },
 };
 
 export const ALTI_MASCOTS = CID_MASCOTS;
+
+export type CidPatternInfo = {
+  phase: CharacterPhase;
+  mascot: MascotPhaseConfig;
+  patternName: string;
+  patternDescription: string;
+};
+
+export function getCidPatternInfo(phase: CharacterPhase): CidPatternInfo {
+  const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
+  switch (phase) {
+    case "canon":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid cañon",
+        patternDescription: "Subida explosiva (+30%)",
+      };
+    case "cuerda":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid cuerda",
+        patternDescription: "Crecimiento fuerte (+15% a +30%)",
+      };
+    case "caballero":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid caballero",
+        patternDescription: "Crecimiento moderado (+5% a +15%)",
+      };
+    case "piedra":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid piedra",
+        patternDescription: "Caída moderada (-5% a -15%)",
+      };
+    case "flecha":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid flecha",
+        patternDescription: "Caída grande (-15% a -30%)",
+      };
+    case "apunalado":
+      return {
+        phase,
+        mascot,
+        patternName: "Cid apuñalado",
+        patternDescription: "Desplome (<-30%)",
+      };
+    case "senor":
+    default:
+      return {
+        phase: "senor",
+        mascot: CID_MASCOTS.senor,
+        patternName: "Cid señor",
+        patternDescription: "Estancado o plano (-5% a +5%)",
+      };
+  }
+}
+
+export function getCidTrendForRate(ratePct: number | null): CidPatternInfo & { ratePct: number | null } {
+  if (ratePct === null || !Number.isFinite(ratePct)) {
+    return {
+      ...getCidPatternInfo("senor"),
+      ratePct: null,
+    };
+  }
+  const phase = characterPhaseForChange(ratePct);
+  return {
+    ...getCidPatternInfo(phase),
+    ratePct,
+  };
+}
 
 export function CharacterPose({ phase }: { phase: CharacterPhase; direction?: MetricDirection }) {
   const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
@@ -428,10 +536,12 @@ export function AdaptiveCharacter({
   plan,
   duration,
   direction = "higher",
+  repeatCount = "1",
 }: {
   plan: CharacterMotionPlan;
   duration: number;
   direction?: MetricDirection;
+  repeatCount?: string;
 }) {
   const timeline = buildPhaseOpacityTimeline(plan, duration);
   const keyTimes = timeline.keyTimes.map(formatProgress).join(";");
@@ -448,7 +558,7 @@ export function AdaptiveCharacter({
             keyTimes={keyTimes}
             calcMode="linear"
             dur={`${duration}s`}
-            repeatCount="1"
+            repeatCount={repeatCount}
             fill="freeze"
           />
           <CharacterPose phase={phase} direction={direction} />

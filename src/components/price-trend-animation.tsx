@@ -99,7 +99,7 @@ export function buildThreeMonthTrendPoints(
 
     trend.push({
       ...point,
-      y: averageY,
+      y: point.y,
       averageValue,
       changePct,
     });
@@ -108,13 +108,16 @@ export function buildThreeMonthTrendPoints(
   return trend;
 }
 
-export function buildPriceMotionPlan(geometry: readonly PricePointGeometry[]): CharacterMotionPlan {
+export function buildPriceMotionPlan(
+  geometry: readonly PricePointGeometry[],
+  defaultPhase: CharacterPhase = "senor",
+): CharacterMotionPlan {
   const points = buildThreeMonthTrendPoints(geometry);
   if (points.length < 2) return { path: "", phases: [], keyTimes: [0, 1], changesPct: [] };
 
   const changesPct = points.slice(1).map((point) => point.changePct);
   const rawPhases = changesPct.map((change) => (
-    change === null ? "senor" : characterPhaseForChange(change)
+    change === null ? defaultPhase : characterPhaseForChange(change)
   ));
   const phases = stabilizePricePhases(rawPhases, minimumPhaseRun(points));
   const path = buildSmoothPath(points);
@@ -137,15 +140,22 @@ export function buildPriceMotionPlan(geometry: readonly PricePointGeometry[]): C
 export function PriceTrendAnimation({
   geometry,
   label,
+  annualTrend,
 }: {
   geometry: PriceChartGeometry | null;
   label: string;
+  annualTrend?: {
+    rate: number;
+    phase: CharacterPhase;
+    patternName: string;
+    patternDescription: string;
+  } | null;
 }) {
   const animationRootRef = useRef<SVGSVGElement>(null);
   const reducedMotion = usePrefersReducedMotion();
-  const plan = buildPriceMotionPlan(geometry?.points ?? []);
+  const plan = buildPriceMotionPlan(geometry?.points ?? [], annualTrend?.phase ?? "senor");
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 30;
+  const duration = 14;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;
@@ -163,7 +173,7 @@ export function PriceTrendAnimation({
     <div
       className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
       role="img"
-      aria-label={`Cid recorre la tendencia móvil de tres meses de ${label} durante los últimos diez años`}
+      aria-label={`Cid recorre la cotización de ${label}`}
     >
       <svg
         ref={animationRootRef}
@@ -181,16 +191,16 @@ export function PriceTrendAnimation({
               path={plan.path}
               begin="indefinite"
               dur={`${duration}s`}
-              repeatCount="1"
+              repeatCount="indefinite"
               fill="freeze"
               calcMode="paced"
             />
           )}
           <g transform="scale(0.86)">
             {!reducedMotion ? (
-              <AdaptiveCharacter plan={plan} duration={duration} />
+              <AdaptiveCharacter plan={plan} duration={duration} repeatCount="indefinite" />
             ) : (
-              <StaticAdaptiveCharacter phase={plan.phases.at(-1) ?? "senor"} />
+              <StaticAdaptiveCharacter phase={annualTrend?.phase ?? plan.phases.at(-1) ?? "senor"} />
             )}
           </g>
         </g>
@@ -266,11 +276,12 @@ function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduced(media.matches);
     update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
   }, []);
 
   return reduced;
