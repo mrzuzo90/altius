@@ -187,18 +187,13 @@ export function PriceChart({
             <div className="bg-void-black/80 border-gunmetal flex items-center gap-3.5 rounded-2xl border px-3.5 py-2 sm:px-4 sm:py-2.5 shadow-md backdrop-blur-sm transition-all hover:border-periwinkle-glow/40">
               <img
                 src={annualTrend.mascot.src}
-                alt={annualTrend.patternName}
+                alt="Cid"
                 className="size-11 sm:size-13 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
               />
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-steel text-[10px] font-semibold uppercase tracking-[0.12em]">
-                    CAGR · {yearsLabel}
-                  </span>
-                  <span className="text-periwinkle-glow bg-periwinkle-glow/10 border border-periwinkle-glow/30 rounded px-1.5 py-0.5 text-[9px] font-semibold">
-                    {annualTrend.patternName}
-                  </span>
-                </div>
+                <span className="text-muted-steel text-[10px] font-semibold uppercase tracking-[0.12em] block">
+                  CAGR · {yearsLabel}
+                </span>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span
                     className={cn(
@@ -212,9 +207,6 @@ export function PriceChart({
                     <span className="text-[12px] font-normal text-muted-steel ml-1">/ año</span>
                   </span>
                 </div>
-                <p className="text-muted-steel text-[11px] font-medium mt-0.5 hidden xs:block">
-                  {annualTrend.patternDescription}
-                </p>
               </div>
             </div>
           )}

@@ -254,28 +254,22 @@ export function StatementSeriesDialog({
           <Metric label="Variación interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
           <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
             <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">
-              Rentabilidad anual (Cid)
+              Patrón general
             </p>
-            <div className="flex items-center gap-3 my-auto py-0.5">
+            <div className="flex items-center gap-2.5 mt-0.5">
               <img
                 src={overallTrend.mascot.src}
-                alt={overallTrend.patternName}
-                className="size-14 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
+                alt=""
+                className="size-7 object-contain shrink-0 filter drop-shadow-[0_1px_4px_rgba(152,164,247,0.3)]"
               />
-              <p
-                className={cn(
-                  "tabular font-display text-[22px] sm:text-[24px] font-bold leading-none tracking-tight",
-                  overallTrend.status === "up"
-                    ? "text-emerald-400"
-                    : overallTrend.status === "down"
-                    ? "text-rose-400"
-                    : "text-pure-white",
-                )}
-              >
-                {overallTrend.annualizedRatePct !== null
-                  ? `${overallTrend.annualizedRatePct > 0 ? "+" : ""}${overallTrend.annualizedRatePct.toFixed(1)}%`
-                  : "—"}
-              </p>
+              <div className="min-w-0">
+                <p className="text-pure-white text-[13px] font-medium leading-snug truncate">
+                  {overallTrend.patternName}
+                </p>
+                <p className="text-muted-steel text-[11px] truncate">
+                  {overallTrend.patternDescription}
+                </p>
+              </div>
             </div>
           </div>
           <Metric label="Cobertura" value={`${data.length} periodos`} detail={data.length > 1 ? `${data[0].label} — ${data.at(-1)!.label}` : data[0]?.label ?? "Sin datos"} />

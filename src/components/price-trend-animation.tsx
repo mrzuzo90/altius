@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  CharacterPose,
   AdaptiveCharacter,
   StaticAdaptiveCharacter,
   classifyCidProfile,
@@ -99,7 +100,7 @@ export function buildThreeMonthTrendPoints(
 
     trend.push({
       ...point,
-      y: point.y,
+      y: averageY,
       averageValue,
       changePct,
     });
@@ -153,9 +154,10 @@ export function PriceTrendAnimation({
 }) {
   const animationRootRef = useRef<SVGSVGElement>(null);
   const reducedMotion = usePrefersReducedMotion();
-  const plan = buildPriceMotionPlan(geometry?.points ?? [], annualTrend?.phase ?? "senor");
+  const targetPhase: CharacterPhase = annualTrend?.phase ?? "senor";
+  const plan = buildPriceMotionPlan(geometry?.points ?? [], targetPhase);
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 14;
+  const duration = 36;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;
@@ -187,21 +189,28 @@ export function PriceTrendAnimation({
           transform={reducedMotion ? `translate(${lastPoint.x} ${lastPoint.y})` : undefined}
         >
           {!reducedMotion && (
-            <animateMotion
-              path={plan.path}
-              begin="indefinite"
-              dur={`${duration}s`}
-              repeatCount="indefinite"
-              fill="freeze"
-              calcMode="paced"
-            />
+            <>
+              <animateMotion
+                path={plan.path}
+                begin="indefinite"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                keyPoints="0; 1; 1; 1"
+                keyTimes="0; 0.86; 0.94; 1"
+                calcMode="linear"
+              />
+              <animate
+                attributeName="opacity"
+                values="0; 1; 1; 1; 0; 0"
+                keyTimes="0; 0.03; 0.86; 0.93; 0.97; 1"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                calcMode="linear"
+              />
+            </>
           )}
           <g transform="scale(0.86)">
-            {!reducedMotion ? (
-              <AdaptiveCharacter plan={plan} duration={duration} repeatCount="indefinite" />
-            ) : (
-              <StaticAdaptiveCharacter phase={annualTrend?.phase ?? plan.phases.at(-1) ?? "senor"} />
-            )}
+            <CharacterPose phase={targetPhase} />
           </g>
         </g>
       </svg>
@@ -249,22 +258,63 @@ function buildSmoothPath(points: readonly ThreeMonthTrendPoint[]): string {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${round(points[0].x)} ${round(points[0].y)}`;
 
-  let path = `M ${round(points[0].x)} ${round(points[0].y)}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const before = points[Math.max(0, index - 1)];
-    const current = points[index];
-    const next = points[index + 1];
-    const after = points[Math.min(points.length - 1, index + 2)];
-    const controlA = {
-      x: current.x + (next.x - before.x) / 6,
-      y: current.y + (next.y - before.y) / 6,
-    };
-    const controlB = {
-      x: next.x - (after.x - current.x) / 6,
-      y: next.y - (after.y - current.y) / 6,
-    };
-    path += ` C ${round(controlA.x)} ${round(controlA.y)} ${round(controlB.x)} ${round(controlB.y)} ${round(next.x)} ${round(next.y)}`;
+  // Filtrado de puntos adyacentes excesivamente juntos (< 2.5px) para evitar jitter
+  const filtered: ThreeMonthTrendPoint[] = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = filtered[filtered.length - 1];
+    if (points[i].x - prev.x >= 2.5) {
+      filtered.push(points[i]);
+    }
   }
+  filtered.push(points[points.length - 1]);
+
+  const n = filtered.length;
+  if (n === 2) {
+    return `M ${round(filtered[0].x)} ${round(filtered[0].y)} L ${round(filtered[1].x)} ${round(filtered[1].y)}`;
+  }
+
+  // 1. Pendientes secantes
+  const deltas: number[] = [];
+  const dxs: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = Math.max(0.001, filtered[i + 1].x - filtered[i].x);
+    const dy = filtered[i + 1].y - filtered[i].y;
+    dxs.push(dx);
+    deltas.push(dy / dx);
+  }
+
+  // 2. Tangentes monótonas de Fritsch-Carlson (sin sobreoscilación ni saltos en crestas y valles)
+  const m: number[] = new Array(n);
+  m[0] = deltas[0];
+  m[n - 1] = deltas[n - 2];
+
+  for (let i = 1; i < n - 1; i++) {
+    const dPrev = deltas[i - 1];
+    const dNext = deltas[i];
+    if (dPrev * dNext <= 0) {
+      m[i] = 0;
+    } else {
+      const w1 = dxs[i - 1] + 2 * dxs[i];
+      const w2 = 2 * dxs[i - 1] + dxs[i];
+      m[i] = (w1 + w2) / (w1 / dPrev + w2 / dNext);
+    }
+  }
+
+  // 3. Trazado cúbico monótono
+  let path = `M ${round(filtered[0].x)} ${round(filtered[0].y)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p1 = filtered[i];
+    const p2 = filtered[i + 1];
+    const dx = dxs[i];
+
+    const cp1x = p1.x + dx / 3;
+    const cp1y = p1.y + m[i] * (dx / 3);
+    const cp2x = p2.x - dx / 3;
+    const cp2y = p2.y - m[i + 1] * (dx / 3);
+
+    path += ` C ${round(cp1x)} ${round(cp1y)} ${round(cp2x)} ${round(cp2y)} ${round(p2.x)} ${round(p2.y)}`;
+  }
+
   return path;
 }
 
