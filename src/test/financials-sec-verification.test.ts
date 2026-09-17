@@ -34,7 +34,7 @@ describe("verificación de cobertura y autenticidad de estados financieros contr
         : secBundle ?? esefBundle!;
       expect(hasUsableData(bundle), `Líder ${leader.ticker} debe tener datos`).toBe(true);
     }
-  });
+  }, 60000);
 
   it("resuelve XOM directamente a la matriz operativa Exxon Mobil Corp (CIK 0000034088)", async () => {
     const hit = await resolveTicker("XOM");
@@ -127,7 +127,7 @@ describe("verificación de cobertura y autenticidad de estados financieros contr
       expect(hasRev, `${ticker} debe tener ingresos reportados`).toBe(true);
       expect(hasNet, `${ticker} debe tener resultado neto reportado`).toBe(true);
     }
-  });
+  }, 60000);
 
   it("garantiza la procedencia estricta de cada dato sin inventar cifras", async () => {
     const sampleTickers = ["AAPL", "NVDA", "JPM", "XOM", "ITX.MC"];

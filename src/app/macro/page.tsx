@@ -1,12 +1,14 @@
 import { getFredSeries, yoyChange, type FredSeriesId } from "@/lib/fred/client";
 import { MACRO_METRICS, type MacroMetricConfig } from "@/lib/macro/metrics";
 import { MacroDashboard, type MacroSeriesItem } from "@/components/macro-dashboard";
+import { PurchasingPowerCard } from "@/components/macro/purchasing-power-card";
 import { DataSourceBadge } from "@/components/data-source-badge";
 
 export const revalidate = 86400;
 export const metadata = {
   title: "Macro · Eurozona y EE.UU.",
-  description: "Indicadores macroeconómicos oficiales de la Eurozona y Estados Unidos con análisis de tendencia y Cid.",
+  description:
+    "Indicadores macroeconómicos oficiales de la Eurozona y Estados Unidos, gráfico de pérdida de poder adquisitivo del dinero y análisis educativo con Cid.",
 };
 
 const ORDERED_SERIES_IDS: FredSeriesId[] = [
@@ -44,6 +46,11 @@ export default async function MacroPage() {
     }),
   );
 
+  const europeInflationPoints =
+    series.find((s) => s.metric.id === "CP0000EZ19M086NEST")?.points ?? [];
+  const usInflationPoints =
+    series.find((s) => s.metric.id === "CPIAUCSL")?.points ?? [];
+
   return (
     <div className="mx-auto max-w-[1200px] px-5 py-16">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
@@ -71,6 +78,12 @@ export default async function MacroPage() {
       </div>
 
       <MacroDashboard series={series} />
+
+      {/* Gráfico interactivo: ¿Cuánto vale tu dinero? Pérdida de poder adquisitivo */}
+      <PurchasingPowerCard
+        europeRawPoints={europeInflationPoints}
+        usRawPoints={usInflationPoints}
+      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Wallet,
   CheckCircle2,
+  Flame,
 } from "lucide-react";
 import {
   calculateBudgetBreakdown,
@@ -27,6 +28,7 @@ import {
   type BudgetCategoryId,
 } from "@/lib/budget/types";
 import { CompoundInterestDialog } from "./compound-interest-dialog";
+import { InflationCalculatorDialog } from "./inflation-calculator-dialog";
 import { cn } from "@/lib/utils";
 
 const formatCurrency = (val: number) =>
@@ -57,6 +59,7 @@ export function BudgetCalculator() {
   const [monthlyIncome, setMonthlyIncome] = useState<number>(2500);
   const [customPcts, setCustomPcts] = useState<Partial<Record<BudgetCategoryId, number>>>({});
   const [isCompoundDialogOpen, setIsCompoundDialogOpen] = useState<boolean>(false);
+  const [isInflationDialogOpen, setIsInflationDialogOpen] = useState<boolean>(false);
 
   const breakdown = useMemo(() => {
     return calculateBudgetBreakdown(monthlyIncome, customPcts);
@@ -99,8 +102,8 @@ export function BudgetCalculator() {
             </p>
           </div>
 
-          {/* Quick CTA to Compound Interest */}
-          <div className="shrink-0 flex flex-col items-start md:items-end gap-2">
+          {/* Quick CTAs to Tools */}
+          <div className="shrink-0 flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-2.5">
             <button
               type="button"
               onClick={() => setIsCompoundDialogOpen(true)}
@@ -109,6 +112,14 @@ export function BudgetCalculator() {
               <TrendingUp className="size-4" />
               <span>Simular Interés Compuesto</span>
               <ArrowRight className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInflationDialogOpen(true)}
+              className="font-display inline-flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-[13px] font-semibold text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 transition-colors cursor-pointer shadow-md"
+            >
+              <Flame className="size-4 text-rose-400" />
+              <span>Calculadora de Inflación</span>
             </button>
             <p className="text-[12px] text-muted-steel">
               Ahorro actual: <span className="font-mono font-bold text-emerald-400">{formatCurrency(breakdown.savingItem.amount)}/mes</span>
@@ -366,6 +377,13 @@ export function BudgetCalculator() {
         open={isCompoundDialogOpen}
         onOpenChange={setIsCompoundDialogOpen}
         initialMonthlyContribution={breakdown.savingItem.amount}
+      />
+
+      {/* Inflation Calculator Dialog Modal */}
+      <InflationCalculatorDialog
+        open={isInflationDialogOpen}
+        onOpenChange={setIsInflationDialogOpen}
+        defaultAmount={Math.max(3000, breakdown.savingItem.amount * 12)}
       />
     </div>
   );
