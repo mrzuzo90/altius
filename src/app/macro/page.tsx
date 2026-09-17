@@ -1,30 +1,44 @@
-import { FRED_SERIES, getFredSeries, yoyChange, type FredSeriesId } from "@/lib/fred/client";
-import { MacroChart } from "@/components/macro-chart";
+import { getFredSeries, yoyChange, type FredSeriesId } from "@/lib/fred/client";
+import { MACRO_METRICS, type MacroMetricConfig } from "@/lib/macro/metrics";
+import { MacroDashboard, type MacroSeriesItem } from "@/components/macro-dashboard";
 import { DataSourceBadge } from "@/components/data-source-badge";
-import { formatDate } from "@/lib/format";
 
 export const revalidate = 86400;
-export const metadata = { title: "Macro" };
-
-/* Solo los dos acentos cálidos del sistema; el resto de series van en grafito. */
-const COLORES: Record<string, string> = {
-  CPIAUCSL: "#98a4f7",
-  FEDFUNDS: "#5b63d3",
-  UNRATE: "#c9d3ee",
+export const metadata = {
+  title: "Macro · Eurozona y EE.UU.",
+  description: "Indicadores macroeconómicos oficiales de la Eurozona y Estados Unidos con análisis de tendencia y Cid.",
 };
 
-const IDS: FredSeriesId[] = ["CPIAUCSL", "FEDFUNDS", "UNRATE"];
+const ORDERED_SERIES_IDS: FredSeriesId[] = [
+  // Eurozona
+  "CP0000EZ19M086NEST",
+  "ECBMRRFR",
+  "EZ_UNRATE",
+  // Estados Unidos
+  "CPIAUCSL",
+  "FEDFUNDS",
+  "UNRATE",
+];
 
 export default async function MacroPage() {
-  const series = await Promise.all(
-    IDS.map(async (id) => {
+  const series: MacroSeriesItem[] = await Promise.all(
+    ORDERED_SERIES_IDS.map(async (id) => {
+      const metric: MacroMetricConfig = MACRO_METRICS[id];
       try {
-        return { id, puntos: await getFredSeries(id), error: null as string | null };
+        const puntos = await getFredSeries(id);
+        const yoyPoints = metric.yoy ? yoyChange(puntos) : null;
+        return {
+          metric,
+          points: puntos,
+          yoyPoints,
+          error: null,
+        };
       } catch (error) {
         return {
-          id,
-          puntos: [],
-          error: error instanceof Error ? error.message : "Error desconocido",
+          metric,
+          points: [],
+          yoyPoints: null,
+          error: error instanceof Error ? error.message : "Error desconocido al cargar serie",
         };
       }
     }),
@@ -32,72 +46,31 @@ export default async function MacroPage() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-5 py-16">
-      <div className="mb-10 flex flex-wrap items-end gap-5">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h1 className="font-display text-pure-white text-[36px] font-medium leading-[1.2] tracking-tight">Panel Macroeconómico</h1>
-          <p className="text-frost mt-2 max-w-xl text-[16px] leading-[1.6]">
-            Series oficiales de la Reserva Federal de San Luis, sin transformar salvo donde se indica.
+          <h1 className="font-display text-pure-white text-[36px] font-medium leading-[1.2] tracking-tight">
+            Panel Macroeconómico
+          </h1>
+          <p className="text-frost mt-2 max-w-2xl text-[16px] leading-[1.6]">
+            Series oficiales del Banco Central Europeo, Eurostat y la Reserva Federal. Abre cualquier indicador para ver la evolución completa con Cid, el rendimiento anualizado y la guía didáctica.
           </p>
         </div>
-        <DataSourceBadge
-          source="FRED"
-          detail="Federal Reserve Economic Data del Banco de la Reserva Federal de San Luis."
-          href="https://fred.stlouisfed.org/"
-        />
+
+        <div className="flex flex-wrap gap-2.5">
+          <DataSourceBadge
+            source="Eurostat / BCE"
+            detail="Oficina Estadística de la Unión Europea y Banco Central Europeo."
+            href="https://ec.europa.eu/eurostat/"
+          />
+          <DataSourceBadge
+            source="FRED"
+            detail="Federal Reserve Economic Data del Banco de la Reserva Federal de San Luis."
+            href="https://fred.stlouisfed.org/"
+          />
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {series.map(({ id, puntos, error }) => {
-          const meta = FRED_SERIES[id];
-          const ultimo = puntos.at(-1);
-          const yoy = meta.yoy ? yoyChange(puntos) : null;
-          const ultimoYoy = yoy?.at(-1);
-
-          return (
-            <section key={id} className="bg-carbon-surface border-gunmetal rounded-2xl border p-8">
-              <div className="mb-2 flex items-baseline justify-between gap-3">
-                <h2 className="font-display text-pure-white text-[18px] font-medium tracking-tight">{meta.label}</h2>
-                <a
-                  href={`https://fred.stlouisfed.org/series/${id}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="text-periwinkle-glow hover:underline font-mono text-[12px]"
-                >
-                  {id}
-                </a>
-              </div>
-
-              {error ? (
-                <p className="text-muted-steel py-10 text-center text-[15px]">{error}</p>
-              ) : !ultimo ? (
-                <p className="text-muted-steel py-10 text-center text-[15px]">Sin observaciones.</p>
-              ) : (
-                <>
-                  <div className="mb-5 flex items-baseline gap-3">
-                    <span className="tabular font-display text-pure-white text-[36px] font-medium leading-none tracking-tight">
-                      {ultimoYoy
-                        ? `${ultimoYoy.value >= 0 ? "+" : "−"}${Math.abs(ultimoYoy.value).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`
-                        : ultimo.value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-muted-steel text-[13px] font-mono">
-                      {ultimoYoy ? "interanual" : meta.unit} · {formatDate(ultimo.date)}
-                    </span>
-                  </div>
-                  <MacroChart
-                    points={(yoy ?? puntos).slice(-360)}
-                    unidad={yoy ? "%" : meta.unit}
-                    color={COLORES[id]}
-                  />
-                  <p className="text-frost mt-4 text-[13px] leading-[1.6] text-pretty">
-                    {meta.description}
-                    {yoy ? " Se representa la variación interanual del índice." : ""}
-                  </p>
-                </>
-              )}
-            </section>
-          );
-        })}
-      </div>
+      <MacroDashboard series={series} />
     </div>
   );
 }
