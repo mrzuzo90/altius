@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CalendarRange, PersonStanding } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,7 @@ import {
   formatPriceQuote,
   priceChartDomain,
   timestampPricePoints,
-  type Timestamped,
 } from "@/lib/prices/chart";
-import {
-  PriceTrendAnimation,
-  type PriceChartGeometry,
-  type PricePointGeometry,
-} from "@/components/price-trend-animation";
 import {
   annualizedChange,
   elapsedYears,
@@ -36,7 +30,7 @@ export type PriceAnnualTrend = CidPatternInfo & {
 
 export function calculatePriceAnnualTrend(
   points: readonly PricePoint[],
-  minYears: number = 1.0,
+  minYears: number = 1.8,
 ): PriceAnnualTrend | null {
   if (points.length < 2) return null;
   const firstPoint = points[0];
@@ -62,7 +56,7 @@ export function calculatePriceAnnualTrend(
 export type TenYearAnnualTrend = PriceAnnualTrend;
 
 export function calculateTenYearAnnualTrend(points: readonly PricePoint[]): TenYearAnnualTrend | null {
-  return calculatePriceAnnualTrend(points, 1.0);
+  return calculatePriceAnnualTrend(points, 1.8);
 }
 
 const RANGES = [
@@ -98,16 +92,6 @@ export function PriceChart({
   const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
   const [to, setTo] = useState(lastAvailable);
   const [showCid, setShowCid] = useState(true);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [measuredChart, setMeasuredChart] = useState<{
-    signature: string;
-    geometry: PriceChartGeometry;
-  } | null>(null);
-  const geometryCollector = useRef<{ signature: string; points: Map<number, PricePointGeometry> }>({
-    signature: "",
-    points: new Map(),
-  });
-  const measureFrame = useRef(0);
 
   const data = useMemo(() => {
     return filterPricePoints(points, range, { from, to, fiscalYearStart });
@@ -117,29 +101,6 @@ export function PriceChart({
   const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
   const yDomain = useMemo(() => priceChartDomain(data), [data]);
 
-  const chartSignature = `${ticker}:${range}:${data.length}:${data[0]?.date ?? "none"}:${data.at(-1)?.date ?? "none"}`;
-  const capturePriceGeometry = useCallback((point: PricePointGeometry) => {
-    if (!showCid) return;
-    if (geometryCollector.current.signature !== chartSignature) {
-      geometryCollector.current = { signature: chartSignature, points: new Map() };
-    }
-    geometryCollector.current.points.set(point.index, point);
-    cancelAnimationFrame(measureFrame.current);
-    measureFrame.current = requestAnimationFrame(() => {
-      const container = chartRef.current;
-      const captured = [...geometryCollector.current.points.values()].sort((a, b) => a.index - b.index);
-      if (!container || captured.length < data.length || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-      const next = { width: container.clientWidth, height: container.clientHeight, points: captured };
-      setMeasuredChart((current) => (
-        current?.signature === chartSignature && samePriceGeometry(current.geometry, next)
-          ? current
-          : { signature: chartSignature, geometry: next }
-      ));
-    });
-  }, [chartSignature, data.length, showCid]);
-
-  useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
-
   if (points.length === 0) {
     return (
       <div className="bg-carbon-surface border-gunmetal text-muted-steel rounded-2xl border border-dashed px-6 py-16 text-center text-[13px]">
@@ -148,15 +109,16 @@ export function PriceChart({
     );
   }
 
+  // El rendimiento anualizado (CAGR) solo se calcula en rangos multianuales (>= 2 años)
+  const isMultiYearRange = range === "3y" || range === "5y" || range === "10y" || range === "max" || range === "custom";
   const annualTrend = useMemo(() => {
-    return calculatePriceAnnualTrend(data, 1.0);
-  }, [data]);
-  const tenYearAnnualTrend = annualTrend;
+    if (!isMultiYearRange) return null;
+    return calculatePriceAnnualTrend(data, 1.8);
+  }, [data, isMultiYearRange]);
 
   const yearsLabel = useMemo(() => {
     if (!annualTrend) return "";
     if (annualTrend.years >= 9.5 && range === "10y") return "10 años";
-    if (range === "1y" || (annualTrend.years >= 0.9 && annualTrend.years < 1.4)) return "1 año";
     if (range === "3y" || (annualTrend.years >= 2.5 && annualTrend.years < 3.5)) return "3 años";
     if (range === "5y" || (annualTrend.years >= 4.5 && annualTrend.years < 5.5)) return "5 años";
     if (range === "max") return `máx. · ${Math.round(annualTrend.years)} años`;
@@ -167,9 +129,11 @@ export function PriceChart({
   const last = data.at(-1)?.close ?? null;
   const rises = first !== null && last !== null ? last >= first : false;
   const change = first && last !== null ? ((last - first) / first) * 100 : null;
-  const periodLabel = range === "custom"
-    ? `${from || firstAvailable} → ${to || lastAvailable}`
-    : RANGES.find((item) => item.id === range)?.label ?? "periodo";
+  const periodLabel =
+    range === "custom"
+      ? `${from || firstAvailable} → ${to || lastAvailable}`
+      : RANGES.find((item) => item.id === range)?.label ?? "periodo";
+
   return (
     <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -178,8 +142,15 @@ export function PriceChart({
             <span className="tabular font-display text-pure-white block text-[34px] font-medium leading-none tracking-tight">
               {last === null ? "—" : formatPriceQuote(last, currency)}
             </span>
-            <span className={cn("tabular mt-2 block text-[13px] font-mono", rises ? "text-emerald-400" : "text-rose-400")}>
-              {change === null ? "Sin datos en el periodo" : `${rises ? "+" : "−"}${Math.abs(change).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % · ${periodLabel}`}
+            <span
+              className={cn(
+                "tabular mt-2 block text-[13px] font-mono",
+                rises ? "text-emerald-400" : "text-rose-400",
+              )}
+            >
+              {change === null
+                ? "Sin datos en el periodo"
+                : `${rises ? "+" : "−"}${Math.abs(change).toLocaleString("es-ES", { maximumFractionDigits: 1 })} % · ${periodLabel}`}
             </span>
           </div>
 
@@ -198,12 +169,15 @@ export function PriceChart({
                   <span
                     className={cn(
                       "tabular font-display text-[20px] sm:text-[22px] font-bold leading-none tracking-tight",
-                      annualTrend.rate >= 0
-                        ? "text-emerald-400"
-                        : "text-rose-400"
+                      annualTrend.rate >= 0 ? "text-emerald-400" : "text-rose-400",
                     )}
                   >
-                    {annualTrend.rate >= 0 ? "+" : ""}{annualTrend.rate.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                    {annualTrend.rate >= 0 ? "+" : ""}
+                    {annualTrend.rate.toLocaleString("es-ES", {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    %
                     <span className="text-[12px] font-normal text-muted-steel ml-1">/ año</span>
                   </span>
                 </div>
@@ -221,7 +195,9 @@ export function PriceChart({
               onClick={() => setRange(item.id)}
               className={cn(
                 "border-gunmetal font-display rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
-                range === item.id ? "bg-periwinkle-glow text-void-black border-transparent" : "bg-void-black text-muted-steel hover:text-frost",
+                range === item.id
+                  ? "bg-periwinkle-glow text-void-black border-transparent"
+                  : "bg-void-black text-muted-steel hover:text-frost",
               )}
             >
               {item.label}
@@ -259,8 +235,11 @@ export function PriceChart({
             value={from}
             min={firstAvailable}
             max={to || lastAvailable}
-            onChange={(event) => { setFrom(event.target.value); setRange("custom"); }}
-            className="bg-void-black border-gunmetal text-frost mt-1 block rounded-lg border px-3 py-1.5 text-[12px] normal-case [color-scheme:dark]"
+            onChange={(e) => {
+              setRange("custom");
+              setFrom(e.target.value);
+            }}
+            className="border-gunmetal bg-void-black text-pure-white ml-2 rounded border px-2 py-1 font-mono text-[12px]"
           />
         </label>
         <label className="text-muted-steel text-[11px] uppercase tracking-wider">
@@ -270,17 +249,17 @@ export function PriceChart({
             value={to}
             min={from || firstAvailable}
             max={lastAvailable}
-            onChange={(event) => { setTo(event.target.value); setRange("custom"); }}
-            className="bg-void-black border-gunmetal text-frost mt-1 block rounded-lg border px-3 py-1.5 text-[12px] normal-case [color-scheme:dark]"
+            onChange={(e) => {
+              setRange("custom");
+              setTo(e.target.value);
+            }}
+            className="border-gunmetal bg-void-black text-pure-white ml-2 rounded border px-2 py-1 font-mono text-[12px]"
           />
         </label>
-        <span className="text-muted-steel ml-auto text-[11px] font-mono">
-          Disponible: {firstAvailable} → {lastAvailable}
-        </span>
       </div>
 
       {data.length > 0 ? (
-        <div ref={chartRef} className="relative mt-5 h-[340px] w-full">
+        <div className="relative mt-5 h-[340px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
@@ -339,23 +318,10 @@ export function PriceChart({
                 strokeWidth={2}
                 fill="url(#grad-precio)"
                 isAnimationActive={false}
-                dot={showCid ? (props) => (
-                  <PriceGeometryDot
-                    {...props}
-                    index={typeof props.index === "number" ? props.index : -1}
-                    onGeometry={capturePriceGeometry}
-                  />
-                ) : false}
+                dot={false}
               />
             </AreaChart>
           </ResponsiveContainer>
-          {showCid && (
-            <PriceTrendAnimation
-              label={ticker}
-              geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
-              annualTrend={annualTrend}
-            />
-          )}
         </div>
       ) : (
         <div className="text-muted-steel py-16 text-center text-[13px]">
@@ -363,50 +329,8 @@ export function PriceChart({
         </div>
       )}
       <p className="text-muted-steel mt-3 text-[12px]">
-        Cierres ajustados por splits · frecuencia diaria en el último año, semanal hasta 10 años y mensual antes · en rangos superiores a 1 año se muestra la rentabilidad anualizada (CAGR) con el Cid correspondiente · {source} · Divisa: {currency ?? "no declarada"}
+        Cierres ajustados por splits · en rangos superiores a 2 años se muestra la rentabilidad anualizada (CAGR) con el Cid correspondiente · {source} · Divisa: {currency ?? "no declarada"}
       </p>
     </div>
   );
-}
-
-function PriceGeometryDot({
-  cx,
-  cy,
-  index,
-  payload,
-  onGeometry,
-}: {
-  cx?: number;
-  cy?: number;
-  index: number;
-  payload?: Timestamped<PricePoint>;
-  onGeometry: (point: PricePointGeometry) => void;
-}) {
-  if (!payload || index < 0 || !Number.isFinite(cx) || !Number.isFinite(cy)) return <g />;
-  const geometry = { index, date: payload.date, value: payload.close, x: cx!, y: cy! };
-
-  return (
-    <circle
-      ref={(node) => {
-        if (node) onGeometry(geometry);
-      }}
-      cx={cx}
-      cy={cy}
-      r="0"
-      fill="transparent"
-      data-price-point-index={index}
-    />
-  );
-}
-
-function samePriceGeometry(current: PriceChartGeometry, next: PriceChartGeometry): boolean {
-  if (current.width !== next.width || current.height !== next.height || current.points.length !== next.points.length) return false;
-  return current.points.every((point, index) => {
-    const candidate = next.points[index];
-    return point.index === candidate.index
-      && point.date === candidate.date
-      && point.value === candidate.value
-      && point.x === candidate.x
-      && point.y === candidate.y;
-  });
 }

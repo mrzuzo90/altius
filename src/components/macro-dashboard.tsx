@@ -165,7 +165,7 @@ export function MacroDashboard({ series }: { series: MacroSeriesItem[] }) {
               <div className="mt-5 pt-3 border-t border-gunmetal/60 flex items-center justify-between text-[12px]">
                 <span className="inline-flex items-center gap-1 text-periwinkle-glow font-medium group-hover:underline">
                   <Sparkles className="size-3.5" />
-                  <span>Abrir gráfico con Cid</span>
+                  <span>Ver análisis e histórico</span>
                 </span>
                 <span className="text-muted-steel text-[11px] font-mono">
                   {displayPoints.length} datos

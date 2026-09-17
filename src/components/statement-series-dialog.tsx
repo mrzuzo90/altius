@@ -231,22 +231,6 @@ export function StatementSeriesDialog({
               Evolución histórica · cifras en {row.line.unit === "USD" ? `${SCALES[scale].label} de ${currency}` : "la unidad indicada"}
             </DialogDescription>
           </div>
-
-          <button
-            type="button"
-            aria-pressed={showCid}
-            aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en el gráfico de ${row.line.label}`}
-            onClick={() => setShowCid((visible) => !visible)}
-            className={cn(
-              "font-display inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ml-4",
-              showCid
-                ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
-                : "border-gunmetal bg-carbon-surface text-muted-steel hover:text-frost",
-            )}
-          >
-            <PersonStanding className="size-3.5" />
-            <span>Cid · {showCid ? "activo" : "oculto"}</span>
-          </button>
         </DialogHeader>
 
         <div className="grid gap-px border-b border-gunmetal bg-gunmetal grid-cols-2 sm:grid-cols-4">
@@ -254,7 +238,7 @@ export function StatementSeriesDialog({
           <Metric label="Variación interanual" value={formatPct(yoy)} detail={priorComparable ? `frente a ${priorComparable.label}` : "Sin comparable"} />
           <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
             <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">
-              Patrón general
+              Rendimiento anual
             </p>
             <div className="flex items-center gap-2.5 mt-0.5">
               <img
@@ -263,11 +247,17 @@ export function StatementSeriesDialog({
                 className="size-7 object-contain shrink-0 filter drop-shadow-[0_1px_4px_rgba(152,164,247,0.3)]"
               />
               <div className="min-w-0">
-                <p className="text-pure-white text-[13px] font-medium leading-snug truncate">
-                  {overallTrend.patternName}
-                </p>
-                <p className="text-muted-steel text-[11px] truncate">
-                  {overallTrend.patternDescription}
+                <p
+                  className={cn(
+                    "tabular font-display text-[15px] font-bold leading-none tracking-tight",
+                    overallTrend.annualizedRatePct !== null && overallTrend.annualizedRatePct >= 0
+                      ? "text-emerald-400"
+                      : "text-rose-400",
+                  )}
+                >
+                  {overallTrend.annualizedRatePct !== null
+                    ? `${overallTrend.annualizedRatePct >= 0 ? "+" : ""}${overallTrend.annualizedRatePct.toFixed(1)} % / año`
+                    : "—"}
                 </p>
               </div>
             </div>
@@ -321,14 +311,6 @@ export function StatementSeriesDialog({
                 />
               </BarChart>
             </ResponsiveContainer>
-            {showCid && (
-              <StatementTrendAnimation
-                data={data}
-                label={row.line.label}
-                geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
-                direction={semantics.direction}
-              />
-            )}
           </div>
 
           <div className="text-muted-steel flex items-center justify-between px-2 pt-2 text-[11px]">

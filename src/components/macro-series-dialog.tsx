@@ -1,22 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
-import { BookOpen, CalendarRange, PersonStanding, TrendingUp, Wallet, Briefcase } from "lucide-react";
+import { BookOpen, CalendarRange, TrendingUp, Wallet, Briefcase } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import type { MacroMetricConfig, MacroPoint } from "@/lib/macro/metrics";
 import {
-  PriceTrendAnimation,
-  type PriceChartGeometry,
-  type PricePointGeometry,
-} from "@/components/price-trend-animation";
-import {
-  annualizedChange,
+  CID_MASCOTS,
   elapsedYears,
-  getCidTrendForRate,
-  type CidPatternInfo,
+  type CharacterPhase,
+  type MascotPhaseConfig,
 } from "@/components/statement-trend-animation";
 
 export type MacroRangeId = "1y" | "3y" | "5y" | "10y" | "max";
@@ -29,15 +24,17 @@ const RANGES: readonly { id: MacroRangeId; label: string }[] = [
   { id: "max", label: "Máx." },
 ];
 
-export type MacroAnnualTrend = CidPatternInfo & {
+export type MacroAnnualTrend = {
   rate: number;
+  displayValue: string;
+  sublabel: string;
+  mascot: MascotPhaseConfig;
   years: number;
-  isAnnualized: boolean;
 };
 
 export function calculateMacroAnnualTrend(
   points: readonly MacroPoint[],
-  minYears: number = 0.5,
+  metric: MacroMetricConfig | null,
 ): MacroAnnualTrend | null {
   if (points.length < 2) return null;
   const firstPoint = points[0];
@@ -45,24 +42,69 @@ export function calculateMacroAnnualTrend(
   if (!firstPoint?.date || !lastPoint?.date) return null;
 
   const years = elapsedYears(firstPoint.date, lastPoint.date);
-  if (years < minYears) return null;
+  const values = points.map((p) => p.value).filter((v) => Number.isFinite(v));
+  if (values.length === 0) return null;
 
-  let rate: number | null = null;
-  if (firstPoint.value > 0 && lastPoint.value > 0) {
-    rate = annualizedChange(firstPoint.value, lastPoint.value, years);
-  } else {
-    // Si los valores cruzan cero o son negativos, cálculo lineal anualizado
-    rate = ((lastPoint.value - firstPoint.value) / Math.max(1, Math.abs(firstPoint.value || 1))) * (100 / years);
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const latest = lastPoint.value;
+  const id = metric?.id ?? "";
+
+  let phase: CharacterPhase = "senor";
+  let displayValue = "";
+  let sublabel = "";
+  let rate = mean;
+
+  // 1. Inflación (IPCA Eurozona o IPC EE.UU.)
+  if (metric?.yoy || id.includes("CPI")) {
+    rate = mean;
+    if (mean <= 3.0) phase = "senor";
+    else if (mean <= 5.5) phase = "caballero";
+    else if (mean <= 9.0) phase = "cuerda";
+    else if (mean > 9.0) phase = "canon";
+    else phase = "piedra";
+
+    displayValue = `${mean >= 0 ? "+" : ""}${mean.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+    sublabel = `Media anual · actual: ${latest >= 0 ? "+" : ""}${latest.toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
+  }
+  // 2. Tipos de interés (BCE o Fed)
+  else if (id === "ECBMRRFR" || id === "FEDFUNDS" || id === "ECBDFR") {
+    rate = latest;
+    if (latest <= 2.0) phase = "senor";
+    else if (latest <= 3.75) phase = "caballero";
+    else if (latest <= 5.5) phase = "cuerda";
+    else if (latest > 5.5) phase = "canon";
+    else phase = "piedra";
+
+    displayValue = `${latest.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+    sublabel = `Tipo actual · media en rango: ${mean.toLocaleString("es-ES", { maximumFractionDigits: 2 })} %`;
+  }
+  // 3. Paro / Desempleo (Eurostat o BLS)
+  else if (id === "EZ_UNRATE" || id === "UNRATE") {
+    rate = latest;
+    if (latest <= 4.5) phase = "caballero";
+    else if (latest <= 7.0) phase = "senor";
+    else if (latest <= 10.0) phase = "piedra";
+    else phase = "apunalado";
+
+    displayValue = `${latest.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+    sublabel = `Paro actual · media en rango: ${mean.toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
+  }
+  // Genérico / fallback
+  else {
+    rate = mean;
+    phase = "senor";
+    displayValue = `${mean.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ${metric?.chartUnit ?? "%"}`;
+    sublabel = `Media del periodo (${years.toFixed(1)} años)`;
   }
 
-  if (rate === null || !Number.isFinite(rate)) return null;
+  const mascot = CID_MASCOTS[phase] ?? CID_MASCOTS.senor;
 
-  const info = getCidTrendForRate(rate);
   return {
     rate,
+    displayValue,
+    sublabel,
+    mascot,
     years,
-    isAnnualized: true,
-    ...info,
   };
 }
 
@@ -92,57 +134,24 @@ export function MacroSeriesDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [range, setRange] = useState<MacroRangeId>("5y");
-  const [showCid, setShowCid] = useState(true);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [measuredChart, setMeasuredChart] = useState<{
-    signature: string;
-    geometry: PriceChartGeometry;
-  } | null>(null);
-
-  const geometryCollector = useRef<{ signature: string; points: Map<number, PricePointGeometry> }>({
-    signature: "",
-    points: new Map(),
-  });
-  const measureFrame = useRef(0);
 
   const filteredPoints = useMemo(() => {
     return filterMacroPoints(points, range);
   }, [points, range]);
 
   const annualTrend = useMemo(() => {
-    return calculateMacroAnnualTrend(filteredPoints, 0.25);
-  }, [filteredPoints]);
-
-  const chartSignature = `${metric?.id ?? "none"}:${range}:${filteredPoints.length}:${filteredPoints[0]?.date ?? ""}:${filteredPoints.at(-1)?.date ?? ""}`;
-
-  const captureGeometry = useCallback((point: PricePointGeometry) => {
-    if (!showCid) return;
-    if (geometryCollector.current.signature !== chartSignature) {
-      geometryCollector.current = { signature: chartSignature, points: new Map() };
-    }
-    geometryCollector.current.points.set(point.index, point);
-    cancelAnimationFrame(measureFrame.current);
-    measureFrame.current = requestAnimationFrame(() => {
-      const container = chartRef.current;
-      const captured = [...geometryCollector.current.points.values()].sort((a, b) => a.index - b.index);
-      if (!container || captured.length < filteredPoints.length || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-      const next = { width: container.clientWidth, height: container.clientHeight, points: captured };
-      setMeasuredChart((current) => (
-        current?.signature === chartSignature && sameGeometry(current.geometry, next)
-          ? current
-          : { signature: chartSignature, geometry: next }
-      ));
-    });
-  }, [chartSignature, filteredPoints.length, showCid]);
-
-  useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
+    return calculateMacroAnnualTrend(filteredPoints, metric);
+  }, [filteredPoints, metric]);
 
   if (!metric) return null;
 
   const latest = filteredPoints.at(-1);
   const first = filteredPoints[0];
   const delta = latest && first ? latest.value - first.value : 0;
-  const deltaPct = latest && first && first.value !== 0 ? ((latest.value - first.value) / Math.abs(first.value)) * 100 : null;
+  const deltaPct =
+    latest && first && first.value !== 0
+      ? ((latest.value - first.value) / Math.abs(first.value)) * 100
+      : null;
 
   const gradientId = `grad-macro-dialog-${metric.id}`;
   const strokeColor = metric.color || "#98a4f7";
@@ -169,22 +178,6 @@ export function MacroSeriesDialog({
               </DialogDescription>
             </div>
           </div>
-
-          <button
-            type="button"
-            aria-pressed={showCid}
-            aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en el gráfico`}
-            onClick={() => setShowCid((visible) => !visible)}
-            className={cn(
-              "font-display inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ml-4",
-              showCid
-                ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
-                : "border-gunmetal bg-carbon-surface text-muted-steel hover:text-frost",
-            )}
-          >
-            <PersonStanding className="size-3.5" />
-            <span>Cid · {showCid ? "activo" : "oculto"}</span>
-          </button>
         </DialogHeader>
 
         {/* Resumen de métricas superiores */}
@@ -194,7 +187,9 @@ export function MacroSeriesDialog({
               Última observación
             </p>
             <p className="tabular font-display text-pure-white text-[22px] font-bold leading-tight mt-1">
-              {latest ? `${latest.value.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ${metric.chartUnit}` : "—"}
+              {latest
+                ? `${latest.value.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ${metric.chartUnit}`
+                : "—"}
             </p>
             <p className="text-muted-steel text-[11px] truncate mt-0.5">
               {latest ? formatDate(latest.date) : "Sin datos"}
@@ -219,32 +214,26 @@ export function MacroSeriesDialog({
             </p>
           </div>
 
-          {/* Figura de Cid con Rendimiento Anual (sin textos redundantes) */}
+          {/* Figura de Cid con Rendimiento / Tasa Anual: SIN nombre de Cid, SIN etiquetas */}
           <div className="bg-carbon-surface px-5 py-3 flex flex-col justify-between">
             <p className="text-muted-steel text-[10px] font-medium uppercase tracking-[0.12em]">
               Rendimiento anual
             </p>
-            <div className="flex items-center gap-2.5 mt-0.5">
+            <div className="flex items-center gap-3 mt-1">
               {annualTrend ? (
                 <>
                   <img
                     src={annualTrend.mascot.src}
                     alt=""
-                    className="size-9 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(152,164,247,0.35)]"
+                    className="size-11 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(152,164,247,0.35)]"
                   />
                   <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "tabular font-display text-[17px] font-bold leading-none tracking-tight",
-                        annualTrend.rate >= 0 ? "text-emerald-400" : "text-rose-400",
-                      )}
-                    >
-                      {annualTrend.rate >= 0 ? "+" : ""}
-                      {annualTrend.rate.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                    <p className="tabular font-display text-[20px] font-bold leading-none tracking-tight text-pure-white">
+                      {annualTrend.displayValue}
                       <span className="text-[11px] font-normal text-muted-steel ml-1">/ año</span>
                     </p>
-                    <p className="text-muted-steel text-[11px] truncate mt-1">
-                      {annualTrend.patternName}
+                    <p className="text-muted-steel text-[10px] truncate mt-1">
+                      {annualTrend.sublabel}
                     </p>
                   </div>
                 </>
@@ -294,16 +283,15 @@ export function MacroSeriesDialog({
           </div>
         </div>
 
-        {/* Gráfico interactivo con Cid */}
+        {/* Gráfico limpio: Cid NO recorre el gráfico */}
         <div className="px-6 py-2">
           <div
-            ref={chartRef}
             className="relative h-[290px] w-full"
             role="group"
-            aria-label={`Gráfico de ${metric.label}${showCid ? " con animación de Cid" : ""}`}
+            aria-label={`Gráfico de ${metric.label}`}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredPoints} margin={{ top: 24, right: 12, bottom: 4, left: 4 }}>
+              <AreaChart data={filteredPoints} margin={{ top: 16, right: 12, bottom: 4, left: 4 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={strokeColor} stopOpacity={0.25} />
@@ -349,28 +337,10 @@ export function MacroSeriesDialog({
                   strokeWidth={2}
                   fill={`url(#${gradientId})`}
                   isAnimationActive={false}
-                  dot={
-                    showCid
-                      ? (props) => (
-                          <MacroGeometryDot
-                            {...props}
-                            index={typeof props.index === "number" ? props.index : -1}
-                            onGeometry={captureGeometry}
-                          />
-                        )
-                      : false
-                  }
+                  dot={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
-
-            {showCid && (
-              <PriceTrendAnimation
-                label={metric.label}
-                geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
-                annualTrend={annualTrend}
-              />
-            )}
           </div>
 
           <div className="text-muted-steel flex items-center justify-between pt-1 text-[11px]">
@@ -386,7 +356,7 @@ export function MacroSeriesDialog({
           </div>
         </div>
 
-        {/* Sección educativa para principiantes */}
+        {/* Sección didáctica para principiantes */}
         <div className="border-t border-gunmetal bg-void-black/60 p-6 space-y-4">
           <div className="flex items-center gap-2 text-pure-white text-[15px] font-medium">
             <BookOpen className="size-4 text-periwinkle-glow" />
@@ -428,56 +398,4 @@ export function MacroSeriesDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function MacroGeometryDot({
-  cx,
-  cy,
-  index,
-  payload,
-  onGeometry,
-}: {
-  cx?: number;
-  cy?: number;
-  index: number;
-  payload?: MacroPoint;
-  onGeometry: (point: PricePointGeometry) => void;
-}) {
-  if (!payload || index < 0 || !Number.isFinite(cx) || !Number.isFinite(cy)) return <g />;
-  const geometry: PricePointGeometry = {
-    index,
-    date: payload.date,
-    value: payload.value,
-    x: cx!,
-    y: cy!,
-  };
-
-  return (
-    <circle
-      ref={(node) => {
-        if (node) onGeometry(geometry);
-      }}
-      cx={cx}
-      cy={cy}
-      r="0"
-      fill="transparent"
-      data-macro-point-index={index}
-    />
-  );
-}
-
-function sameGeometry(current: PriceChartGeometry, next: PriceChartGeometry): boolean {
-  if (current.width !== next.width || current.height !== next.height || current.points.length !== next.points.length) {
-    return false;
-  }
-  return current.points.every((point, index) => {
-    const candidate = next.points[index];
-    return (
-      point.index === candidate.index &&
-      point.date === candidate.date &&
-      point.value === candidate.value &&
-      point.x === candidate.x &&
-      point.y === candidate.y
-    );
-  });
 }

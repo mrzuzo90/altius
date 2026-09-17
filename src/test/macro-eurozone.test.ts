@@ -87,65 +87,72 @@ describe("Macroeconomía Eurozona y Métrica Altius", () => {
     });
   });
 
-  describe("Cálculo de rendimiento anual con Cid en macroeconomía", () => {
-    it("calcula la variación anualizada y asigna la postura adecuada de Cid", () => {
-      // 5 años de inflación moderada creciendo a un ~2.5% anual
+  describe("Cálculo realista de métricas anuales con Cid en macroeconomía", () => {
+    it("calcula la inflación media anual y asigna Cid señor para inflación controlada (~2%)", () => {
+      const cpiMetric = MACRO_METRICS["CP0000EZ19M086NEST"];
       const points = [
-        { date: "2020-01-01", value: 100 },
-        { date: "2025-01-01", value: 113.14 }, // ~2.5% CAGR
+        { date: "2024-01-01", value: 2.8 },
+        { date: "2024-02-01", value: 2.6 },
+        { date: "2024-03-01", value: 2.4 },
+        { date: "2024-04-01", value: 2.2 },
       ];
 
-      const trend = calculateMacroAnnualTrend(points, 1.0);
+      const trend = calculateMacroAnnualTrend(points, cpiMetric);
       expect(trend).not.toBeNull();
       expect(trend!.rate).toBeCloseTo(2.5, 1);
-      expect(trend!.phase).toBe("senor"); // -5% a +5%
+      expect(trend!.displayValue).toBe("+2,5 %");
       expect(trend!.mascot.src).toBe("/cid/senor.svg");
+      // Verifica que no tenga etiquetas o nombres de Cid en la salida
+      expect((trend as any).patternName).toBeUndefined();
     });
 
-    it("asigna Cid caballero para crecimientos moderados (+5% a +15%)", () => {
+    it("asigna Cid caballero para inflación moderada (3.5% a 5.5%)", () => {
+      const cpiMetric = MACRO_METRICS["CP0000EZ19M086NEST"];
       const points = [
-        { date: "2022-01-01", value: 100 },
-        { date: "2024-01-01", value: 116.64 }, // ~8% CAGR
+        { date: "2022-01-01", value: 4.5 },
+        { date: "2022-06-01", value: 4.8 },
       ];
 
-      const trend = calculateMacroAnnualTrend(points, 1.0);
+      const trend = calculateMacroAnnualTrend(points, cpiMetric);
       expect(trend).not.toBeNull();
-      expect(trend!.rate).toBeCloseTo(8.0, 1);
-      expect(trend!.phase).toBe("caballero");
+      expect(trend!.mascot.src).toBe("/cid/caballero.svg");
+      expect(trend!.displayValue).toBe("+4,7 %");
+    });
+
+    it("calcula tipos de interés del BCE de forma realista sin porcentajes astronómicos", () => {
+      const ecbMetric = MACRO_METRICS["ECBMRRFR"];
+      const points = [
+        { date: "2022-01-01", value: 0.0 },
+        { date: "2023-01-01", value: 2.5 },
+        { date: "2026-09-01", value: 2.65 },
+      ];
+
+      const trend = calculateMacroAnnualTrend(points, ecbMetric);
+      expect(trend).not.toBeNull();
+      // Debe mostrar el tipo actual (2,65%) y no un disparate como +700%
+      expect(trend!.rate).toBe(2.65);
+      expect(trend!.displayValue).toBe("2,65 %");
       expect(trend!.mascot.src).toBe("/cid/caballero.svg");
     });
 
-    it("asigna Cid cañón o cuerda para subidas fuertes", () => {
+    it("calcula desempleo de forma realista y asigna la figura correcta", () => {
+      const unrateMetric = MACRO_METRICS["EZ_UNRATE"];
       const points = [
-        { date: "2022-01-01", value: 1.0 },
-        { date: "2024-01-01", value: 1.44 }, // +20% anual
+        { date: "2024-01-01", value: 6.5 },
+        { date: "2024-06-01", value: 6.4 },
       ];
 
-      const trend = calculateMacroAnnualTrend(points, 1.0);
+      const trend = calculateMacroAnnualTrend(points, unrateMetric);
       expect(trend).not.toBeNull();
-      expect(trend!.rate).toBeCloseTo(20.0, 1);
-      expect(trend!.phase).toBe("cuerda");
-      expect(trend!.mascot.src).toBe("/cid/cuerda.svg");
+      expect(trend!.rate).toBe(6.4);
+      expect(trend!.displayValue).toBe("6,4 %");
+      expect(trend!.mascot.src).toBe("/cid/senor.svg");
     });
 
-    it("asigna Cid flecha o apuñalado para caídas severas", () => {
-      const points = [
-        { date: "2022-01-01", value: 100 },
-        { date: "2024-01-01", value: 49 }, // -30% anual
-      ];
-
-      const trend = calculateMacroAnnualTrend(points, 1.0);
-      expect(trend).not.toBeNull();
-      expect(trend!.phase).toBe("apunalado");
-      expect(trend!.mascot.src).toBe("/cid/apunalado.svg");
-    });
-
-    it("retorna null si los puntos son insuficientes en tiempo", () => {
-      const points = [
-        { date: "2024-01-01", value: 10 },
-        { date: "2024-01-15", value: 12 },
-      ];
-      expect(calculateMacroAnnualTrend(points, 1.0)).toBeNull();
+    it("retorna null si los puntos son insuficientes", () => {
+      const unrateMetric = MACRO_METRICS["EZ_UNRATE"];
+      expect(calculateMacroAnnualTrend([], unrateMetric)).toBeNull();
+      expect(calculateMacroAnnualTrend([{ date: "2024-01-01", value: 5 }], unrateMetric)).toBeNull();
     });
   });
 });
