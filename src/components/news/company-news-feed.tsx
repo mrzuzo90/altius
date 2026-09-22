@@ -5,6 +5,7 @@ import {
   ExternalLink,
   Globe,
   Newspaper,
+  Quote,
   ShieldCheck,
 } from "lucide-react";
 import type { NewsItem } from "@/lib/news/types";
@@ -108,6 +109,19 @@ export function CompanyNewsFeed({
           >
             Prensa ({countMarket})
           </button>
+        </div>
+      </div>
+
+      {/* Lema sobre el sesgo de las noticias financieras */}
+      <div className="relative overflow-hidden rounded-xl border border-periwinkle-glow/20 bg-void-black/70 p-4 sm:p-5 shadow-sm">
+        <div className="pointer-events-none absolute -right-6 -bottom-6 size-24 rounded-full bg-periwinkle-glow/5 blur-xl" />
+        <div className="flex items-start gap-3.5">
+          <div className="size-8 rounded-lg bg-periwinkle-glow/10 border border-periwinkle-glow/25 flex items-center justify-center shrink-0 mt-0.5">
+            <Quote className="size-4 text-periwinkle-glow" />
+          </div>
+          <p className="font-display italic text-[13px] sm:text-[14px] leading-relaxed text-frost font-medium">
+            “Las noticias siguen el precio de cotización, serán buenas si el precio de la acción sube y serán malas si el precio de la acción baja. Ningún periodista, ningún analista, ninguna persona, es capaz de predecir el futuro”
+          </p>
         </div>
       </div>
 

@@ -93,41 +93,51 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
     <>
       <CompanyHeader profile={profile} ticker={ticker} active="/" />
 
-      <div className="mx-auto grid max-w-[1200px] gap-x-12 gap-y-8 px-5 py-8 sm:py-10 lg:grid-cols-3">
-        {scorecard ? <div className="lg:col-span-3"><QualityScorecard scorecard={scorecard} /></div> : null}
-        {bundle && scorecard ? (
-          <div className="lg:col-span-3">
-            <Suspense fallback={<CompanyResearchLoading />}>
-              <CompanyResearch filing={annualFiling} bundle={bundle} scorecard={scorecard} />
-            </Suspense>
-          </div>
-        ) : null}
-        <section className="lg:col-span-2 space-y-10">
-          <div>
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-graphite text-[24px] leading-[1.15] tracking-[-0.48px]">Cotización histórica</h2>
-              {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
-            </div>
-
-            {precios.ok ? (
-              <PriceChart
-                points={precios.series.points}
-                source={precios.series.source}
-                currency={precios.series.currency}
-                fiscalYearStart={fiscalYearStart}
-                ticker={ticker}
-              />
-            ) : (
-              <SinPrecio resultado={precios} />
-            )}
+      <div className="mx-auto max-w-[1200px] px-5 py-8 sm:py-10 space-y-10">
+        {/* 1. GRÁFICO DE COTIZACIÓN: Lo primero que se ve para saber de un simple vistazo la marcha de la acción */}
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-pure-white text-[24px] font-medium tracking-tight">Cotización histórica</h2>
+            {precios.ok ? <DataSourceBadge source={precios.series.source} /> : null}
           </div>
 
-          <CompanyNewsFeed
-            news={newsResult.news}
-            ticker={ticker}
-            companyName={profile.name}
-          />
+          {precios.ok ? (
+            <PriceChart
+              points={precios.series.points}
+              source={precios.series.source}
+              currency={precios.series.currency}
+              fiscalYearStart={fiscalYearStart}
+              ticker={ticker}
+            />
+          ) : (
+            <SinPrecio resultado={precios} />
+          )}
         </section>
+
+        {/* 2. LAS SEIS CLAVES DEL ANÁLISIS FUNDAMENTAL: Justamente debajo del gráfico */}
+        {scorecard ? (
+          <section>
+            <QualityScorecard scorecard={scorecard} />
+          </section>
+        ) : null}
+
+        {/* 3, 4, 5 Y PANEL LATERAL */}
+        <div className="grid gap-x-12 gap-y-10 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-10">
+            {/* 3. EL NEGOCIO EN 30 SEGUNDOS Y 4. TRES COSAS QUE LLAMAN LA ATENCIÓN */}
+            {bundle && scorecard ? (
+              <Suspense fallback={<CompanyResearchLoading />}>
+                <CompanyResearch filing={annualFiling} bundle={bundle} scorecard={scorecard} />
+              </Suspense>
+            ) : null}
+
+            {/* 5. NOTICIAS CON LEMA EDUCATIVO */}
+            <CompanyNewsFeed
+              news={newsResult.news}
+              ticker={ticker}
+              companyName={profile.name}
+            />
+          </div>
 
         <aside className="space-y-6">
           <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
@@ -204,8 +214,9 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           </div>
         </aside>
       </div>
-    </>
-  );
+    </div>
+  </>
+);
 }
 
 async function CompanyResearch({

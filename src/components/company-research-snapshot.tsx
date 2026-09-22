@@ -2,6 +2,82 @@ import { BriefcaseBusiness, CircleHelp, Coins, ExternalLink, ShieldCheck, Sparkl
 import type { BusinessSnapshot, CompanyAttentionItem } from "@/lib/company-research";
 import { cn } from "@/lib/utils";
 
+export function BusinessSummaryCard({ snapshot }: { snapshot: BusinessSnapshot }) {
+  return (
+    <article className="relative overflow-hidden rounded-[24px] border border-gunmetal bg-carbon-surface">
+      <div className="pointer-events-none absolute -left-24 -top-32 size-72 rounded-full bg-periwinkle-glow/10 blur-3xl" />
+      <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-gunmetal px-5 py-3.5">
+        <div>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-periwinkle-glow">El negocio en 30 segundos</p>
+          <h2 className="mt-1 font-display text-[21px] font-medium tracking-tight text-pure-white">Qué hace y cómo gana dinero</h2>
+        </div>
+        <SourceLink snapshot={snapshot} />
+      </header>
+
+      <div className="relative grid gap-px bg-gunmetal md:grid-cols-2">
+        <div className="bg-carbon-surface p-5">
+          <div className="flex items-center gap-2 text-periwinkle-glow">
+            <BriefcaseBusiness className="size-4" />
+            <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">A qué se dedica</h3>
+          </div>
+          <p className="mt-3 text-[14px] leading-6 text-frost">{snapshot.activity}</p>
+        </div>
+        <div className="bg-carbon-surface p-5">
+          <div className="flex items-center gap-2 text-emerald-300">
+            <Coins className="size-4" />
+            <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">Cómo gana dinero</h3>
+          </div>
+          <p className="mt-3 text-[14px] leading-6 text-frost">{snapshot.revenueModel}</p>
+          <div className={`mt-4 rounded-xl border p-3 ${snapshot.profitEngine.status === "reported" ? "border-emerald-400/20 bg-emerald-400/[0.045]" : "border-gunmetal bg-void-black/45"}`}>
+            <p className={`font-mono text-[8px] font-semibold uppercase tracking-[0.15em] ${snapshot.profitEngine.status === "reported" ? "text-emerald-300" : "text-muted-steel"}`}>
+              {snapshot.profitEngine.status === "reported" ? "División que más beneficio aporta" : "Beneficio por divisiones"}
+            </p>
+            <p className="mt-1.5 font-display text-[15px] font-medium text-pure-white">{snapshot.profitEngine.title}</p>
+            <p className="mt-1.5 text-[10px] leading-4 text-muted-steel">{snapshot.profitEngine.detail}</p>
+          </div>
+        </div>
+      </div>
+
+      {snapshot.regulatoryExcerpt ? (
+        <details className="group border-t border-gunmetal bg-void-black/35 px-5 py-3">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-medium text-muted-steel marker:hidden hover:text-frost">
+            <span>Ver el texto localizado en el informe anual</span>
+            <span className="grid size-5 place-items-center rounded-full border border-gunmetal text-periwinkle-glow transition-transform group-open:rotate-45">+</span>
+          </summary>
+          <p className="mt-3 max-w-5xl border-l-2 border-periwinkle-glow/40 pl-4 text-[11px] italic leading-5 text-muted-steel">
+            {snapshot.regulatoryExcerpt}
+          </p>
+        </details>
+      ) : (
+        <p className="border-t border-gunmetal bg-void-black/35 px-5 py-3 text-[10px] leading-4 text-muted-steel">
+          {snapshot.confidence === "regulatory"
+            ? "Los productos y marcas se han comprobado en el informe anual, aunque el documento no ofrece un párrafo operativo limpio para mostrar como extracto."
+            : "Síntesis basada en la clasificación regulatoria y los estados financieros; no se encontró un apartado operativo legible en el documento anual."}
+        </p>
+      )}
+    </article>
+  );
+}
+
+export function CompanyAttentionSection({ attention }: { attention: CompanyAttentionItem[] }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-periwinkle-glow">Lectura rápida</p>
+          <h2 className="mt-1 font-display text-[23px] font-medium tracking-tight text-pure-white">Tres cosas que llaman la atención</h2>
+        </div>
+        <p className="hidden max-w-md text-right text-[10px] leading-4 text-muted-steel sm:block">
+          Señales calculadas con los mismos datos y umbrales de Las seis claves; pueden ser fortalezas, dudas o riesgos.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        {attention.map((item, index) => <AttentionCard key={item.id} item={item} index={index} />)}
+      </div>
+    </section>
+  );
+}
+
 export function CompanyResearchSnapshot({
   snapshot,
   attention,
@@ -10,74 +86,9 @@ export function CompanyResearchSnapshot({
   attention: CompanyAttentionItem[];
 }) {
   return (
-    <section className="space-y-4">
-      <article className="relative overflow-hidden rounded-[24px] border border-gunmetal bg-carbon-surface">
-        <div className="pointer-events-none absolute -left-24 -top-32 size-72 rounded-full bg-periwinkle-glow/10 blur-3xl" />
-        <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-gunmetal px-5 py-3.5">
-          <div>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-periwinkle-glow">El negocio en 30 segundos</p>
-            <h2 className="mt-1 font-display text-[21px] font-medium tracking-tight text-pure-white">Qué hace y cómo gana dinero</h2>
-          </div>
-          <SourceLink snapshot={snapshot} />
-        </header>
-
-        <div className="relative grid gap-px bg-gunmetal md:grid-cols-2">
-          <div className="bg-carbon-surface p-5">
-            <div className="flex items-center gap-2 text-periwinkle-glow">
-              <BriefcaseBusiness className="size-4" />
-              <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">A qué se dedica</h3>
-            </div>
-            <p className="mt-3 text-[14px] leading-6 text-frost">{snapshot.activity}</p>
-          </div>
-          <div className="bg-carbon-surface p-5">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Coins className="size-4" />
-              <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">Cómo gana dinero</h3>
-            </div>
-            <p className="mt-3 text-[14px] leading-6 text-frost">{snapshot.revenueModel}</p>
-            <div className={`mt-4 rounded-xl border p-3 ${snapshot.profitEngine.status === "reported" ? "border-emerald-400/20 bg-emerald-400/[0.045]" : "border-gunmetal bg-void-black/45"}`}>
-              <p className={`font-mono text-[8px] font-semibold uppercase tracking-[0.15em] ${snapshot.profitEngine.status === "reported" ? "text-emerald-300" : "text-muted-steel"}`}>
-                {snapshot.profitEngine.status === "reported" ? "División que más beneficio aporta" : "Beneficio por divisiones"}
-              </p>
-              <p className="mt-1.5 font-display text-[15px] font-medium text-pure-white">{snapshot.profitEngine.title}</p>
-              <p className="mt-1.5 text-[10px] leading-4 text-muted-steel">{snapshot.profitEngine.detail}</p>
-            </div>
-          </div>
-        </div>
-
-        {snapshot.regulatoryExcerpt ? (
-          <details className="group border-t border-gunmetal bg-void-black/35 px-5 py-3">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-medium text-muted-steel marker:hidden hover:text-frost">
-              <span>Ver el texto localizado en el informe anual</span>
-              <span className="grid size-5 place-items-center rounded-full border border-gunmetal text-periwinkle-glow transition-transform group-open:rotate-45">+</span>
-            </summary>
-            <p className="mt-3 max-w-5xl border-l-2 border-periwinkle-glow/40 pl-4 text-[11px] italic leading-5 text-muted-steel">
-              {snapshot.regulatoryExcerpt}
-            </p>
-          </details>
-        ) : (
-          <p className="border-t border-gunmetal bg-void-black/35 px-5 py-3 text-[10px] leading-4 text-muted-steel">
-            {snapshot.confidence === "regulatory"
-              ? "Los productos y marcas se han comprobado en el informe anual, aunque el documento no ofrece un párrafo operativo limpio para mostrar como extracto."
-              : "Síntesis basada en la clasificación regulatoria y los estados financieros; no se encontró un apartado operativo legible en el documento anual."}
-          </p>
-        )}
-      </article>
-
-      <div>
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <div>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-periwinkle-glow">Lectura rápida</p>
-            <h2 className="mt-1 font-display text-[23px] font-medium tracking-tight text-pure-white">Tres cosas que llaman la atención</h2>
-          </div>
-          <p className="hidden max-w-md text-right text-[10px] leading-4 text-muted-steel sm:block">
-            Señales calculadas con los mismos datos y umbrales de Las seis claves; pueden ser fortalezas, dudas o riesgos.
-          </p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {attention.map((item, index) => <AttentionCard key={item.id} item={item} index={index} />)}
-        </div>
-      </div>
+    <section className="space-y-8">
+      <BusinessSummaryCard snapshot={snapshot} />
+      <CompanyAttentionSection attention={attention} />
     </section>
   );
 }
