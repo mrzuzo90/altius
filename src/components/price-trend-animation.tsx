@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CharacterPose,
   AdaptiveCharacter,
@@ -53,8 +53,23 @@ export function analyzeTenYearPriceProfile(points: readonly PricePoint[]): Busin
   return classifyCidProfile(changes);
 }
 
+export function pricePhaseForChange(
+  changePct: number | null,
+  fallback: CharacterPhase = "senor",
+): CharacterPhase {
+  if (changePct === null || !Number.isFinite(changePct)) return fallback;
+  if (changePct > 30) return "canon";
+  if (changePct > 15) return "cuerda";
+  if (changePct > 0) return "caballero";
+  if (changePct === 0) return "senor";
+  if (changePct >= -15) return "piedra";
+  if (changePct >= -30) return "flecha";
+  return "apunalado";
+}
+
 export function buildThreeMonthTrendPoints(
   geometry: readonly PricePointGeometry[],
+  allPoints?: readonly PricePoint[],
 ): ThreeMonthTrendPoint[] {
   const points = [...geometry]
     .filter((point) => (
@@ -66,41 +81,76 @@ export function buildThreeMonthTrendPoints(
     .sort((a, b) => a.index - b.index);
   if (points.length === 0) return [];
 
+  // Línea temporal histórica completa para el cálculo continuo de medias móviles de 3 meses
+  const history = (
+    allPoints && allPoints.length > 0
+      ? allPoints.map((p) => ({ time: Date.parse(p.date), close: p.close }))
+      : points.map((p) => ({ time: Date.parse(p.date), close: p.value }))
+  )
+    .filter((p) => Number.isFinite(p.close) && Number.isFinite(p.time))
+    .sort((a, b) => a.time - b.time);
+
+  // Sumas prefijas para calcular la media de cualquier ventana en tiempo O(log N)
+  const prefixSums = new Float64Array(history.length + 1);
+  for (let i = 0; i < history.length; i++) {
+    prefixSums[i + 1] = prefixSums[i] + history[i].close;
+  }
+
+  function getAverageInWindow(targetTime: number): number {
+    if (history.length === 0) return 0;
+    const windowStart = targetTime - THREE_MONTH_MS;
+
+    let low = 0;
+    let high = history.length - 1;
+    let endIdx = -1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (history[mid].time <= targetTime) {
+        endIdx = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (endIdx === -1) {
+      return history[0].close;
+    }
+
+    low = 0;
+    high = endIdx;
+    let startIdx = endIdx;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (history[mid].time >= windowStart) {
+        startIdx = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    const count = endIdx - startIdx + 1;
+    if (count <= 0) return history[endIdx].close;
+    const sum = prefixSums[endIdx + 1] - prefixSums[startIdx];
+    return sum / count;
+  }
+
   const trend: ThreeMonthTrendPoint[] = [];
-  let windowStart = 0;
-  let comparisonIndex = -1;
-  let valueSum = 0;
-  let ySum = 0;
 
-  points.forEach((point, index) => {
+  points.forEach((point) => {
     const pointTime = Date.parse(point.date);
-    valueSum += point.value;
-    ySum += point.y;
+    const averageValue = getAverageInWindow(pointTime);
+    const comparisonTargetTime = pointTime - THREE_MONTH_MS;
+    const comparisonAverage = getAverageInWindow(comparisonTargetTime);
 
-    while (windowStart < index && pointTime - Date.parse(points[windowStart].date) > THREE_MONTH_MS) {
-      valueSum -= points[windowStart].value;
-      ySum -= points[windowStart].y;
-      windowStart += 1;
-    }
-
-    const count = index - windowStart + 1;
-    const averageValue = valueSum / count;
-    const averageY = ySum / count;
-    const comparisonTarget = pointTime - THREE_MONTH_MS;
-    while (
-      comparisonIndex + 1 < trend.length
-      && Date.parse(trend[comparisonIndex + 1].date) <= comparisonTarget
-    ) {
-      comparisonIndex += 1;
-    }
-    const comparison = comparisonIndex >= 0 ? trend[comparisonIndex] : null;
-    const changePct = comparison && comparison.averageValue !== 0
-      ? ((averageValue - comparison.averageValue) / Math.abs(comparison.averageValue)) * 100
-      : null;
+    const changePct = comparisonAverage > 0
+      ? ((averageValue - comparisonAverage) / comparisonAverage) * 100
+      : (averageValue > 0 ? 100 : 0);
 
     trend.push({
       ...point,
-      y: averageY,
+      y: point.y, // Mantiene la coordenada Y real de la cotización para que Cid camine sobre la línea
       averageValue,
       changePct,
     });
@@ -112,14 +162,13 @@ export function buildThreeMonthTrendPoints(
 export function buildPriceMotionPlan(
   geometry: readonly PricePointGeometry[],
   defaultPhase: CharacterPhase = "senor",
+  allPoints?: readonly PricePoint[],
 ): CharacterMotionPlan {
-  const points = buildThreeMonthTrendPoints(geometry);
+  const points = buildThreeMonthTrendPoints(geometry, allPoints);
   if (points.length < 2) return { path: "", phases: [], keyTimes: [0, 1], changesPct: [] };
 
   const changesPct = points.slice(1).map((point) => point.changePct);
-  const rawPhases = changesPct.map((change) => (
-    change === null ? defaultPhase : characterPhaseForChange(change)
-  ));
+  const rawPhases = changesPct.map((change) => pricePhaseForChange(change, defaultPhase));
   const phases = stabilizePricePhases(rawPhases, minimumPhaseRun(points));
   const path = buildSmoothPath(points);
   const lengths = points.slice(1).map((point, index) => (
@@ -142,6 +191,7 @@ export function PriceTrendAnimation({
   geometry,
   label,
   annualTrend,
+  allPoints,
 }: {
   geometry: PriceChartGeometry | null;
   label: string;
@@ -151,11 +201,15 @@ export function PriceTrendAnimation({
     patternName: string;
     patternDescription: string;
   } | null;
+  allPoints?: readonly PricePoint[];
 }) {
   const animationRootRef = useRef<SVGSVGElement>(null);
   const reducedMotion = usePrefersReducedMotion();
   const targetPhase: CharacterPhase = annualTrend?.phase ?? "senor";
-  const plan = buildPriceMotionPlan(geometry?.points ?? [], targetPhase);
+  const plan = useMemo(
+    () => buildPriceMotionPlan(geometry?.points ?? [], targetPhase, allPoints),
+    [geometry?.points, targetPhase, allPoints],
+  );
   const lastPoint = geometry?.points.at(-1) ?? null;
   const duration = 60;
 
@@ -189,27 +243,20 @@ export function PriceTrendAnimation({
           transform={reducedMotion ? `translate(${lastPoint.x} ${lastPoint.y})` : undefined}
         >
           {!reducedMotion && (
-            <>
-              <animateMotion
-                path={plan.path}
-                begin="indefinite"
-                dur={`${duration}s`}
-                repeatCount="1"
-                fill="freeze"
-                calcMode="paced"
-              />
-              <animate
-                attributeName="opacity"
-                values="0; 1; 1; 1"
-                keyTimes="0; 0.03; 0.98; 1"
-                dur={`${duration}s`}
-                repeatCount="1"
-                fill="freeze"
-                calcMode="linear"
-              />
-            </>
+            <animateMotion
+              path={plan.path}
+              begin="indefinite"
+              dur={`${duration}s`}
+              repeatCount="1"
+              fill="freeze"
+              calcMode="paced"
+            />
           )}
-          <CharacterPose phase={targetPhase} />
+          {!reducedMotion && plan.phases.length > 0 ? (
+            <AdaptiveCharacter plan={plan} duration={duration} repeatCount="1" />
+          ) : (
+            <StaticAdaptiveCharacter phase={plan.phases.at(-1) ?? targetPhase} />
+          )}
         </g>
       </svg>
     </div>

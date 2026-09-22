@@ -11,7 +11,7 @@ import {
   calculatePriceAnnualTrend,
   calculateTenYearAnnualTrend,
 } from "@/components/price-chart";
-import { buildPriceMotionPlan } from "@/components/price-trend-animation";
+import { buildPriceMotionPlan, buildThreeMonthTrendPoints } from "@/components/price-trend-animation";
 
 describe("utilidades de gráficos de precios", () => {
   it("convierte la fecha en una escala temporal real", () => {
@@ -271,10 +271,63 @@ describe("utilidades de gráficos de precios", () => {
       expect(plan.keyTimes.at(-1)).toBe(1);
     });
 
-    it("devuelve plan vacío si hay menos de dos puntos", () => {
-      const plan = buildPriceMotionPlan([{ index: 0, date: "2026-01-01", value: 100, x: 50, y: 50 }]);
-      expect(plan.path).toBe("");
-      expect(plan.phases).toHaveLength(0);
+    it("mantiene la coordenada Y real de la cotización para acompañar la curva exacta", () => {
+      const geometryPoints = [
+        { index: 0, date: "2025-01-01", value: 100, x: 50, y: 300 },
+        { index: 1, date: "2025-02-01", value: 150, x: 150, y: 180 },
+        { index: 2, date: "2025-03-01", value: 200, x: 250, y: 80 },
+      ];
+
+      const trendPoints = buildThreeMonthTrendPoints(geometryPoints);
+      // El punto 1 debe tener exactamente y = 180 (la curva de cotización), no la media Y
+      expect(trendPoints[1].y).toBe(180);
+      expect(trendPoints[2].y).toBe(80);
+    });
+
+    it("utiliza un Cid positivo ante un pico de caída grande si la media de 3 meses es positiva", () => {
+      // Simular 3 meses de subida fuerte de 100 a 160 y un desplome diario puntual a 130 (-18% en un solo día)
+      const allPrices = [
+        { date: "2024-10-01", close: 100 },
+        { date: "2024-11-01", close: 120 },
+        { date: "2024-12-01", close: 140 },
+        { date: "2024-12-30", close: 160 },
+        { date: "2024-12-31", close: 130 }, // Pico brusco de caída diaria (-18.75%)
+      ];
+
+      const geometryPoints = [
+        { index: 0, date: "2024-12-30", value: 160, x: 100, y: 50 },
+        { index: 1, date: "2024-12-31", value: 130, x: 200, y: 120 }, // Caída brusca en el gráfico
+      ];
+
+      const plan = buildPriceMotionPlan(geometryPoints, "senor", allPrices);
+      // El cambio en la media de 3 meses sigue siendo claramente positivo (~+30% sobre el trimestre anterior)
+      expect(plan.phases[0]).toMatch(/^(caballero|cuerda|canon)$/);
+      expect(plan.phases[0]).not.toBe("piedra");
+      expect(plan.phases[0]).not.toBe("flecha");
+      expect(plan.phases[0]).not.toBe("apunalado");
+    });
+
+    it("funciona de forma continua con historial completo en cualquier horizonte temporal (1Y, 3Y, 10Y)", () => {
+      const fullHistory = [
+        { date: "2023-01-01", close: 100 },
+        { date: "2023-06-01", close: 110 },
+        { date: "2024-01-01", close: 130 },
+        { date: "2024-06-01", close: 160 },
+        { date: "2025-01-01", close: 200 },
+      ];
+
+      // El usuario selecciona un rango de 1 año (2024 a 2025)
+      const visibleRange = [
+        { index: 0, date: "2024-01-01", value: 130, x: 50, y: 150 },
+        { index: 1, date: "2024-06-01", value: 160, x: 250, y: 100 },
+        { index: 2, date: "2025-01-01", value: 200, x: 450, y: 40 },
+      ];
+
+      const plan = buildPriceMotionPlan(visibleRange, "senor", fullHistory);
+      expect(plan.phases.length).toBe(2);
+      // Al disponer de historial previo, el primer punto ya dispone de comparativa de 3 meses positiva
+      expect(plan.phases[0]).toBe("cuerda");
+      expect(plan.phases[1]).toBe("cuerda");
     });
   });
 });

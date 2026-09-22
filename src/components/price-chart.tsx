@@ -318,6 +318,7 @@ export function PriceChart({
               label={ticker ?? "Cotización"}
               geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
               annualTrend={annualTrend}
+              allPoints={points}
             />
           )}
         </div>
