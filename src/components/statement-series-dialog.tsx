@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 import { PersonStanding } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { getMetricSemantics } from "@/lib/financials/metric-semantics";
 import { formatPct, formatValue, pctChange, SCALES, type Scale } from "@/lib/format";
 import type { LineSeries, Period } from "@/lib/sec/normalize";
+import { useTimeRangeFilter, TimeRangeSelector } from "@/components/time-range-filter";
 
 export type ChartPoint = {
   key: string;
@@ -204,7 +205,23 @@ export function StatementSeriesDialog({
 
   if (!row) return null;
 
-  const data = buildStatementChartData(periods, row);
+  const rawData = useMemo(() => buildStatementChartData(periods, row), [periods, row]);
+
+  const {
+    range,
+    setRange,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    filteredData: data,
+  } = useTimeRangeFilter<ChartPoint>({
+    data: rawData,
+    dateSelector: (p) => p.end,
+    defaultRange: "10y",
+    keepBaseline: true,
+  });
+
   const semantics = getMetricSemantics(row.line);
   const overallTrend = calculateOverallAnnualTrend(data);
   const latest = data.at(-1) ?? null;
@@ -248,6 +265,17 @@ export function StatementSeriesDialog({
             <span>Cid · {showCid ? "activo" : "oculto"}</span>
           </button>
         </DialogHeader>
+
+        <div className="px-5 py-4 border-b border-gunmetal">
+          <TimeRangeSelector
+            range={range}
+            setRange={setRange}
+            customFrom={customFrom}
+            setCustomFrom={setCustomFrom}
+            customTo={customTo}
+            setCustomTo={setCustomTo}
+          />
+        </div>
 
         <div className="grid gap-px border-b border-gunmetal bg-gunmetal grid-cols-2 sm:grid-cols-4">
           <Metric label="Último periodo" value={latest ? formatValue(latest.value, row.line.unit, scale) : "—"} detail={latest?.label ?? "Sin datos"} />

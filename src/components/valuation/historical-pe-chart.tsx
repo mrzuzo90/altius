@@ -6,12 +6,7 @@ import { cn } from "@/lib/utils";
 import { median, type HistoricalPePoint, type HistoricalPeSeries } from "@/lib/valuation/historical-pe";
 import type { QuarterlyPePoint, QuarterlyPeSeries } from "@/lib/valuation/quarterly-pe";
 
-const RANGES = [
-  { id: "5y", label: "5 años", years: 5 },
-  { id: "10y", label: "10 años", years: 10 },
-  { id: "20y", label: "20 años", years: 20 },
-  { id: "max", label: "Máx.", years: Number.POSITIVE_INFINITY },
-] as const;
+import { useTimeRangeFilter, TimeRangeSelector } from "@/components/time-range-filter";
 
 type Mode = "quarterly" | "annual";
 type PePoint = HistoricalPePoint | QuarterlyPePoint;
@@ -26,18 +21,22 @@ export function HistoricalPeChart({
   const quarterlyAvailable = quarterlySeries.points.some((point) => point.pe !== null);
   const annualAvailable = series.points.some((point) => point.pe !== null);
   const [mode, setMode] = useState<Mode>(quarterlyAvailable ? "quarterly" : "annual");
-  const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("20y");
   const activePoints: PePoint[] = mode === "quarterly" ? quarterlySeries.points : series.points;
-  const selected = RANGES.find((item) => item.id === range)!;
-  const data = useMemo(() => {
-    if (!Number.isFinite(selected.years)) return activePoints;
-    const lastDate = activePoints.at(-1)?.earningsKnownAt;
-    if (!lastDate) return activePoints;
-    const cutoff = new Date(`${lastDate}T00:00:00Z`);
-    cutoff.setUTCFullYear(cutoff.getUTCFullYear() - selected.years);
-    const cutoffIso = cutoff.toISOString().slice(0, 10);
-    return activePoints.filter((point) => point.earningsKnownAt >= cutoffIso);
-  }, [activePoints, selected.years]);
+  const {
+    range,
+    setRange,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    filteredData: data,
+  } = useTimeRangeFilter({
+    data: activePoints,
+    dateSelector: (p) => p.earningsKnownAt,
+    defaultRange: "10y",
+    keepBaseline: true,
+  });
+
   const rangeValues = useMemo(
     () => data.flatMap((point) => point.pe !== null ? [point.pe] : []),
     [data],
@@ -73,7 +72,7 @@ export function HistoricalPeChart({
         </div>
 
         <div className="ml-auto flex flex-wrap justify-end gap-2">
-          <div className="bg-void-black border-gunmetal inline-flex rounded-full border p-1">
+          <div className="bg-void-black border-gunmetal inline-flex rounded-full border p-1 h-fit">
             <ModeButton active={mode === "quarterly"} disabled={!quarterlyAvailable} onClick={() => setMode("quarterly")}>
               Trimestral TTM
             </ModeButton>
@@ -81,21 +80,14 @@ export function HistoricalPeChart({
               Anual
             </ModeButton>
           </div>
-          <div className="bg-void-black border-gunmetal inline-flex rounded-full border p-1">
-            {RANGES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setRange(item.id)}
-                className={cn(
-                  "font-display rounded-full px-3 py-1 text-[12px] font-medium transition-colors",
-                  range === item.id ? "bg-gunmetal text-pure-white" : "text-muted-steel hover:text-frost",
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <TimeRangeSelector
+            range={range}
+            setRange={setRange}
+            customFrom={customFrom}
+            setCustomFrom={setCustomFrom}
+            customTo={customTo}
+            setCustomTo={setCustomTo}
+          />
         </div>
       </div>
 
@@ -109,7 +101,7 @@ export function HistoricalPeChart({
         <div className="grid gap-px bg-gunmetal sm:grid-cols-4">
           <Metric label="Observaciones del periodo" value={`${rangeValues.length}`} />
           <Metric label="Mínimo del periodo" value={multiple(rangeMin)} tone="cheap" />
-          <Metric label={`Mediana · ${selected.label}`} value={multiple(rangeMedian)} />
+          <Metric label={`Mediana del periodo`} value={multiple(rangeMedian)} />
           <Metric label="Máximo del periodo" value={multiple(rangeMax)} tone="expensive" />
         </div>
       ) : (

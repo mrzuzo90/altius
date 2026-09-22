@@ -5,7 +5,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import { CalendarRange, PersonStanding } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PricePoint } from "@/lib/prices/types";
-import { filterPricePoints, priceRangeCutoff, type PriceRangeId } from "@/lib/prices/ranges";
+import { useTimeRangeFilter, TimeRangeSelector } from "@/components/time-range-filter";
 import {
   chartSpanDays,
   chartTimeTicks,
@@ -65,18 +65,6 @@ export function calculateTenYearAnnualTrend(points: readonly PricePoint[]): TenY
   return calculatePriceAnnualTrend(points, 1.8);
 }
 
-const RANGES = [
-  { id: "1m", label: "1 mes" },
-  { id: "3m", label: "3 meses" },
-  { id: "6m", label: "6 meses" },
-  { id: "ytd", label: "Año actual" },
-  { id: "fytd", label: "Ej. fiscal" },
-  { id: "1y", label: "1 año" },
-  { id: "3y", label: "3 años" },
-  { id: "5y", label: "5 años" },
-  { id: "10y", label: "10 años" },
-  { id: "max", label: "Máx." },
-] as const;
 
 export function PriceChart({
   points,
@@ -91,12 +79,20 @@ export function PriceChart({
   fiscalYearStart?: string | null;
   ticker?: string;
 }) {
-  const firstAvailable = points[0]?.date ?? "";
-  const lastAvailable = points.at(-1)?.date ?? "";
-  const initialFrom = lastAvailable ? priceRangeCutoff(lastAvailable, "10y") : "";
-  const [range, setRange] = useState<PriceRangeId>("10y");
-  const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
-  const [to, setTo] = useState(lastAvailable);
+  const {
+    range,
+    setRange,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    filteredData: data,
+  } = useTimeRangeFilter({
+    data: points,
+    dateSelector: (p) => p.date,
+    defaultRange: "10y",
+    keepBaseline: true,
+  });
   const [showCid, setShowCid] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   const [measuredChart, setMeasuredChart] = useState<{
@@ -109,9 +105,7 @@ export function PriceChart({
   });
   const measureFrame = useRef(0);
 
-  const data = useMemo(() => {
-    return filterPricePoints(points, range, { from, to, fiscalYearStart });
-  }, [points, range, from, to, fiscalYearStart]);
+
   const chartData = useMemo(() => timestampPricePoints(data), [data]);
   const spanDays = chartSpanDays(chartData);
   const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
@@ -149,7 +143,7 @@ export function PriceChart({
   }
 
   // El rendimiento anualizado (CAGR) solo se calcula en rangos multianuales (>= 2 años)
-  const isMultiYearRange = range === "3y" || range === "5y" || range === "10y" || range === "max" || range === "custom";
+  const isMultiYearRange = range === "3y" || range === "10y" || range === "custom";
   const annualTrend = useMemo(() => {
     if (!isMultiYearRange) return null;
     return calculatePriceAnnualTrend(data, 1.8);
@@ -159,8 +153,6 @@ export function PriceChart({
     if (!annualTrend) return "";
     if (annualTrend.years >= 9.5 && range === "10y") return "10 años";
     if (range === "3y" || (annualTrend.years >= 2.5 && annualTrend.years < 3.5)) return "3 años";
-    if (range === "5y" || (annualTrend.years >= 4.5 && annualTrend.years < 5.5)) return "5 años";
-    if (range === "max") return `máx. · ${Math.round(annualTrend.years)} años`;
     return `${Math.round(annualTrend.years * 10) / 10} años`;
   }, [annualTrend, range]);
 
@@ -170,8 +162,8 @@ export function PriceChart({
   const change = first && last !== null ? ((last - first) / first) * 100 : null;
   const periodLabel =
     range === "custom"
-      ? `${from || firstAvailable} → ${to || lastAvailable}`
-      : RANGES.find((item) => item.id === range)?.label ?? "periodo";
+      ? `${customFrom} → ${customTo}`
+      : (range === "10y" ? "10 años" : range === "3y" ? "3 años" : range === "1y" ? "1 año" : "periodo");
 
   return (
     <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-5 sm:p-6">
@@ -226,29 +218,21 @@ export function PriceChart({
         </div>
 
         <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
-          {RANGES.filter((item) => item.id !== "fytd" || Boolean(fiscalYearStart)).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={range === item.id}
-              onClick={() => setRange(item.id)}
-              className={cn(
-                "border-gunmetal font-display rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
-                range === item.id
-                  ? "bg-periwinkle-glow text-void-black border-transparent"
-                  : "bg-void-black text-muted-steel hover:text-frost",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
+          <TimeRangeSelector
+            range={range}
+            setRange={setRange}
+            customFrom={customFrom}
+            setCustomFrom={setCustomFrom}
+            customTo={customTo}
+            setCustomTo={setCustomTo}
+          />
           <button
             type="button"
             aria-pressed={showCid}
             aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
             onClick={() => setShowCid((visible) => !visible)}
             className={cn(
-              "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
+              "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors h-fit",
               showCid
                 ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
                 : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
@@ -258,41 +242,6 @@ export function PriceChart({
             Cid · {showCid ? "activo" : "oculto"}
           </button>
         </div>
-      </div>
-
-      <div className="border-gunmetal mt-5 flex flex-wrap items-end gap-3 border-y py-3">
-        <div className="text-muted-steel flex items-center gap-2 text-[12px] font-medium">
-          <CalendarRange className="size-4 text-periwinkle-glow" />
-          Periodo personalizado
-        </div>
-        <label className="text-muted-steel text-[11px] uppercase tracking-wider">
-          Desde
-          <input
-            type="date"
-            value={from}
-            min={firstAvailable}
-            max={to || lastAvailable}
-            onChange={(e) => {
-              setRange("custom");
-              setFrom(e.target.value);
-            }}
-            className="border-gunmetal bg-void-black text-pure-white ml-2 rounded border px-2 py-1 font-mono text-[12px]"
-          />
-        </label>
-        <label className="text-muted-steel text-[11px] uppercase tracking-wider">
-          Hasta
-          <input
-            type="date"
-            value={to}
-            min={from || firstAvailable}
-            max={lastAvailable}
-            onChange={(e) => {
-              setRange("custom");
-              setTo(e.target.value);
-            }}
-            className="border-gunmetal bg-void-black text-pure-white ml-2 rounded border px-2 py-1 font-mono text-[12px]"
-          />
-        </label>
       </div>
 
       {data.length > 0 ? (

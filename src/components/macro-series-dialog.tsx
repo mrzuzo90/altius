@@ -13,16 +13,7 @@ import {
   type CharacterPhase,
   type MascotPhaseConfig,
 } from "@/components/statement-trend-animation";
-
-export type MacroRangeId = "1y" | "3y" | "5y" | "10y" | "max";
-
-const RANGES: readonly { id: MacroRangeId; label: string }[] = [
-  { id: "1y", label: "1 año" },
-  { id: "3y", label: "3 años" },
-  { id: "5y", label: "5 años" },
-  { id: "10y", label: "10 años" },
-  { id: "max", label: "Máx." },
-];
+import { useTimeRangeFilter, TimeRangeSelector } from "@/components/time-range-filter";
 
 export type MacroAnnualTrend = {
   rate: number;
@@ -108,20 +99,6 @@ export function calculateMacroAnnualTrend(
   };
 }
 
-function filterMacroPoints(points: readonly MacroPoint[], range: MacroRangeId): MacroPoint[] {
-  if (points.length === 0 || range === "max") return [...points];
-  const lastDate = points.at(-1)?.date;
-  if (!lastDate) return [...points];
-
-  const targetDate = new Date(`${lastDate}T00:00:00Z`);
-  const yearsToSubtract = range === "1y" ? 1 : range === "3y" ? 3 : range === "5y" ? 5 : 10;
-  targetDate.setUTCFullYear(targetDate.getUTCFullYear() - yearsToSubtract);
-  const cutoff = targetDate.toISOString().slice(0, 10);
-
-  const filtered = points.filter((p) => p.date >= cutoff);
-  return filtered.length >= 2 ? filtered : [...points];
-}
-
 export function MacroSeriesDialog({
   metric,
   points,
@@ -133,11 +110,20 @@ export function MacroSeriesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [range, setRange] = useState<MacroRangeId>("5y");
-
-  const filteredPoints = useMemo(() => {
-    return filterMacroPoints(points, range);
-  }, [points, range]);
+  const {
+    range,
+    setRange,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    filteredData: filteredPoints,
+  } = useTimeRangeFilter({
+    data: points,
+    dateSelector: (p) => p.date,
+    defaultRange: "10y",
+    keepBaseline: true,
+  });
 
   const annualTrend = useMemo(() => {
     return calculateMacroAnnualTrend(filteredPoints, metric);
@@ -257,30 +243,15 @@ export function MacroSeriesDialog({
         </div>
 
         {/* Selector de rango de fechas */}
-        <div className="px-6 pt-4 pb-2 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-muted-steel text-[12px]">
-            <CalendarRange className="size-4 text-periwinkle-glow" />
-            <span>Horizonte temporal:</span>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {RANGES.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                aria-pressed={range === r.id}
-                onClick={() => setRange(r.id)}
-                className={cn(
-                  "font-display rounded-full border px-3 py-1 text-[11px] font-medium transition-colors",
-                  range === r.id
-                    ? "bg-periwinkle-glow text-void-black border-transparent font-semibold"
-                    : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
-                )}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+        <div className="px-6 pt-4 pb-2">
+          <TimeRangeSelector
+            range={range}
+            setRange={setRange}
+            customFrom={customFrom}
+            setCustomFrom={setCustomFrom}
+            customTo={customTo}
+            setCustomTo={setCustomTo}
+          />
         </div>
 
         {/* Gráfico limpio: Cid NO recorre el gráfico */}
