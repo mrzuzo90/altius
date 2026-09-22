@@ -322,37 +322,6 @@ export function StatementTrendAnimation({
           ) : (
             <StaticAdaptiveCharacter phase={motionPlan.phases.at(-1) ?? "senor"} direction={direction} />
           )}
-          {trend.annualGrowthPct !== null && (
-            <g transform="translate(0, -66)">
-              <rect
-                x="-58"
-                y="-22"
-                width="116"
-                height="26"
-                rx="13"
-                fill="#151621"
-                stroke={trend.annualGrowthPct >= 0 ? "#34d399" : "#fb7185"}
-                strokeWidth="1.5"
-                filter="drop-shadow(0 4px 8px rgba(0, 0, 0, 0.75))"
-              />
-              <text
-                x="0"
-                y="-5"
-                textAnchor="middle"
-                fill={trend.annualGrowthPct >= 0 ? "#34d399" : "#fb7185"}
-                fontSize="11"
-                fontWeight="700"
-                fontFamily="var(--font-display), system-ui, sans-serif"
-                letterSpacing="-0.01em"
-              >
-                {trend.annualGrowthPct >= 0 ? "+" : ""}{trend.annualGrowthPct.toFixed(1)}% anual
-              </text>
-              <polygon
-                points="-4,4 4,4 0,8"
-                fill="#151621"
-              />
-            </g>
-          )}
         </g>
       </svg>
     </div>

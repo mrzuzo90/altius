@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CalendarRange, PersonStanding } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,13 @@ import {
   formatPriceQuote,
   priceChartDomain,
   timestampPricePoints,
+  type Timestamped,
 } from "@/lib/prices/chart";
+import {
+  PriceTrendAnimation,
+  type PriceChartGeometry,
+  type PricePointGeometry,
+} from "@/components/price-trend-animation";
 import {
   annualizedChange,
   elapsedYears,
@@ -92,6 +98,16 @@ export function PriceChart({
   const [from, setFrom] = useState(initialFrom < firstAvailable ? firstAvailable : initialFrom);
   const [to, setTo] = useState(lastAvailable);
   const [showCid, setShowCid] = useState(true);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [measuredChart, setMeasuredChart] = useState<{
+    signature: string;
+    geometry: PriceChartGeometry;
+  } | null>(null);
+  const geometryCollector = useRef<{ signature: string; points: Map<number, PricePointGeometry> }>({
+    signature: "",
+    points: new Map(),
+  });
+  const measureFrame = useRef(0);
 
   const data = useMemo(() => {
     return filterPricePoints(points, range, { from, to, fiscalYearStart });
@@ -100,6 +116,29 @@ export function PriceChart({
   const spanDays = chartSpanDays(chartData);
   const xTicks = useMemo(() => chartTimeTicks(chartData), [chartData]);
   const yDomain = useMemo(() => priceChartDomain(data), [data]);
+
+  const chartSignature = `${ticker}:${range}:${data.length}:${data[0]?.date ?? "none"}:${data.at(-1)?.date ?? "none"}`;
+  const capturePriceGeometry = useCallback((point: PricePointGeometry) => {
+    if (!showCid) return;
+    if (geometryCollector.current.signature !== chartSignature) {
+      geometryCollector.current = { signature: chartSignature, points: new Map() };
+    }
+    geometryCollector.current.points.set(point.index, point);
+    cancelAnimationFrame(measureFrame.current);
+    measureFrame.current = requestAnimationFrame(() => {
+      const container = chartRef.current;
+      const captured = [...geometryCollector.current.points.values()].sort((a, b) => a.index - b.index);
+      if (!container || captured.length < data.length || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+      const next = { width: container.clientWidth, height: container.clientHeight, points: captured };
+      setMeasuredChart((current) => (
+        current?.signature === chartSignature && samePriceGeometry(current.geometry, next)
+          ? current
+          : { signature: chartSignature, geometry: next }
+      ));
+    });
+  }, [chartSignature, data.length, showCid]);
+
+  useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
 
   if (points.length === 0) {
     return (
@@ -203,23 +242,21 @@ export function PriceChart({
               {item.label}
             </button>
           ))}
-          {annualTrend && (
-            <button
-              type="button"
-              aria-pressed={showCid}
-              aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
-              onClick={() => setShowCid((visible) => !visible)}
-              className={cn(
-                "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
-                showCid
-                  ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
-                  : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
-              )}
-            >
-              <PersonStanding className="size-3.5" />
-              Cid · {showCid ? "activo" : "oculto"}
-            </button>
-          )}
+          <button
+            type="button"
+            aria-pressed={showCid}
+            aria-label={`${showCid ? "Ocultar" : "Mostrar"} a Cid en la cotización`}
+            onClick={() => setShowCid((visible) => !visible)}
+            className={cn(
+              "font-display inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors",
+              showCid
+                ? "border-periwinkle-glow/60 bg-periwinkle-glow/10 text-periwinkle-glow"
+                : "border-gunmetal bg-void-black text-muted-steel hover:text-frost",
+            )}
+          >
+            <PersonStanding className="size-3.5" />
+            Cid · {showCid ? "activo" : "oculto"}
+          </button>
         </div>
       </div>
 
@@ -259,7 +296,7 @@ export function PriceChart({
       </div>
 
       {data.length > 0 ? (
-        <div className="relative mt-5 h-[340px] w-full">
+        <div ref={chartRef} className="relative mt-5 h-[340px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
@@ -318,10 +355,23 @@ export function PriceChart({
                 strokeWidth={2}
                 fill="url(#grad-precio)"
                 isAnimationActive={false}
-                dot={false}
+                dot={showCid ? (props) => (
+                  <PriceGeometryDot
+                    {...props}
+                    index={typeof props.index === "number" ? props.index : -1}
+                    onGeometry={capturePriceGeometry}
+                  />
+                ) : false}
               />
             </AreaChart>
           </ResponsiveContainer>
+          {showCid && (
+            <PriceTrendAnimation
+              label={ticker ?? "Cotización"}
+              geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
+              annualTrend={annualTrend}
+            />
+          )}
         </div>
       ) : (
         <div className="text-muted-steel py-16 text-center text-[13px]">
@@ -333,4 +383,46 @@ export function PriceChart({
       </p>
     </div>
   );
+}
+
+function PriceGeometryDot({
+  cx,
+  cy,
+  index,
+  payload,
+  onGeometry,
+}: {
+  cx?: number;
+  cy?: number;
+  index: number;
+  payload?: Timestamped<PricePoint>;
+  onGeometry: (point: PricePointGeometry) => void;
+}) {
+  if (!payload || index < 0 || !Number.isFinite(cx) || !Number.isFinite(cy)) return <g />;
+  const geometry = { index, date: payload.date, value: payload.close, x: cx!, y: cy! };
+
+  return (
+    <circle
+      ref={(node) => {
+        if (node) onGeometry(geometry);
+      }}
+      cx={cx}
+      cy={cy}
+      r="0"
+      fill="transparent"
+      data-price-point-index={index}
+    />
+  );
+}
+
+function samePriceGeometry(current: PriceChartGeometry, next: PriceChartGeometry): boolean {
+  if (current.width !== next.width || current.height !== next.height || current.points.length !== next.points.length) return false;
+  return current.points.every((point, index) => {
+    const candidate = next.points[index];
+    return point.index === candidate.index
+      && point.date === candidate.date
+      && point.value === candidate.value
+      && point.x === candidate.x
+      && point.y === candidate.y;
+  });
 }
