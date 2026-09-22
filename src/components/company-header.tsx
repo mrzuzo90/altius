@@ -4,8 +4,8 @@ import type { CompanyProfile } from "@/lib/sec/types";
 import { cn } from "@/lib/utils";
 import { WatchlistTargetButton } from "@/components/watchlist/watchlist-target-button";
 
-// Control de visibilidad del apartado de análisis técnico en la plataforma
-export const SHOW_TECHNICAL = false;
+import { SHOW_TECHNICAL } from "@/lib/config/features";
+export { SHOW_TECHNICAL };
 
 const ALL_TABS = [
   { href: "", label: "Perfil" },

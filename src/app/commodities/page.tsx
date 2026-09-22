@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Flame, Layers, Sparkles, TrendingDown, Trendi
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { Sparkline } from "@/components/sparkline";
 import { getAllCommoditiesSummary, type CommodityCategory } from "@/lib/commodities";
+import { SHOW_TECHNICAL } from "@/lib/config/features";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 3600;
@@ -170,7 +171,7 @@ export default async function CommoditiesPage() {
 
                       <div className="mt-5 pt-3 border-t border-gunmetal/60 flex items-center justify-between text-[12px]">
                         <span className="text-muted-steel group-hover:text-frost transition-colors">
-                          Análisis técnico e indicadores
+                          {SHOW_TECHNICAL ? "Análisis técnico e indicadores" : "Evolución de cotización"}
                         </span>
                         <span className="text-periwinkle-glow inline-flex items-center gap-1 font-medium group-hover:translate-x-0.5 transition-transform">
                           <span>Ver {s.shortName}</span>

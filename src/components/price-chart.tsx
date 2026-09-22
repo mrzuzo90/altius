@@ -83,7 +83,7 @@ export function PriceChart({
   source: string;
   currency: string | null;
   fiscalYearStart?: string | null;
-  ticker: string;
+  ticker?: string;
 }) {
   const firstAvailable = points[0]?.date ?? "";
   const lastAvailable = points.at(-1)?.date ?? "";
@@ -187,7 +187,7 @@ export function PriceChart({
         </div>
 
         <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
-          {RANGES.map((item) => (
+          {RANGES.filter((item) => item.id !== "fytd" || Boolean(fiscalYearStart)).map((item) => (
             <button
               key={item.id}
               type="button"

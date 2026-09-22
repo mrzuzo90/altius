@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Globe, TrendingDown, TrendingUp } from "lucid
 import { DataSourceBadge } from "@/components/data-source-badge";
 import { Sparkline } from "@/components/sparkline";
 import { getAllIndicesSummary, MARKET_INDICES } from "@/lib/indices";
+import { SHOW_TECHNICAL } from "@/lib/config/features";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 300;
@@ -212,7 +213,7 @@ function IndexCard({ summary: s }: { summary: Awaited<ReturnType<typeof getAllIn
 
       <div className="mt-5 pt-3 border-t border-gunmetal/60 flex items-center justify-between text-[12px]">
         <span className="text-muted-steel group-hover:text-frost transition-colors">
-          Análisis técnico y osciladores
+          {SHOW_TECHNICAL ? "Análisis técnico y osciladores" : "Evolución y cotización histórica"}
         </span>
         <span className="text-periwinkle-glow inline-flex items-center gap-1 font-medium group-hover:translate-x-0.5 transition-transform">
           <span>Ver {meta.shortName}</span>

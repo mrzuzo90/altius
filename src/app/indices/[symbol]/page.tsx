@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DataSourceBadge } from "@/components/data-source-badge";
+import { SHOW_TECHNICAL } from "@/lib/config/features";
+import { PriceChart } from "@/components/price-chart";
 import { TechnicalChart } from "@/components/technical/technical-chart";
 import { TechnicalScorecard } from "@/components/technical/technical-scorecard";
 import { CompanyNewsFeed } from "@/components/news/company-news-feed";
@@ -73,31 +75,44 @@ export default async function IndexDetailPage({
         </div>
       </div>
 
-      {/* Gráfico Técnico Interactivo y Selector de Indicadores */}
+      {/* Gráfico de Cotización / Análisis Técnico */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-pure-white text-[22px] font-medium tracking-tight">
-            Evolución y Análisis Técnico Interactivo
+            {SHOW_TECHNICAL ? "Evolución y Análisis Técnico Interactivo" : "Evolución del Índice"}
           </h2>
           <span className="text-muted-steel font-mono text-[12px]">
-            Puntos de índice nominales · SMA 20/50/200 · Bollinger · RSI · MACD
+            {SHOW_TECHNICAL
+              ? "Puntos de índice nominales · SMA 20/50/200 · Bollinger · RSI · MACD"
+              : "Puntos de índice nominales · Serie histórica oficial"}
           </span>
         </div>
 
-        <TechnicalChart
-          points={technical.points}
-          source={meta.provider}
-          currency={meta.isVolatilityIndex ? "PTS" : meta.currency}
-        />
+        {SHOW_TECHNICAL ? (
+          <TechnicalChart
+            points={technical.points}
+            source={meta.provider}
+            currency={meta.isVolatilityIndex ? "PTS" : meta.currency}
+          />
+        ) : (
+          <PriceChart
+            points={detail.points}
+            source={meta.provider}
+            currency={meta.isVolatilityIndex ? "PTS" : meta.currency}
+            ticker={meta.shortName}
+          />
+        )}
       </section>
 
       {/* Cuadro de Mando Cuantitativo y Diagnóstico de Señales */}
-      <section className="space-y-4">
-        <h2 className="font-display text-pure-white text-[22px] font-medium tracking-tight">
-          Diagnóstico Técnico Cuantitativo
-        </h2>
-        <TechnicalScorecard stats={technical.stats} />
-      </section>
+      {SHOW_TECHNICAL && (
+        <section className="space-y-4">
+          <h2 className="font-display text-pure-white text-[22px] font-medium tracking-tight">
+            Diagnóstico Técnico Cuantitativo
+          </h2>
+          <TechnicalScorecard stats={technical.stats} />
+        </section>
+      )}
 
       {/* Tabla de Estadísticas Históricas */}
       <section className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
