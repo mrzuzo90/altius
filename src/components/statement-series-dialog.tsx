@@ -168,14 +168,32 @@ export function StatementSeriesDialog({
 }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [showCid, setShowCid] = useState(true);
+
+  const rawData = useMemo(() => row ? buildStatementChartData(periods, row) : [], [periods, row]);
+
+  const {
+    range,
+    setRange,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    filteredData: data,
+  } = useTimeRangeFilter<ChartPoint>({
+    data: rawData,
+    dateSelector: (p) => p.end,
+    defaultRange: "10y",
+    keepBaseline: true,
+  });
+
   const [measuredChart, setMeasuredChart] = useState<{
     signature: string;
     geometry: StatementChartGeometry;
   } | null>(null);
-  const chartSignature = `${row?.line.id ?? "none"}:${periods.map((period) => period.key).join("|")}`;
-  const expectedBarCount = row
-    ? periods.filter((period) => row.cells[period.key]?.value != null).length
-    : 0;
+
+  const chartSignature = `${row?.line.id ?? "none"}:${data.map((point) => point.key).join("|")}`;
+  const expectedBarCount = data.filter((point) => point.value !== null).length;
+
   const geometryCollector = useRef<{ signature: string; bars: Map<number, StatementBarGeometry> }>({
     signature: "",
     bars: new Map(),
@@ -202,23 +220,6 @@ export function StatementSeriesDialog({
   }, [chartSignature, expectedBarCount, open]);
 
   useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
-
-  const rawData = useMemo(() => row ? buildStatementChartData(periods, row) : [], [periods, row]);
-
-  const {
-    range,
-    setRange,
-    customFrom,
-    setCustomFrom,
-    customTo,
-    setCustomTo,
-    filteredData: data,
-  } = useTimeRangeFilter<ChartPoint>({
-    data: rawData,
-    dateSelector: (p) => p.end,
-    defaultRange: "10y",
-    keepBaseline: true,
-  });
 
   if (!row) return null;
 
