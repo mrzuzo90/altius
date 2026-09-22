@@ -157,7 +157,7 @@ export function PriceTrendAnimation({
   const targetPhase: CharacterPhase = annualTrend?.phase ?? "senor";
   const plan = buildPriceMotionPlan(geometry?.points ?? [], targetPhase);
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 36;
+  const duration = 60;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;
@@ -194,17 +194,17 @@ export function PriceTrendAnimation({
                 path={plan.path}
                 begin="indefinite"
                 dur={`${duration}s`}
-                repeatCount="indefinite"
-                keyPoints="0; 1; 1; 1"
-                keyTimes="0; 0.86; 0.94; 1"
-                calcMode="linear"
+                repeatCount="1"
+                fill="freeze"
+                calcMode="paced"
               />
               <animate
                 attributeName="opacity"
-                values="0; 1; 1; 1; 0; 0"
-                keyTimes="0; 0.03; 0.86; 0.93; 0.97; 1"
+                values="0; 1; 1; 1"
+                keyTimes="0; 0.03; 0.98; 1"
                 dur={`${duration}s`}
-                repeatCount="indefinite"
+                repeatCount="1"
+                fill="freeze"
                 calcMode="linear"
               />
             </>
