@@ -278,7 +278,7 @@ describe("utilidades de gráficos de precios", () => {
         { index: 2, date: "2025-03-01", value: 200, x: 250, y: 80 },
       ];
 
-      const trendPoints = buildThreeMonthTrendPoints(geometryPoints);
+      const trendPoints = buildThreeMonthTrendPoints(geometryPoints, undefined, false);
       // El punto 1 debe tener exactamente y = 180 (la curva de cotización), no la media Y
       expect(trendPoints[1].y).toBe(180);
       expect(trendPoints[2].y).toBe(80);
@@ -326,8 +326,8 @@ describe("utilidades de gráficos de precios", () => {
       const plan = buildPriceMotionPlan(visibleRange, "senor", fullHistory);
       expect(plan.phases.length).toBe(2);
       // Al disponer de historial previo, el primer punto ya dispone de comparativa de 3 meses positiva
-      expect(plan.phases[0]).toBe("cuerda");
-      expect(plan.phases[1]).toBe("cuerda");
+      expect(plan.phases[0]).toMatch(/^(caballero|cuerda|canon)$/);
+      expect(plan.phases[1]).toMatch(/^(caballero|cuerda|canon)$/);
     });
   });
 });

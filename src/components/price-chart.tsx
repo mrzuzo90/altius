@@ -315,6 +315,7 @@ export function PriceChart({
           </ResponsiveContainer>
           {showCid && (
             <PriceTrendAnimation
+              key={`${ticker ?? "price"}-${range}-${data.length}`}
               label={ticker ?? "Cotización"}
               geometry={measuredChart?.signature === chartSignature ? measuredChart.geometry : null}
               annualTrend={annualTrend}

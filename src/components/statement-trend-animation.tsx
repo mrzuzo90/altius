@@ -513,7 +513,21 @@ export function AdaptiveCharacter({
   repeatCount?: string;
 }) {
   const timeline = buildPhaseOpacityTimeline(plan, duration);
-  const keyTimes = timeline.keyTimes.map(formatProgress).join(";");
+
+  // Garantizar que keyTimes nunca tenga duplicados en formato string para compatibilidad estricta SVG SMIL
+  const formattedTimes: string[] = [];
+  const validIndices: number[] = [];
+  timeline.keyTimes.forEach((t, i) => {
+    const formatted = formatProgress(t);
+    if (i === 0 || formatted !== formattedTimes[formattedTimes.length - 1]) {
+      formattedTimes.push(formatted);
+      validIndices.push(i);
+    }
+  });
+  if (formattedTimes.length > 1 && formattedTimes[formattedTimes.length - 1] !== "1") {
+    formattedTimes[formattedTimes.length - 1] = "1";
+  }
+  const keyTimes = formattedTimes.join(";");
   const initialPhase = plan.phases[0];
 
   return (
@@ -523,7 +537,7 @@ export function AdaptiveCharacter({
           <animate
             attributeName="opacity"
             begin="indefinite"
-            values={timeline.values[phase].join(";")}
+            values={validIndices.map((i) => timeline.values[phase][i]).join(";")}
             keyTimes={keyTimes}
             calcMode="linear"
             dur={`${duration}s`}
