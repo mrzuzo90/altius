@@ -249,7 +249,7 @@ export function CompoundInterestDialog({
 
           {/* Badge Cid */}
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-periwinkle-glow/30 bg-periwinkle-glow/10 px-3 py-1 text-[11px] text-periwinkle-glow">
-            <img src={mascot.src} alt="" className="size-5 object-contain" />
+            <img src={mascot.src} alt="" className="size-7 sm:size-8 object-contain" />
             <span className="font-medium">{mascot.label}</span>
           </div>
         </DialogHeader>
@@ -294,7 +294,7 @@ export function CompoundInterestDialog({
                 <img
                   src={mascot.src}
                   alt={mascot.label}
-                  className="size-12 sm:size-14 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(52,211,153,0.3)]"
+                  className="size-16 sm:size-20 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(52,211,153,0.3)]"
                 />
                 <div className="text-left">
                   <p className="text-[10px] uppercase font-mono text-muted-steel">Rentabilidad Anual</p>

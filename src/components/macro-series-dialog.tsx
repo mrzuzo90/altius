@@ -225,7 +225,7 @@ export function MacroSeriesDialog({
                   <img
                     src={annualTrend.mascot.src}
                     alt=""
-                    className="size-11 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(152,164,247,0.35)]"
+                    className="size-16 sm:size-20 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
                   />
                   <div className="min-w-0">
                     <p className="tabular font-display text-[20px] font-bold leading-none tracking-tight text-pure-white">

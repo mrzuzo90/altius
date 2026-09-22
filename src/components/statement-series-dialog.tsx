@@ -260,7 +260,7 @@ export function StatementSeriesDialog({
               <img
                 src={overallTrend.mascot.src}
                 alt=""
-                className="size-8 sm:size-9 object-contain shrink-0 filter drop-shadow-[0_1px_4px_rgba(152,164,247,0.3)]"
+                className="size-14 sm:size-16 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(152,164,247,0.35)]"
               />
               <div className="min-w-0">
                 <p

@@ -183,7 +183,7 @@ type PurchasingPowerChartPoint = {
                 <img
                   src={activeResult.mascot.src}
                   alt=""
-                  className="size-11 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(244,63,94,0.4)]"
+                  className="size-16 sm:size-20 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(244,63,94,0.4)]"
                 />
                 <div className="min-w-0">
                   <p className="tabular font-display text-rose-400 text-[22px] font-bold leading-none">

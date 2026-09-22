@@ -209,9 +209,7 @@ export function PriceTrendAnimation({
               />
             </>
           )}
-          <g transform="scale(0.86)">
-            <CharacterPose phase={targetPhase} />
-          </g>
+          <CharacterPose phase={targetPhase} />
         </g>
       </svg>
     </div>

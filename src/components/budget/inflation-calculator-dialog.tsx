@@ -272,7 +272,7 @@ export function InflationCalculatorDialog({
                 <img
                   src={result.mascotCash.src}
                   alt=""
-                  className="size-10 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(244,63,94,0.4)]"
+                  className="size-14 sm:size-16 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(244,63,94,0.4)]"
                 />
                 <span className="text-[11px] text-muted-steel leading-tight">
                   Erosión acumulada por no rentabilizar
@@ -326,7 +326,7 @@ export function InflationCalculatorDialog({
                 <img
                   src={result.mascotInvested.src}
                   alt=""
-                  className="size-10 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(52,211,153,0.4)]"
+                  className="size-14 sm:size-16 object-contain shrink-0 filter drop-shadow-[0_2px_6px_rgba(52,211,153,0.4)]"
                 />
                 <span className="text-[11px] text-muted-steel leading-tight">
                   Patrimonio protegido y multiplicado

@@ -198,7 +198,7 @@ export function PriceChart({
               <img
                 src={annualTrend.mascot.src}
                 alt="Cid"
-                className="size-11 sm:size-13 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
+                className="size-16 sm:size-20 object-contain shrink-0 filter drop-shadow-[0_2px_8px_rgba(152,164,247,0.35)]"
               />
               <div>
                 <span className="text-muted-steel text-[10px] font-semibold uppercase tracking-[0.12em] block">
