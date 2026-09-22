@@ -134,15 +134,6 @@ export function PriceChart({
 
   useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
 
-  if (points.length === 0) {
-    return (
-      <div className="bg-carbon-surface border-gunmetal text-muted-steel rounded-2xl border border-dashed px-6 py-16 text-center text-[13px]">
-        No hay una serie de cotización disponible. Altius no la sustituye por ceros.
-      </div>
-    );
-  }
-
-  // El rendimiento anualizado (CAGR) solo se calcula en rangos multianuales (>= 2 años)
   const isMultiYearRange = range === "3y" || range === "10y" || range === "custom";
   const annualTrend = useMemo(() => {
     if (!isMultiYearRange) return null;
@@ -155,6 +146,14 @@ export function PriceChart({
     if (range === "3y" || (annualTrend.years >= 2.5 && annualTrend.years < 3.5)) return "3 años";
     return `${Math.round(annualTrend.years * 10) / 10} años`;
   }, [annualTrend, range]);
+
+  if (points.length === 0) {
+    return (
+      <div className="bg-carbon-surface border-gunmetal text-muted-steel rounded-2xl border border-dashed px-6 py-16 text-center text-[13px]">
+        No hay una serie de cotización disponible. Altius no la sustituye por ceros.
+      </div>
+    );
+  }
 
   const first = data[0]?.close ?? null;
   const last = data.at(-1)?.close ?? null;

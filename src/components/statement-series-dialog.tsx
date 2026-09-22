@@ -203,9 +203,7 @@ export function StatementSeriesDialog({
 
   useEffect(() => () => cancelAnimationFrame(measureFrame.current), []);
 
-  if (!row) return null;
-
-  const rawData = useMemo(() => buildStatementChartData(periods, row), [periods, row]);
+  const rawData = useMemo(() => row ? buildStatementChartData(periods, row) : [], [periods, row]);
 
   const {
     range,
@@ -221,6 +219,8 @@ export function StatementSeriesDialog({
     defaultRange: "10y",
     keepBaseline: true,
   });
+
+  if (!row) return null;
 
   const semantics = getMetricSemantics(row.line);
   const overallTrend = calculateOverallAnnualTrend(data);
