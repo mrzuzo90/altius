@@ -200,7 +200,7 @@ export function PriceTrendAnimation({
     [geometry?.points, targetPhase, allPoints],
   );
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 12;
+  const duration = 30;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;
@@ -262,36 +262,37 @@ function stabilizePricePhases(
   phases: readonly CharacterPhase[],
   minimumRun: number,
 ): CharacterPhase[] {
-  if (minimumRun <= 1) return [...phases];
-  const stable = [...phases];
-  let runStart = 0;
+  if (minimumRun <= 1 || phases.length <= minimumRun) return [...phases];
+  let stable = [...phases];
 
-  while (runStart < stable.length) {
-    let runEnd = runStart + 1;
-    while (runEnd < stable.length && stable[runEnd] === stable[runStart]) runEnd += 1;
-    const runLength = runEnd - runStart;
-    if (runLength < minimumRun) {
-      const previous = runStart > 0 ? stable[runStart - 1] : null;
-      const next = runEnd < stable.length ? stable[runEnd] : null;
-      const replacement = previous === next ? previous : previous ?? next;
-      if (replacement) {
-        for (let index = runStart; index < runEnd; index += 1) stable[index] = replacement;
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    let runStart = 0;
+    while (runStart < stable.length) {
+      let runEnd = runStart + 1;
+      while (runEnd < stable.length && stable[runEnd] === stable[runStart]) runEnd += 1;
+      const runLength = runEnd - runStart;
+      if (runLength < minimumRun) {
+        const previous = runStart > 0 ? stable[runStart - 1] : null;
+        const next = runEnd < stable.length ? stable[runEnd] : null;
+        const replacement = previous ?? next;
+        if (replacement && replacement !== stable[runStart]) {
+          for (let index = runStart; index < runEnd; index += 1) stable[index] = replacement;
+          changed = true;
+        }
       }
+      runStart = runEnd;
     }
-    runStart = runEnd;
+    if (!changed) break;
   }
 
   return stable;
 }
 
 function minimumPhaseRun(points: readonly ThreeMonthTrendPoint[]): number {
-  const intervals = points.slice(1).map((point, index) => (
-    (Date.parse(point.date) - Date.parse(points[index].date)) / 86_400_000
-  )).filter((days) => Number.isFinite(days) && days > 0).sort((a, b) => a - b);
-  const typicalInterval = intervals[Math.floor(intervals.length / 2)] ?? 92;
-  if (typicalInterval <= 10) return 3;
-  if (typicalInterval <= 45) return 2;
-  return 1;
+  if (points.length <= 10) return 1;
+  // Mantener cada fase estable durante al menos ~1-1.5s en pantalla para evitar cambios hiperactivos
+  return Math.max(5, Math.round(points.length * 0.035));
 }
 
 function buildSmoothPath(points: readonly ThreeMonthTrendPoint[]): string {
