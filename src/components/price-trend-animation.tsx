@@ -33,7 +33,8 @@ export type ThreeMonthTrendPoint = PricePointGeometry & {
   changePct: number | null;
 };
 
-const THREE_MONTH_MS = 92 * 86_400_000;
+export const SIX_MONTH_MS = 183 * 86_400_000;
+export const THREE_MONTH_MS = 92 * 86_400_000;
 
 export function analyzeTenYearPriceProfile(points: readonly PricePoint[]): BusinessProfile {
   const ordered = [...points]
@@ -62,10 +63,11 @@ export function pricePhaseForChange(
   return characterPhaseForChange(changePct);
 }
 
-export function buildThreeMonthTrendPoints(
+export function buildSixMonthTrendPoints(
   geometry: readonly PricePointGeometry[],
   allPoints?: readonly PricePoint[],
   smoothY = true,
+  windowMs = SIX_MONTH_MS,
 ): ThreeMonthTrendPoint[] {
   const points = [...geometry]
     .filter((point) => (
@@ -93,7 +95,7 @@ export function buildThreeMonthTrendPoints(
     valueSum += point.value;
     ySum += point.y;
 
-    while (windowStart < index && pointTime - Date.parse(points[windowStart].date) > THREE_MONTH_MS) {
+    while (windowStart < index && pointTime - Date.parse(points[windowStart].date) > windowMs) {
       valueSum -= points[windowStart].value;
       ySum -= points[windowStart].y;
       windowStart += 1;
@@ -102,7 +104,7 @@ export function buildThreeMonthTrendPoints(
     const count = index - windowStart + 1;
     const averageValue = valueSum / count;
     const averageY = ySum / count;
-    const comparisonTarget = pointTime - THREE_MONTH_MS;
+    const comparisonTarget = pointTime - windowMs;
 
     while (
       comparisonIndex + 1 < trend.length
@@ -118,7 +120,7 @@ export function buildThreeMonthTrendPoints(
     } else if (history && history.length > 0) {
       const priorPoints = history.filter((p) => {
         const t = Date.parse(p.date);
-        return t <= comparisonTarget && t >= comparisonTarget - THREE_MONTH_MS;
+        return t <= comparisonTarget && t >= comparisonTarget - windowMs;
       });
       if (priorPoints.length > 0) {
         const priorAvg = priorPoints.reduce((s, p) => s + p.close, 0) / priorPoints.length;
@@ -145,13 +147,30 @@ export function buildThreeMonthTrendPoints(
   return trend;
 }
 
+export const buildThreeMonthTrendPoints = buildSixMonthTrendPoints;
+
+function defaultWindowMs(points: readonly PricePointGeometry[], hasAllPoints: boolean): number {
+  if (hasAllPoints) return SIX_MONTH_MS;
+  if (points.length < 2) return SIX_MONTH_MS;
+  const intervals = points.slice(1).map((p, i) => (
+    Math.abs(Date.parse(p.date) - Date.parse(points[i].date)) / 86_400_000
+  )).filter((d) => Number.isFinite(d) && d > 0).sort((a, b) => a - b);
+  const medianInterval = intervals[Math.floor(intervals.length / 2)] ?? 1;
+  // Si los puntos son trimestrales/cuatrimestrales (intervalo > 45 días), usar ventana trimestral
+  if (medianInterval > 45) return THREE_MONTH_MS;
+  // Para series de cotización (diarias/semanales), usar la media móvil de 6 meses
+  return SIX_MONTH_MS;
+}
+
 export function buildPriceMotionPlan(
   geometry: readonly PricePointGeometry[],
   defaultPhase: CharacterPhase = "senor",
   allPoints?: readonly PricePoint[],
   smoothY = false,
+  windowMs?: number,
 ): CharacterMotionPlan {
-  const points = buildThreeMonthTrendPoints(geometry, allPoints, smoothY);
+  const effectiveWindowMs = windowMs ?? defaultWindowMs(geometry, Boolean(allPoints && allPoints.length > 0));
+  const points = buildSixMonthTrendPoints(geometry, allPoints, smoothY, effectiveWindowMs);
   if (points.length < 2) return { path: "", phases: [], keyTimes: [0, 1], changesPct: [] };
 
   const changesPct = points.slice(1).map((point) => point.changePct);
