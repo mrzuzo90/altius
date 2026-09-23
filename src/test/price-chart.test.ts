@@ -325,9 +325,28 @@ describe("utilidades de gráficos de precios", () => {
 
       const plan = buildPriceMotionPlan(visibleRange, "senor", fullHistory);
       expect(plan.phases.length).toBe(2);
-      // Al disponer de historial previo, el primer punto ya dispone de comparativa de 3 meses positiva
+      // Al disponer de historial previo, el primer punto ya dispone de comparativa de 2 meses positiva
       expect(plan.phases[0]).toMatch(/^(caballero|cuerda|canon)$/);
       expect(plan.phases[1]).toMatch(/^(caballero|cuerda|canon)$/);
     });
+
+    it("refleja bajadas de cotización cuando la media a 2 meses entra en terreno negativo", () => {
+      const history = [
+        { date: "2024-08-01", close: 200 },
+        { date: "2024-09-01", close: 200 },
+        { date: "2024-10-01", close: 170 },
+        { date: "2024-11-01", close: 150 },
+      ];
+
+      const visibleRange = [
+        { index: 0, date: "2024-10-01", value: 170, x: 100, y: 120 },
+        { index: 1, date: "2024-11-01", value: 150, x: 200, y: 160 },
+      ];
+
+      const plan = buildPriceMotionPlan(visibleRange, "senor", history);
+      // La caída de la media de 2 meses respecto a los 2 meses previos es marcadamente negativa
+      expect(plan.phases[0]).toMatch(/^(piedra|flecha|apunalado)$/);
+    });
   });
 });
+

@@ -33,8 +33,9 @@ export type ThreeMonthTrendPoint = PricePointGeometry & {
   changePct: number | null;
 };
 
-export const SIX_MONTH_MS = 183 * 86_400_000;
+export const TWO_MONTH_MS = 61 * 86_400_000;
 export const THREE_MONTH_MS = 92 * 86_400_000;
+export const SIX_MONTH_MS = 183 * 86_400_000;
 
 export function analyzeTenYearPriceProfile(points: readonly PricePoint[]): BusinessProfile {
   const ordered = [...points]
@@ -63,11 +64,11 @@ export function pricePhaseForChange(
   return characterPhaseForChange(changePct);
 }
 
-export function buildSixMonthTrendPoints(
+export function buildTwoMonthTrendPoints(
   geometry: readonly PricePointGeometry[],
   allPoints?: readonly PricePoint[],
   smoothY = true,
-  windowMs = SIX_MONTH_MS,
+  windowMs = TWO_MONTH_MS,
 ): ThreeMonthTrendPoint[] {
   const points = [...geometry]
     .filter((point) => (
@@ -147,19 +148,20 @@ export function buildSixMonthTrendPoints(
   return trend;
 }
 
-export const buildThreeMonthTrendPoints = buildSixMonthTrendPoints;
+export const buildThreeMonthTrendPoints = buildTwoMonthTrendPoints;
+export const buildSixMonthTrendPoints = buildTwoMonthTrendPoints;
 
 function defaultWindowMs(points: readonly PricePointGeometry[], hasAllPoints: boolean): number {
-  if (hasAllPoints) return SIX_MONTH_MS;
-  if (points.length < 2) return SIX_MONTH_MS;
+  if (hasAllPoints) return TWO_MONTH_MS;
+  if (points.length < 2) return TWO_MONTH_MS;
   const intervals = points.slice(1).map((p, i) => (
     Math.abs(Date.parse(p.date) - Date.parse(points[i].date)) / 86_400_000
   )).filter((d) => Number.isFinite(d) && d > 0).sort((a, b) => a - b);
   const medianInterval = intervals[Math.floor(intervals.length / 2)] ?? 1;
   // Si los puntos son trimestrales/cuatrimestrales (intervalo > 45 días), usar ventana trimestral
   if (medianInterval > 45) return THREE_MONTH_MS;
-  // Para series de cotización (diarias/semanales), usar la media móvil de 6 meses
-  return SIX_MONTH_MS;
+  // Para series de cotización (diarias/semanales), usar la media móvil de 2 meses
+  return TWO_MONTH_MS;
 }
 
 export function buildPriceMotionPlan(
@@ -170,7 +172,7 @@ export function buildPriceMotionPlan(
   windowMs?: number,
 ): CharacterMotionPlan {
   const effectiveWindowMs = windowMs ?? defaultWindowMs(geometry, Boolean(allPoints && allPoints.length > 0));
-  const points = buildSixMonthTrendPoints(geometry, allPoints, smoothY, effectiveWindowMs);
+  const points = buildTwoMonthTrendPoints(geometry, allPoints, smoothY, effectiveWindowMs);
   if (points.length < 2) return { path: "", phases: [], keyTimes: [0, 1], changesPct: [] };
 
   const changesPct = points.slice(1).map((point) => point.changePct);
@@ -310,8 +312,8 @@ function stabilizePricePhases(
 
 function minimumPhaseRun(points: readonly ThreeMonthTrendPoint[]): number {
   if (points.length <= 10) return 1;
-  // Mantener cada fase estable durante al menos ~1-1.5s en pantalla para evitar cambios hiperactivos
-  return Math.max(5, Math.round(points.length * 0.035));
+  // Mantener cada fase con suficiente estabilidad para evitar parpadeo puntual sin borrar bajadas
+  return Math.max(3, Math.min(8, Math.round(points.length * 0.018)));
 }
 
 function buildSmoothPath(points: readonly ThreeMonthTrendPoint[]): string {
