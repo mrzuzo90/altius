@@ -81,12 +81,10 @@ export function QualityScorecard({ scorecard }: { scorecard: QualityScorecardRes
         </div>
       </div>
 
-      <div className="relative overflow-x-auto">
-        <div className="grid min-w-[1120px] grid-cols-6 gap-px bg-gunmetal">
-          {scorecard.items.map((item, index) => (
-            <CheckCard key={item.id} item={item} index={index} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-gunmetal">
+        {scorecard.items.map((item, index) => (
+          <CheckCard key={item.id} item={item} index={index} />
+        ))}
       </div>
     </section>
   );
@@ -100,30 +98,30 @@ function CheckCard({
   index: number;
 }) {
   return (
-    <article className="group relative flex min-h-[196px] flex-col bg-carbon-surface p-3.5 transition-colors hover:bg-[#1b1e2b]">
+    <article className="group relative flex min-h-[170px] flex-col bg-carbon-surface p-3.5 sm:p-4 transition-colors hover:bg-[#1b1e2b]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-display text-[22px] leading-none text-periwinkle-glow/70">{String(index + 1).padStart(2, "0")}</p>
-          <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.14em] text-muted-steel">{item.category}</p>
+          <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-steel">{item.category}</p>
         </div>
         <StatusBadge status={item.status} />
       </div>
 
       <div className="mt-2.5">
-        <h3 className="font-display text-[15px] font-medium leading-5 tracking-tight text-pure-white">{item.name}</h3>
-        <p className="mt-1.5 text-[9px] leading-[1.4] text-frost">{KEY_MEANINGS[item.id] ?? item.whyItMatters}</p>
-        <p className="mt-2 text-[11px] font-semibold leading-4 text-periwinkle-glow">{item.valueFormatted}</p>
+        <h3 className="font-display text-[15px] sm:text-[16px] font-medium leading-5 tracking-tight text-pure-white">{item.name}</h3>
+        <p className="mt-1.5 text-[10px] sm:text-[11px] leading-[1.45] text-frost">{KEY_MEANINGS[item.id] ?? item.whyItMatters}</p>
+        <p className="mt-2 text-[12px] font-semibold leading-4 text-periwinkle-glow">{item.valueFormatted}</p>
       </div>
 
       <details className="group/detail mt-auto pt-2">
-        <summary className="flex cursor-pointer list-none items-center justify-between border-t border-gunmetal/75 pt-2 text-[10px] font-medium text-muted-steel marker:hidden hover:text-frost">
+        <summary className="flex cursor-pointer list-none items-center justify-between border-t border-gunmetal/75 pt-2 text-[10px] sm:text-[11px] font-medium text-muted-steel marker:hidden hover:text-frost">
           <span>{item.status === "pass" ? "Por qué pasa" : "Qué ocurre"}</span>
           <span className="grid size-5 place-items-center rounded-full border border-gunmetal text-periwinkle-glow transition-transform group-open/detail:rotate-45">+</span>
         </summary>
         <div className="mt-2 rounded-lg border border-gunmetal/70 bg-void-black/55 p-2.5">
-          <p className="text-[10px] leading-4 text-frost">{item.description}</p>
-          <p className="mt-2 text-[10px] font-semibold leading-4 text-frost">{item.threshold}</p>
-          <p className="mt-1 text-[10px] leading-4 text-muted-steel">{item.whyItMatters}</p>
+          <p className="text-[10px] sm:text-[11px] leading-4 text-frost">{item.description}</p>
+          <p className="mt-2 text-[10px] sm:text-[11px] font-semibold leading-4 text-frost">{item.threshold}</p>
+          <p className="mt-1 text-[10px] sm:text-[11px] leading-4 text-muted-steel">{item.whyItMatters}</p>
         </div>
       </details>
     </article>
