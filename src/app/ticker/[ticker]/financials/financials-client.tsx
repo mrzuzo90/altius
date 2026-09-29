@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { StatementTabs } from "@/components/statement-tabs";
+import { FinancialOverviewChart } from "@/components/financial-overview-chart";
 import type { StatementBundle } from "@/lib/sec/statements";
 import type { Frequency } from "@/lib/sec/normalize";
 
@@ -17,9 +18,17 @@ export function FinancialsClient({
 }) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
+  const isTesla = ticker.toUpperCase() === "TSLA";
 
   return (
     <div className={pendiente ? "pointer-events-none opacity-60 transition-opacity" : undefined}>
+      {isTesla && (
+        <FinancialOverviewChart
+          bundle={bundle}
+          ticker={ticker}
+          frequency={frequency}
+        />
+      )}
       <StatementTabs
         bundle={bundle}
         frequency={frequency}
