@@ -101,4 +101,32 @@ describe("FinancialOverviewChart", () => {
     fireEvent.click(fcfButton);
     expect(fcfButton.className).toContain("text-pure-white");
   });
+
+  it("ordena los periodos cronológicamente de menor a mayor (primeros años a la izquierda, últimos a la derecha)", () => {
+    // Bundle con periodos en orden inverso (más recientes primero, como viene de la SEC)
+    const reversedBundle: StatementBundle = {
+      ...mockBundle,
+      blocks: [
+        {
+          ...mockBundle.blocks[0],
+          periods: [
+            { key: "FY2024", label: "2024", end: "2024-12-31", fiscalYear: 2024, quarter: 0, derived: false },
+            { key: "FY2023", label: "2023", end: "2023-12-31", fiscalYear: 2023, quarter: 0, derived: false },
+            { key: "FY2022", label: "2022", end: "2022-12-31", fiscalYear: 2022, quarter: 0, derived: false },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <FinancialOverviewChart
+        bundle={reversedBundle}
+        ticker="TSLA"
+        frequency="annual"
+      />
+    );
+
+    // El rango temporal debe ser estrictamente de menor a mayor (2022 - 2024)
+    expect(screen.getByText(/Evolución Financiera Histórica \(2022 - 2024\)/i)).toBeDefined();
+  });
 });

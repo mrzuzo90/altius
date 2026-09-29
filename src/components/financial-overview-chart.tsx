@@ -106,7 +106,20 @@ export function FinancialOverviewChart({
 
   const incomeBlock = bundle.blocks.find((b) => b.id === "income");
   const cashflowBlock = bundle.blocks.find((b) => b.id === "cashflow");
-  const periods = incomeBlock?.periods ?? cashflowBlock?.periods ?? bundle.blocks[0]?.periods ?? [];
+  const rawPeriods = incomeBlock?.periods ?? cashflowBlock?.periods ?? bundle.blocks[0]?.periods ?? [];
+
+  // Orden cronológico de menor a mayor (años iniciales a la izquierda, últimos años a la derecha)
+  const periods = useMemo(() => {
+    return [...rawPeriods].sort((a, b) => {
+      if (a.end && b.end) {
+        return a.end.localeCompare(b.end);
+      }
+      if (a.fiscalYear !== b.fiscalYear) {
+        return a.fiscalYear - b.fiscalYear;
+      }
+      return a.quarter - b.quarter;
+    });
+  }, [rawPeriods]);
 
   // Búsqueda inteligente de partidas clave adaptada a SEC y ESEF
   const revenueRow = useMemo(
