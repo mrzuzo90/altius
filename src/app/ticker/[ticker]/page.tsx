@@ -164,9 +164,6 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
                 />
               ) : null}
             </dl>
-            <p className="text-muted-steel mt-4 text-[12px] leading-[1.5]">
-              Identidad según {bundle?.source?.label ?? (hit ? "SEC EDGAR" : "la fuente regulatoria disponible")}.
-            </p>
           </div>
 
           {annualFiling ? (
@@ -189,7 +186,6 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
           ) : bundle?.source?.href ? (
             <div className="bg-carbon-surface border-gunmetal rounded-2xl border p-6">
               <h2 className="font-display text-pure-white mb-3 text-[16px] font-medium tracking-tight">Último informe regulatorio</h2>
-              <p className="text-muted-steel text-[13px] leading-[1.5]">{bundle.source.detail}</p>
               <a
                 href={bundle.source.href}
                 target="_blank"

@@ -198,9 +198,6 @@ export function TechnicalChart({
             Restablecer a 1 año
           </button>
         )}
-        <span className="text-muted-steel ml-auto text-[11px] font-mono">
-          Histórico disponible: {firstAvailable} → {lastAvailable} ({points.length.toLocaleString("es-ES")} sesiones)
-        </span>
       </div>
 
       {/* Barra de Toggles de Indicadores Técnicos */}
@@ -557,14 +554,6 @@ export function TechnicalChart({
           </div>
         </div>
       )}
-
-      {/* Pie de Fuente */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gunmetal/60 pt-3 text-[12px] text-muted-steel">
-        <p>Serie histórica ajustada · Cálculos cuantitativos directos · {source}</p>
-        <span className="font-mono text-[11px] text-frost/70">
-          Última obs: {datos.at(-1)?.date ?? "—"}
-        </span>
-      </div>
     </div>
   );
 }

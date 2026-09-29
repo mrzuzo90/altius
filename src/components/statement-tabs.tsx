@@ -105,19 +105,6 @@ export function StatementTabs({
         </div>
       </div>
 
-      {tabActiva === "summary" ? (
-        <p className="text-muted-steel max-w-3xl text-[13px] leading-[1.5]">
-          Selección visual de las partidas que mejor resumen el negocio. Las tablas completas permanecen intactas en sus pestañas.
-        </p>
-      ) : (
-        <p className="text-muted-steel max-w-3xl text-[13px] leading-[1.5]">
-          Cifras en {SCALES[scale].label} de {bundle.currency ?? "USD"} salvo datos por acción y ratios porcentuales. Las
-          celdas marcadas las calcula Altius; el resto conserva su procedencia individual: XBRL regulatorio y, cuando
-          ESEF aún no ha indexado el último ejercicio, la fuente de actualidad indicada. Una raya significa que la
-          empresa no reporta ese concepto.
-        </p>
-      )}
-
       <TabsContent value="summary">
         <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
           <FinancialSummary bundle={bundle} scale={scale} />

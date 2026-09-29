@@ -48,13 +48,7 @@ export function BusinessSummaryCard({ snapshot }: { snapshot: BusinessSnapshot }
             {snapshot.regulatoryExcerpt}
           </p>
         </details>
-      ) : (
-        <p className="border-t border-gunmetal bg-void-black/35 px-5 py-3 text-[10px] leading-4 text-muted-steel">
-          {snapshot.confidence === "regulatory"
-            ? "Los productos y marcas se han comprobado en el informe anual, aunque el documento no ofrece un párrafo operativo limpio para mostrar como extracto."
-            : "Síntesis basada en la clasificación regulatoria y los estados financieros; no se encontró un apartado operativo legible en el documento anual."}
-        </p>
-      )}
+      ) : null}
     </article>
   );
 }
@@ -67,9 +61,6 @@ export function CompanyAttentionSection({ attention }: { attention: CompanyAtten
           <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-periwinkle-glow">Lectura rápida</p>
           <h2 className="mt-1 font-display text-[23px] font-medium tracking-tight text-pure-white">Tres cosas que llaman la atención</h2>
         </div>
-        <p className="hidden max-w-md text-right text-[10px] leading-4 text-muted-steel sm:block">
-          Señales calculadas con los mismos datos y umbrales de Las seis claves; pueden ser fortalezas, dudas o riesgos.
-        </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {attention.map((item, index) => <AttentionCard key={item.id} item={item} index={index} />)}

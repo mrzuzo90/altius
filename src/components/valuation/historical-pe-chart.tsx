@@ -169,9 +169,6 @@ export function HistoricalPeChart({
             </ResponsiveContainer>
           </div>
         )}
-        <p className="text-muted-steel px-2 pb-2 text-[12px]">
-          Cada punto usa la primera presentación regulatoria del periodo y el cierre de mercado inmediatamente anterior disponible, ambos ajustados por splits y en la misma divisa. La serie describe únicamente el historial observado.
-        </p>
       </div>
 
       {mode === "quarterly" ? (

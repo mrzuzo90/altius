@@ -372,7 +372,6 @@ export function StatementSeriesDialog({
               <Legend color="#0284c7" label="Foso (negativo)" />
               <Legend color="#5b63d3" label="Calculado" />
             </div>
-            <span>Los periodos sin cifra no se convierten en cero.</span>
           </div>
         </div>
       </DialogContent>

@@ -113,9 +113,6 @@ export default async function ValuationPage({ params }: { params: Promise<{ tick
               <h2 className="font-display text-graphite text-[32px] leading-[1.19] tracking-[-0.64px]">
                 Múltiplos y Valoración
               </h2>
-              <p className="text-steel mt-1 text-[14px]">
-                Múltiplos point-in-time basados en estados regulatorios y cotizaciones ajustadas por splits.
-              </p>
             </div>
             {valuationPrices ? (
               <DataSourceBadge

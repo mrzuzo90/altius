@@ -328,9 +328,6 @@ export function PriceChart({
           No hay observaciones entre las fechas seleccionadas. Amplía el intervalo.
         </div>
       )}
-      <p className="text-muted-steel mt-3 text-[12px]">
-        Cierres ajustados por splits · en rangos superiores a 2 años se muestra la rentabilidad anualizada (CAGR) con el Cid correspondiente · {source} · Divisa: {currency ?? "no declarada"}
-      </p>
     </div>
   );
 }
