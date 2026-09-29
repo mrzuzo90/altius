@@ -81,9 +81,13 @@ export function buildFinancialSummaryItems(bundle: StatementBundle): FinancialSu
 export function FinancialSummary({
   bundle,
   scale,
+  onSelectLine,
+  selectedLineIds = [],
 }: {
   bundle: StatementBundle;
   scale: Scale;
+  onSelectLine?: (line: LineSeries) => void;
+  selectedLineIds?: string[];
 }) {
   const items = buildFinancialSummaryItems(bundle);
   const [selected, setSelected] = useState<FinancialSummaryItem | null>(null);
@@ -134,7 +138,14 @@ export function FinancialSummary({
                     key={item.id}
                     item={item}
                     scale={scale}
-                    onOpen={() => setSelected(item)}
+                    isSelected={selectedLineIds.includes(item.row.line.id)}
+                    onOpen={() => {
+                      if (onSelectLine) {
+                        onSelectLine(item.row);
+                      } else {
+                        setSelected(item);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -161,10 +172,12 @@ function SummaryCard({
   item,
   scale,
   onOpen,
+  isSelected = false,
 }: {
   item: FinancialSummaryItem;
   scale: Scale;
   onOpen: () => void;
+  isSelected?: boolean;
 }) {
   const { row, periods } = item;
   const data = buildStatementChartData(periods, row);
@@ -181,9 +194,10 @@ function SummaryCard({
       type="button"
       disabled={!hasHistory}
       onClick={onOpen}
-      aria-label={hasHistory ? `Abrir histórico resumido de ${row.line.label}` : `${row.line.label} sin datos`}
+      aria-label={hasHistory ? `Integrar ${row.line.label} en el gráfico superior` : `${row.line.label} sin datos`}
       className={cn(
-        "border-gunmetal bg-carbon-surface group relative min-h-[190px] overflow-hidden rounded-2xl border p-5 text-left transition-all",
+        "border-gunmetal bg-carbon-surface group relative min-h-[190px] overflow-hidden rounded-2xl border p-5 text-left transition-all cursor-pointer",
+        isSelected && "border-periwinkle-glow/70 shadow-[0_0_24px_rgba(152,164,247,0.18)] ring-1 ring-periwinkle-glow/50",
         hasHistory
           ? "hover:border-periwinkle-glow/40 hover:bg-gunmetal/35 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.22)]"
           : "cursor-default opacity-55",

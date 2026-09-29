@@ -9,14 +9,20 @@ import { cn } from "@/lib/utils";
 import { Copy, Check } from "lucide-react";
 import type { StatementBundle } from "@/lib/sec/statements";
 
+import type { LineSeries } from "@/lib/sec/normalize";
+
 export function StatementTabs({
   bundle,
   frequency,
   onFrequencyChange,
+  onSelectLine,
+  selectedLineIds = [],
 }: {
   bundle: StatementBundle;
   frequency: "annual" | "quarterly";
   onFrequencyChange: (f: "annual" | "quarterly") => void;
+  onSelectLine?: (line: LineSeries) => void;
+  selectedLineIds?: string[];
 }) {
   const [tabActiva, setTabActiva] = useState<string>("summary");
   const [scale, setScale] = useState<Scale>("millions");
@@ -107,7 +113,12 @@ export function StatementTabs({
 
       <TabsContent value="summary">
         <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-          <FinancialSummary bundle={bundle} scale={scale} />
+          <FinancialSummary
+            bundle={bundle}
+            scale={scale}
+            onSelectLine={onSelectLine}
+            selectedLineIds={selectedLineIds}
+          />
         </div>
       </TabsContent>
 
@@ -123,6 +134,8 @@ export function StatementTabs({
               scale={scale}
               currency={bundle.currency ?? "USD"}
               cik={bundle.profile.cik}
+              onSelectLine={onSelectLine}
+              selectedLineIds={selectedLineIds}
             />
           </div>
         </TabsContent>

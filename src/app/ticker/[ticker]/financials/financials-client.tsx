@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useState, useCallback } from "react";
 import { StatementTabs } from "@/components/statement-tabs";
 import { FinancialOverviewChart } from "@/components/financial-overview-chart";
 import type { StatementBundle } from "@/lib/sec/statements";
-import type { Frequency } from "@/lib/sec/normalize";
+import type { Frequency, LineSeries } from "@/lib/sec/normalize";
 
 export function FinancialsClient({
   bundle,
@@ -18,20 +18,38 @@ export function FinancialsClient({
 }) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
-  const isTesla = ticker.toUpperCase() === "TSLA";
+  const [customLines, setCustomLines] = useState<LineSeries[]>([]);
+
+  const handleToggleLine = useCallback((line: LineSeries) => {
+    setCustomLines((prev) => {
+      const exists = prev.some((l) => l.line.id === line.line.id);
+      if (exists) {
+        return prev.filter((l) => l.line.id !== line.line.id);
+      }
+      return [...prev, line];
+    });
+
+    const chartEl = document.getElementById("financial-overview-chart");
+    if (chartEl) {
+      chartEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
   return (
     <div className={pendiente ? "pointer-events-none opacity-60 transition-opacity" : undefined}>
-      {isTesla && (
-        <FinancialOverviewChart
-          bundle={bundle}
-          ticker={ticker}
-          frequency={frequency}
-        />
-      )}
+      <FinancialOverviewChart
+        id="financial-overview-chart"
+        bundle={bundle}
+        ticker={ticker}
+        frequency={frequency}
+        customLines={customLines}
+        onToggleLine={handleToggleLine}
+      />
       <StatementTabs
         bundle={bundle}
         frequency={frequency}
+        onSelectLine={handleToggleLine}
+        selectedLineIds={customLines.map((l) => l.line.id)}
         onFrequencyChange={(f) =>
           startTransition(() => {
             router.push(`/ticker/${ticker}/financials?freq=${f}`, { scroll: false });

@@ -32,12 +32,16 @@ export function FinancialTable({
   scale,
   currency,
   cik,
+  onSelectLine,
+  selectedLineIds = [],
 }: {
   periods: Period[];
   rows: LineSeries[];
   scale: Scale;
   currency: string;
   cik: string;
+  onSelectLine?: (line: LineSeries) => void;
+  selectedLineIds?: string[];
 }) {
   const [selectedRow, setSelectedRow] = useState<LineSeries | null>(null);
 
@@ -104,21 +108,42 @@ export function FinancialTable({
                   )}
                   style={{ paddingLeft: `${1 + (row.line.indent ?? 0) * 0.85}rem` }}
                 >
-                  <button
-                    type="button"
-                    disabled={vacia}
-                    onClick={() => setSelectedRow(row)}
-                    className="focus-visible:ring-periwinkle-glow/70 -my-1 flex w-full items-center justify-between gap-2 rounded-md py-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
-                    aria-label={`Ver evolución de ${row.line.label} en un gráfico`}
-                  >
-                    <span className="truncate">{row.line.label}</span>
+                  <div className="-my-1 flex w-full items-center justify-between gap-2 py-1">
+                    <button
+                      type="button"
+                      disabled={vacia}
+                      onClick={() => {
+                        if (onSelectLine) {
+                          onSelectLine(row);
+                        } else {
+                          setSelectedRow(row);
+                        }
+                      }}
+                      className={cn(
+                        "focus-visible:ring-periwinkle-glow/70 flex flex-1 items-center gap-1.5 truncate text-left outline-none focus-visible:ring-2 disabled:cursor-default cursor-pointer hover:text-periwinkle-glow transition-colors",
+                        selectedLineIds.includes(row.line.id) && "text-periwinkle-glow font-semibold",
+                      )}
+                      aria-label={`Integrar ${row.line.label} en el gráfico superior`}
+                    >
+                      {selectedLineIds.includes(row.line.id) && (
+                        <span className="size-1.5 rounded-full bg-periwinkle-glow shrink-0 animate-pulse" />
+                      )}
+                      <span className="truncate">{row.line.label}</span>
+                    </button>
                     {!vacia && (
-                      <BarChart3
-                        aria-hidden="true"
-                        className="text-muted-steel size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRow(row);
+                        }}
+                        title={`Abrir ${row.line.label} en detalle`}
+                        className="text-muted-steel hover:text-periwinkle-glow size-5 grid place-items-center rounded opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 cursor-pointer"
+                      >
+                        <BarChart3 aria-hidden="true" className="size-3.5 shrink-0" />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 </th>
                 <td className="px-2 py-2 text-center whitespace-nowrap">
                   <Sparkline
