@@ -129,4 +129,63 @@ describe("FinancialOverviewChart", () => {
     // El rango temporal debe ser estrictamente de menor a mayor (2022 - 2024)
     expect(screen.getByText(/Evolución Financiera Histórica \(2022 - 2024\)/i)).toBeDefined();
   });
+
+  it("permite activar y desactivar a Cid mediante el botón superior", () => {
+    render(
+      <FinancialOverviewChart
+        bundle={mockBundle}
+        ticker="TSLA"
+        frequency="annual"
+      />
+    );
+
+    // Inicialmente Cid está activado
+    const cidToggleBtn = screen.getByRole("button", { name: /Desactivar Cid en el gráfico/i });
+    expect(cidToggleBtn).toBeDefined();
+    expect(screen.getByText(/Cid: Activado/i)).toBeDefined();
+    expect(screen.getByText(/Cid evalúa:/i)).toBeDefined();
+
+    // Al hacer clic, se desactiva
+    fireEvent.click(cidToggleBtn);
+    expect(screen.getByText(/Cid: Desactivado/i)).toBeDefined();
+    expect(screen.queryByText(/Cid evalúa:/i)).toBeNull();
+
+    // Al volver a hacer clic, se vuelve a activar
+    const reenableBtn = screen.getByRole("button", { name: /Activar Cid en el gráfico/i });
+    fireEvent.click(reenableBtn);
+    expect(screen.getByText(/Cid: Activado/i)).toBeDefined();
+    expect(screen.getByText(/Cid evalúa:/i)).toBeDefined();
+  });
+
+  it("ofrece selector de horizonte temporal con 10A por defecto y cálculo de crecimiento", () => {
+    render(
+      <FinancialOverviewChart
+        bundle={mockBundle}
+        ticker="TSLA"
+        frequency="annual"
+      />
+    );
+
+    // Botones de horizonte temporal: 3A, 5A, 10A, Todo
+    const btn10A = screen.getByRole("button", { name: "10A" });
+    const btn3A = screen.getByRole("button", { name: "3A" });
+    const btn5A = screen.getByRole("button", { name: "5A" });
+    const btnTodo = screen.getByRole("button", { name: "Todo" });
+
+    expect(btn10A).toBeDefined();
+    expect(btn3A).toBeDefined();
+    expect(btn5A).toBeDefined();
+    expect(btnTodo).toBeDefined();
+
+    // 10A está seleccionado por defecto (clase bg-periwinkle-glow)
+    expect(btn10A.className).toContain("bg-periwinkle-glow");
+
+    // Muestra el crecimiento en el periodo seleccionado
+    expect(screen.getByText(/Crecimiento \(2 años\):/i)).toBeDefined();
+    expect(screen.getByText(/Ingresos \+19\.9%/i)).toBeDefined();
+
+    // Al pulsar 3A
+    fireEvent.click(btn3A);
+    expect(btn3A.className).toContain("bg-periwinkle-glow");
+  });
 });
