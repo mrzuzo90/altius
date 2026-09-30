@@ -361,17 +361,22 @@ export function FinancialOverviewChart({
     };
   }, [chartData]);
 
-  // Captura y cálculo de geometría para el movimiento de Cid a lo largo del gráfico agregado
-  const [measuredDots, setMeasuredDots] = useState<Map<number, { x: number; y: number }>>(new Map());
-  const captureFrame = useRef<number>(0);
+  // Dimensiones seguras del contenedor mediante ResizeObserver (sin re-renders infinitos)
+  const [containerWidth, setContainerWidth] = useState(800);
 
-  const captureDotGeometry = useCallback((index: number, x: number, y: number) => {
-    setMeasuredDots((prev) => {
-      const next = new Map(prev);
-      next.set(index, { x, y });
-      return next;
-    });
-  }, []);
+  useEffect(() => {
+    const el = chartContainerRef.current;
+    if (!el) return;
+    const updateWidth = () => {
+      if (el.clientWidth > 0) setContainerWidth(el.clientWidth);
+    };
+    updateWidth();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(updateWidth);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, [isCollapsed]);
 
   const hasRightAxis =
     activePresets.some((m) => PRESET_METRICS.find((c) => c.id === m)?.yAxisId === "right") ||
@@ -388,19 +393,17 @@ export function FinancialOverviewChart({
     }
 
     const n = chartData.length;
-    const containerWidth = chartContainerRef.current?.clientWidth || 800;
     const usableLeft = 56;
     const usableRight = containerWidth - (hasRightAxis ? 64 : 24);
     const usableTop = 32;
     const usableHeight = 270;
     const stepX = (usableRight - usableLeft) / Math.max(1, n);
 
-    // Coordenadas de cada punto (preferimos coordenadas medidas por Recharts si están disponibles)
+    // Coordenadas calculadas limpiamente de forma síncrona
     const points = chartData.map((d, i) => {
-      const measured = measuredDots.get(i);
-      const x = measured?.x ?? usableLeft + (i + 0.5) * stepX;
+      const x = usableLeft + (i + 0.5) * stepX;
       const score = d.__cidScore ?? 50;
-      const y = measured?.y ?? usableTop + usableHeight * (1 - score / 100);
+      const y = usableTop + usableHeight * (1 - score / 100);
       return { index: i, x, y, score, year: d.year };
     });
 
@@ -462,7 +465,7 @@ export function FinancialOverviewChart({
       finalPhase,
       pointsGeometry: points,
     };
-  }, [chartData, hasRightAxis, measuredDots]);
+  }, [chartData, hasRightAxis, containerWidth]);
 
   // Veredicto global de Cid en la cabecera
   const cidVerdict = useMemo(() => {
@@ -884,7 +887,7 @@ export function FinancialOverviewChart({
                   );
                 })}
 
-                {/* Línea agregada de Cid que unifica todos los gráficos activos y captura la geometría */}
+                {/* Línea agregada de Cid que unifica todos los gráficos activos */}
                 {showCid && (
                   <Line
                     yAxisId="cidTrajectoryAxis"
@@ -895,20 +898,10 @@ export function FinancialOverviewChart({
                     strokeWidth={1.5}
                     strokeDasharray="3 3"
                     isAnimationActive={false}
-                    dot={(props: any) => {
-                      if (typeof props.index === "number" && props.cx && props.cy) {
-                        captureDotGeometry(props.index, props.cx, props.cy);
-                      }
-                      return (
-                        <circle
-                          key={`cid-dot-${props.index}`}
-                          cx={props.cx}
-                          cy={props.cy}
-                          r={2.5}
-                          fill="#98a4f7"
-                          fillOpacity={0.6}
-                        />
-                      );
+                    dot={{
+                      r: 2.5,
+                      fill: "#98a4f7",
+                      fillOpacity: 0.6,
                     }}
                   />
                 )}
@@ -924,7 +917,7 @@ export function FinancialOverviewChart({
               >
                 <svg
                   ref={animationRootRef}
-                  viewBox={`0 0 ${chartContainerRef.current?.clientWidth || 800} 340`}
+                  viewBox={`0 0 ${containerWidth} 340`}
                   className="block size-full overflow-visible"
                   aria-hidden="true"
                 >
