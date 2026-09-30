@@ -22,6 +22,7 @@ import {
   type CharacterPhase,
   type CharacterMotionPlan,
 } from "@/components/statement-trend-animation";
+import { SCALES, type Scale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type PresetMetricKey =
@@ -62,6 +63,12 @@ const HORIZON_OPTIONS: { id: TimeHorizon; label: string; shortLabel: string; cou
   { id: "5y", label: "5 Años", shortLabel: "5A", count: 5 },
   { id: "10y", label: "10 Años", shortLabel: "10A", count: 10 },
   { id: "all", label: "Todo el Histórico", shortLabel: "Todo", count: null },
+];
+
+export const SCALE_OPTIONS: { id: Scale; label: string }[] = [
+  { id: "thousands", label: "Miles" },
+  { id: "millions", label: "Millones" },
+  { id: "billions", label: "Miles M" },
 ];
 
 const PRESET_METRICS: MetricConfig[] = [
@@ -122,6 +129,8 @@ export function FinancialOverviewChart({
   frequency,
   customLines = [],
   onToggleLine,
+  scale: scaleProp,
+  onScaleChange,
 }: {
   id?: string;
   bundle: StatementBundle;
@@ -129,7 +138,13 @@ export function FinancialOverviewChart({
   frequency: Frequency;
   customLines?: LineSeries[];
   onToggleLine?: (line: LineSeries) => void;
+  scale?: Scale;
+  onScaleChange?: (scale: Scale) => void;
 }) {
+  const [internalScale, setInternalScale] = useState<Scale>("millions");
+  const scale = scaleProp ?? internalScale;
+  const handleScaleChange = onScaleChange ?? setInternalScale;
+
   const [activePresets, setActivePresets] = useState<PresetMetricKey[]>([
     "revenue",
     "netIncome",
@@ -198,31 +213,17 @@ export function FinancialOverviewChart({
     [bundle.blocks],
   );
 
-  // Escala monetaria automática basada en los periodos visibles
-  const maxRawValue = useMemo(() => {
-    let max = 0;
-    periods.forEach((p) => {
-      const rev = Math.abs(revenueRow?.cells[p.key]?.value ?? 0);
-      const net = Math.abs(netIncomeRow?.cells[p.key]?.value ?? 0);
-      if (rev > max) max = rev;
-      if (net > max) max = net;
-      customLines.forEach((cl) => {
-        if (cl.line.unit !== "percent") {
-          const v = Math.abs(cl.cells[p.key]?.value ?? 0);
-          if (v > max) max = v;
-        }
-      });
-    });
-    return max;
-  }, [periods, revenueRow, netIncomeRow, customLines]);
-
-  const isBillions = maxRawValue >= 1e9;
-  const divisor = isBillions ? 1e9 : 1e6;
-  const unitSuffix = isBillions ? "B" : "M";
+  // Escala monetaria (Miles, Millones o Miles de Millones)
+  const scaleConfig = SCALES[scale] ?? SCALES.millions;
+  const divisor = scaleConfig.divisor;
+  const unitSuffix = scale === "billions" ? "B" : scale === "thousands" ? "k" : "M";
   const currencySymbol = bundle.currency === "EUR" ? "€" : bundle.currency === "GBP" ? "£" : "$";
-  const unitLabel = isBillions
-    ? `Miles de Millones (${currencySymbol} ${bundle.currency ?? "USD"})`
-    : `Millones (${currencySymbol} ${bundle.currency ?? "USD"})`;
+  const unitLabel =
+    scale === "billions"
+      ? `Miles de Millones (${currencySymbol} ${bundle.currency ?? "USD"})`
+      : scale === "thousands"
+      ? `Miles (${currencySymbol} ${bundle.currency ?? "USD"})`
+      : `Millones (${currencySymbol} ${bundle.currency ?? "USD"})`;
 
   // Construcción de los puntos del gráfico con cálculo de puntuación agregada para Cid
   const chartData: OverviewChartPoint[] = useMemo(() => {
@@ -573,7 +574,7 @@ export function FinancialOverviewChart({
           </div>
         </div>
 
-        {/* Lado derecho: Selector de años, Botón Activar/Desactivar Cid y Minimizar */}
+        {/* Lado derecho: Selector de años, Selector de escala, Botón Activar/Desactivar Cid y Minimizar */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Selector de Horizonte Temporal (Predeterminado 10 Años) */}
           <div className="flex items-center rounded-full border border-gunmetal bg-void-black/70 p-0.5 shadow-xs">
@@ -591,6 +592,26 @@ export function FinancialOverviewChart({
                 title={`Ver los últimos ${opt.label.toLowerCase()}`}
               >
                 {opt.shortLabel}
+              </button>
+            ))}
+          </div>
+
+          {/* Selector de Escala (Miles | Millones | Miles M) */}
+          <div className="flex items-center rounded-full border border-gunmetal bg-void-black/70 p-0.5 shadow-xs">
+            {SCALE_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => handleScaleChange(opt.id)}
+                className={cn(
+                  "rounded-full px-2.5 py-1 font-display text-[11px] font-medium transition-all cursor-pointer",
+                  scale === opt.id
+                    ? "bg-periwinkle-glow text-void-black font-semibold shadow-xs"
+                    : "text-muted-steel hover:text-frost",
+                )}
+                title={`Escala en ${opt.label.toLowerCase()}`}
+              >
+                {opt.label}
               </button>
             ))}
           </div>
@@ -712,7 +733,9 @@ export function FinancialOverviewChart({
       {!isCollapsed && (
         <div ref={chartContainerRef} className="relative p-6 animate-in fade-in-0 duration-200">
           <div className="mb-2 flex items-center justify-between text-[11px] font-mono text-muted-steel">
-            <span>{unitLabel}</span>
+            <span>
+              Escala: <strong className="text-frost font-medium">{unitLabel}</strong>
+            </span>
             {hasRightAxis && <span>Margen / Ratios (%)</span>}
           </div>
 
@@ -734,7 +757,7 @@ export function FinancialOverviewChart({
                   tick={{ fontSize: 11, fill: "#8a94a6" }}
                   tickLine={false}
                   axisLine={false}
-                  width={56}
+                  width={62}
                   tickFormatter={(val: number) => `${val.toLocaleString("es-ES")}`}
                 />
 

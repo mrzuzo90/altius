@@ -188,4 +188,35 @@ describe("FinancialOverviewChart", () => {
     fireEvent.click(btn3A);
     expect(btn3A.className).toContain("bg-periwinkle-glow");
   });
+
+  it("ofrece selector de escala con Miles, Millones y Miles M, y actualiza la unidad", () => {
+    const handleScaleChange = vi.fn();
+    render(
+      <FinancialOverviewChart
+        bundle={mockBundle}
+        ticker="TSLA"
+        frequency="annual"
+        scale="millions"
+        onScaleChange={handleScaleChange}
+      />
+    );
+
+    // Botones de escala
+    const btnMiles = screen.getByRole("button", { name: "Miles" });
+    const btnMillones = screen.getByRole("button", { name: "Millones" });
+    const btnMilesM = screen.getByRole("button", { name: "Miles M" });
+
+    expect(btnMiles).toBeDefined();
+    expect(btnMillones).toBeDefined();
+    expect(btnMilesM).toBeDefined();
+
+    // Millones está activo
+    expect(btnMillones.className).toContain("bg-periwinkle-glow");
+    expect(screen.getByText(/Escala:/i)).toBeDefined();
+    expect(screen.getByText(/Millones \(\$ USD\)/i)).toBeDefined();
+
+    // Al pulsar Miles M
+    fireEvent.click(btnMilesM);
+    expect(handleScaleChange).toHaveBeenCalledWith("billions");
+  });
 });

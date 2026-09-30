@@ -6,6 +6,7 @@ import { StatementTabs } from "@/components/statement-tabs";
 import { FinancialOverviewChart } from "@/components/financial-overview-chart";
 import type { StatementBundle } from "@/lib/sec/statements";
 import type { Frequency, LineSeries } from "@/lib/sec/normalize";
+import type { Scale } from "@/lib/format";
 
 export function FinancialsClient({
   bundle,
@@ -19,6 +20,7 @@ export function FinancialsClient({
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
   const [customLines, setCustomLines] = useState<LineSeries[]>([]);
+  const [scale, setScale] = useState<Scale>("millions");
 
   const handleToggleLine = useCallback((line: LineSeries) => {
     setCustomLines((prev) => {
@@ -44,10 +46,14 @@ export function FinancialsClient({
         frequency={frequency}
         customLines={customLines}
         onToggleLine={handleToggleLine}
+        scale={scale}
+        onScaleChange={setScale}
       />
       <StatementTabs
         bundle={bundle}
         frequency={frequency}
+        scale={scale}
+        onScaleChange={setScale}
         onSelectLine={handleToggleLine}
         selectedLineIds={customLines.map((l) => l.line.id)}
         onFrequencyChange={(f) =>

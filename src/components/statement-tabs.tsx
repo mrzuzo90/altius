@@ -17,15 +17,21 @@ export function StatementTabs({
   onFrequencyChange,
   onSelectLine,
   selectedLineIds = [],
+  scale: externalScale,
+  onScaleChange: externalOnScaleChange,
 }: {
   bundle: StatementBundle;
   frequency: "annual" | "quarterly";
   onFrequencyChange: (f: "annual" | "quarterly") => void;
   onSelectLine?: (line: LineSeries) => void;
   selectedLineIds?: string[];
+  scale?: Scale;
+  onScaleChange?: (scale: Scale) => void;
 }) {
   const [tabActiva, setTabActiva] = useState<string>("summary");
-  const [scale, setScale] = useState<Scale>("millions");
+  const [internalScale, setInternalScale] = useState<Scale>("millions");
+  const scale = externalScale ?? internalScale;
+  const setScale = externalOnScaleChange ?? setInternalScale;
   const [copiado, setCopiado] = useState(false);
 
   const copiarTabla = useCallback(() => {
