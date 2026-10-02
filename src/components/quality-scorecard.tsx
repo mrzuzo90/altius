@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, CircleHelp, XCircle } from "lucide-react";
+import { Check, CircleHelp, X } from "lucide-react";
 import type {
   QualityItemStatus,
   QualityScorecardResult,
@@ -129,34 +129,59 @@ function CheckCard({
 }
 
 function StatusBadge({ status }: { status: QualityItemStatus }) {
-  if (status === "unknown") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted-steel/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-muted-steel">
-        <CircleHelp className="size-3.5" />
-        SIN DATO
-      </span>
-    );
-  }
   if (status === "pass") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-emerald-400">
-        <CheckCircle2 className="size-3.5" />
-        PASA
+      <span
+        className="grid size-7 sm:size-8 place-items-center rounded-full border border-emerald-400/35 bg-emerald-400/15 text-emerald-400 shadow-xs shadow-emerald-500/10 transition-transform group-hover:scale-105"
+        title="Cumple el requisito"
+        aria-label="Cumple el requisito"
+      >
+        <Check className="size-4 sm:size-4.5 stroke-[2.75]" />
       </span>
     );
   }
   if (status === "warn") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-amber-400">
-        <AlertCircle className="size-3.5" />
-        VIGILAR
+      <span
+        className="grid size-7 sm:size-8 place-items-center rounded-full border border-amber-400/35 bg-amber-400/15 text-amber-400 shadow-xs shadow-amber-500/10 transition-transform group-hover:scale-105"
+        title="En vigilancia"
+        aria-label="En vigilancia"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="size-4 sm:size-4.5"
+          aria-hidden="true"
+        >
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <path d="M12 17h.01" />
+        </svg>
+      </span>
+    );
+  }
+  if (status === "fail") {
+    return (
+      <span
+        className="grid size-7 sm:size-8 place-items-center rounded-full border border-rose-400/35 bg-rose-400/15 text-rose-400 shadow-xs shadow-rose-500/10 transition-transform group-hover:scale-105"
+        title="No cumple el requisito"
+        aria-label="No cumple el requisito"
+      >
+        <X className="size-4 sm:size-4.5 stroke-[2.75]" />
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-400/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-rose-400">
-      <XCircle className="size-3.5" />
-      NO PASA
+    <span
+      className="grid size-7 sm:size-8 place-items-center rounded-full border border-gunmetal/70 bg-void-black/60 text-muted-steel"
+      title="Sin dato comparable"
+      aria-label="Sin dato comparable"
+    >
+      <CircleHelp className="size-4 sm:size-4.5" />
     </span>
   );
 }

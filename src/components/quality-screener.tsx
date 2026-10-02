@@ -263,7 +263,7 @@ function KeyCell({ item }: { item: QualityScreenerKey | undefined }) {
 
 function StatusIcon({ status }: { status: QualityItemStatus }) {
   if (status === "pass") return <span className="mx-auto grid size-6 place-items-center rounded-full bg-emerald-400/10 text-emerald-400"><CheckCircle2 className="size-3.5" /></span>;
-  if (status === "warn") return <span className="mx-auto grid size-6 place-items-center rounded-full bg-amber-400/10 text-amber-400"><AlertCircle className="size-3.5" /></span>;
+  if (status === "warn") return <span className="mx-auto grid size-6 place-items-center rounded-full bg-amber-400/10 text-amber-400"><CircleHelp className="size-3.5" /></span>;
   if (status === "fail") return <span className="mx-auto grid size-6 place-items-center rounded-full bg-rose-400/10 text-rose-400"><XCircle className="size-3.5" /></span>;
   return <span className="mx-auto grid size-6 place-items-center rounded-full bg-muted-steel/10 text-muted-steel"><CircleHelp className="size-3.5" /></span>;
 }
