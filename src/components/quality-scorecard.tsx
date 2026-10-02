@@ -115,7 +115,7 @@ function CheckCard({
 
       <details className="group/detail mt-auto pt-2">
         <summary className="flex cursor-pointer list-none items-center justify-between border-t border-gunmetal/75 pt-2 text-[10px] sm:text-[11px] font-medium text-muted-steel marker:hidden hover:text-frost">
-          <span>{item.status === "pass" ? "Por qué pasa" : "Qué ocurre"}</span>
+          <span>{item.status === "pass" ? "Por qué cumple" : item.status === "warn" ? "Qué vigilar" : "Qué no cumple"}</span>
           <span className="grid size-5 place-items-center rounded-full border border-gunmetal text-periwinkle-glow transition-transform group-open/detail:rotate-45">+</span>
         </summary>
         <div className="mt-2 rounded-lg border border-gunmetal/70 bg-void-black/55 p-2.5">
