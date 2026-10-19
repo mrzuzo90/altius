@@ -21,6 +21,8 @@ export function SiteHeader() {
   const pathname = usePathname();
   const { items } = useWatchlist();
 
+  if (pathname.startsWith("/studio")) return null;
+
   return (
     <header className="bg-void-black/90 border-gunmetal sticky top-0 z-40 border-b backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-5">
