@@ -106,16 +106,17 @@ export function xbrlJsonToCompanyFacts(
 }
 
 async function filingsFor(company: EsefCompany): Promise<FilingAttributes[]> {
+  if (!company.lei) return [];
   const index = await cachedJson<FilingIndex>(
     `esef:index:${company.lei}`,
     `${BASE}/api/entities/${company.lei}/filings?sort=-period_end&page%5Bsize%5D=200`,
   );
+  if (!index?.data) return [];
   const filings = index.data
     .map((item) => item.attributes)
     .filter((item): item is FilingAttributes & { json_url: string } => Boolean(item.json_url))
     .filter((item, position, all) => all.findIndex((candidate) => candidate.fxo_id === item.fxo_id) === position)
     .slice(0, 30);
-  if (filings.length === 0) throw new Error(`No hay xBRL-JSON ESEF para ${company.name}`);
   return filings;
 }
 
@@ -170,10 +171,10 @@ async function loadEsefReports(
 
 export async function buildEsefStatements(company: EsefCompany, frequency: Frequency): Promise<StatementBundle> {
   if (frequency !== "annual") return emptyBundle(company, frequency);
-  const filings = await filingsFor(company);
-  const latestIndexedPeriod = filings[0].period_end;
+  const filings = await filingsFor(company).catch(() => []);
+  const latestIndexedPeriod = filings[0]?.period_end ?? "";
   const [loadedReports, latestBridge] = await Promise.all([
-    loadEsefReports(company, filings),
+    filings.length > 0 ? loadEsefReports(company, filings).catch(() => []) : Promise.resolve([]),
     fetchYahooAnnualFacts(company, latestIndexedPeriod),
   ]);
   const facts = mergeCompanyFacts(company, [
@@ -195,10 +196,10 @@ export async function buildEsefStatements(company: EsefCompany, frequency: Frequ
     ...buildRatiosStatement(income, balance, cashflow, "annual"),
   };
   const blocks = [...baseBlocks, ratios];
-  const latestFiling = loadedReports[0].filing;
-  const latestEsefSourceUrl = latestFiling.report_url
+  const latestFiling = loadedReports[0]?.filing;
+  const latestEsefSourceUrl = latestFiling?.report_url
     ? `${BASE}${latestFiling.report_url}`
-    : latestFiling.package_url
+    : latestFiling?.package_url
       ? `${BASE}${latestFiling.package_url}`
       : BASE;
   const latestSourceUrl = latestBridge?.sourceUrl ?? latestEsefSourceUrl;
@@ -210,13 +211,17 @@ export async function buildEsefStatements(company: EsefCompany, frequency: Frequ
     latestPeriodEnd: blocks.flatMap((block) => block.periods.map((period) => period.end)).sort().at(-1) ?? null,
     currency,
     source: {
-      label: latestBridge ? "ESEF + Yahoo Finance · último ejercicio" : "ESEF · filings.xbrl.org",
-      detail: latestBridge
-        ? `${loadedReports.length} informes anuales Inline XBRL consolidados. ESEF conserva el histórico oficial y Yahoo Finance completa únicamente el ejercicio ${latestBridge.latestPeriodEnd.slice(0, 4)}, todavía no indexado por filings.xbrl.org; cada cifra mantiene su procedencia.`
-        : `${loadedReports.length} informes anuales Inline XBRL consolidados; cada cifra enlaza con su presentación ESEF.`,
+      label: loadedReports.length > 0
+        ? latestBridge ? "ESEF + Yahoo Finance · último ejercicio" : "ESEF · filings.xbrl.org"
+        : "Yahoo Finance · Estados financieros",
+      detail: loadedReports.length > 0
+        ? latestBridge
+          ? `${loadedReports.length} informes anuales Inline XBRL consolidados. ESEF conserva el histórico oficial y Yahoo Finance completa únicamente el ejercicio ${latestBridge.latestPeriodEnd.slice(0, 4)}, todavía no indexado por filings.xbrl.org; cada cifra mantiene su procedencia.`
+          : `${loadedReports.length} informes anuales Inline XBRL consolidados; cada cifra enlaza con su presentación ESEF.`
+        : "Estados financieros anuales normalizados con desglose de cuenta de resultados, balance y flujos de caja.",
       href: latestSourceUrl,
     },
-    annualReport: latestFiling.report_url ? {
+    annualReport: latestFiling?.report_url ? {
       label: "Informe anual ESEF",
       href: `${BASE}${latestFiling.report_url}`,
       form: "ESEF",

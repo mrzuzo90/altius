@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: { params: Promise<{ ticker: s
 
 export default async function ValuationPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker: bruto } = await params;
-  const rawQuery = bruto.trim();
+  let rawQuery = bruto.trim();
+  try {
+    rawQuery = decodeURIComponent(rawQuery).trim();
+  } catch {}
 
   // Redirecciones directas si la URL era un índice, materia prima o divisa
   const indexHit = resolveIndexSymbol(rawQuery);
@@ -47,12 +50,16 @@ export default async function ValuationPage({ params }: { params: Promise<{ tick
   if (!hit && !esefCompany) notFound();
   const ticker = esefCompany?.ticker ?? hit!.ticker;
 
+  if (rawQuery.includes(":") && rawQuery.toUpperCase() !== ticker.toUpperCase()) {
+    redirect(`/ticker/${ticker}/valuation`);
+  }
+
   const [secBundle, secQuarterlyBundle, esefBundle, precios] = await Promise.all([
     hit ? buildStatements(hit.cik, "annual", hit.name, ticker) : Promise.resolve(null),
     hit
       ? buildStatements(hit.cik, "quarterly", hit.name, ticker, { maxPeriods: 80 })
       : Promise.resolve(null),
-    esefCompany ? buildEsefStatements(esefCompany, "annual") : Promise.resolve(null),
+    esefCompany ? buildEsefStatements(esefCompany, "annual").catch(() => null) : Promise.resolve(null),
     getPriceSeries(ticker),
   ]);
   const regulatorBundle = esefBundle && hasUsableData(esefBundle)

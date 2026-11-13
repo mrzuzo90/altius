@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { Heart, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
-
+import { useLanguage } from "@/components/language/language-provider";
+import { LanguageToggle } from "@/components/language/language-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
 const NAV = [
@@ -20,8 +21,7 @@ const NAV = [
 export function SiteHeader() {
   const pathname = usePathname();
   const { items } = useWatchlist();
-
-  if (pathname.startsWith("/studio")) return null;
+  const { t } = useLanguage();
 
   return (
     <header className="bg-void-black/90 border-gunmetal sticky top-0 z-40 border-b backdrop-blur-md">
@@ -46,16 +46,16 @@ export function SiteHeader() {
                     : "text-muted-steel hover:text-frost",
                 )}
               >
-                {n.label}
+                {t(n.label)}
               </Link>
             );
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2.5 sm:gap-3">
           <Link
             href="/watchlist"
-            aria-label={`Mis acciones favoritas${items.length ? `, ${items.length}` : ""}`}
+            aria-label={`${t("Mis acciones favoritas")}${items.length ? `, ${items.length}` : ""}`}
             className={cn(
               "border-gunmetal relative flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] transition-colors",
               pathname.startsWith("/watchlist")
@@ -64,20 +64,21 @@ export function SiteHeader() {
             )}
           >
             <Heart className={cn("size-4", items.length > 0 && "fill-rose-300 text-rose-300")} />
-            <span className="hidden lg:inline">Favoritas</span>
+            <span className="hidden lg:inline">{t("Favoritas")}</span>
             {items.length > 0 ? <span className="bg-rose-400 text-void-black flex min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold">{items.length}</span> : null}
           </Link>
 
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event("altius:open-search"))}
-            className="btn-primary-gradient font-display flex items-center gap-2 px-4 py-2 text-[14px] leading-none"
+            className="btn-primary-gradient font-display flex items-center gap-2 px-3.5 sm:px-4 py-2 text-[14px] leading-none"
           >
             <Search className="size-3.5" />
-            <span className="hidden sm:inline">Buscar empresa</span>
+            <span className="hidden sm:inline">{t("Buscar empresa")}</span>
             <kbd className="hidden font-sans text-[11px] opacity-75 sm:inline">⌘K</kbd>
           </button>
 
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </div>

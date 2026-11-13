@@ -10,7 +10,7 @@ vi.mock("recharts", async (importOriginal) => {
   const original = await importOriginal<typeof import("recharts")>();
   return {
     ...original,
-    ResponsiveContainer: ({ children }: any) => <div style={{ width: 800, height: 400 }}>{children}</div>,
+    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div style={{ width: 800, height: 400 }}>{children}</div>,
   };
 });
 

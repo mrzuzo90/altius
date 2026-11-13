@@ -29,7 +29,10 @@ export default async function FinancialsPage({
   searchParams: Promise<{ freq?: string }>;
 }) {
   const [{ ticker: bruto }, { freq }] = await Promise.all([params, searchParams]);
-  const rawQuery = bruto.trim();
+  let rawQuery = bruto.trim();
+  try {
+    rawQuery = decodeURIComponent(rawQuery).trim();
+  } catch {}
 
   // Redirecciones directas si la URL era un índice, materia prima o divisa
   const indexHit = resolveIndexSymbol(rawQuery);
@@ -48,9 +51,13 @@ export default async function FinancialsPage({
   if (!hit && !esefCompany) notFound();
   const ticker = esefCompany?.ticker ?? hit!.ticker;
 
+  if (rawQuery.includes(":") && rawQuery.toUpperCase() !== ticker.toUpperCase()) {
+    redirect(`/ticker/${ticker}/financials${freq ? `?freq=${freq}` : ""}`);
+  }
+
   const [secBundle, esefBundle] = await Promise.all([
     hit ? buildStatements(hit.cik, frequency, hit.name, ticker) : Promise.resolve(null),
-    esefCompany && frequency === "annual" ? buildEsefStatements(esefCompany, frequency) : Promise.resolve(null),
+    esefCompany && frequency === "annual" ? buildEsefStatements(esefCompany, frequency).catch(() => null) : Promise.resolve(null),
   ]);
   let bundle = esefBundle && hasUsableData(esefBundle)
     ? mergeStatementBundles(esefBundle, secBundle && hasUsableData(secBundle) ? secBundle : null)

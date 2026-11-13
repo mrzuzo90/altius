@@ -77,7 +77,7 @@ describe("Macroeconomía Eurozona y Métrica Altius", () => {
 
     it("maneja de forma segura respuestas vacías o datos ausentes", () => {
       expect(parseEurostatUnemploymentJson({})).toEqual([]);
-      expect(parseEurostatUnemploymentJson({ dimension: {} } as any)).toEqual([]);
+      expect(parseEurostatUnemploymentJson({ dimension: {} } as unknown as Parameters<typeof parseEurostatUnemploymentJson>[0])).toEqual([]);
       expect(
         parseEurostatUnemploymentJson({
           dimension: { time: { category: { index: { "2024-01": 0, "2024-02": 1 } } } },
@@ -103,7 +103,7 @@ describe("Macroeconomía Eurozona y Métrica Altius", () => {
       expect(trend!.displayValue).toBe("+2,5 %");
       expect(trend!.mascot.src).toBe("/cid/senor.svg");
       // Verifica que no tenga etiquetas o nombres de Cid en la salida
-      expect((trend as any).patternName).toBeUndefined();
+      expect((trend as unknown as Record<string, unknown>).patternName).toBeUndefined();
     });
 
     it("asigna Cid caballero para inflación moderada (3.5% a 5.5%)", () => {

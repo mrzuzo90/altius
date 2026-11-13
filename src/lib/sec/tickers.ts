@@ -10,7 +10,33 @@ const LOCAL_MARKET_SUFFIXES = [
   ".MI", ".OL", ".PA", ".PR", ".ST", ".SW", ".VI", ".WA",
   // Canadá y Australia; también mercados globales con emisores registrados en SEC.
   ".TO", ".V", ".CN", ".NE", ".AX", ".HK", ".T", ".SI", ".JO", ".NZ",
+  // Taiwán y Asia
+  ".TW", ".TWO",
 ] as const;
+
+const EXCHANGE_PREFIX_TO_SUFFIX: Record<string, string> = {
+  HEL: ".HE",
+  BME: ".MC",
+  MC: ".MC",
+  EPA: ".PA",
+  PA: ".PA",
+  AMS: ".AS",
+  AS: ".AS",
+  ETR: ".DE",
+  DE: ".DE",
+  LON: ".L",
+  L: ".L",
+  MIL: ".MI",
+  MI: ".MI",
+  STO: ".ST",
+  ST: ".ST",
+  SWX: ".SW",
+  SW: ".SW",
+  TPE: ".TW",
+  TW: ".TW",
+  TWSE: ".TW",
+  TWO: ".TWO",
+};
 
 export type TickerHit = { ticker: string; cik: string; name: string; matchedAlias?: string };
 
@@ -99,6 +125,21 @@ const GLOBAL_COMPANY_ALIASES: Record<string, string> = {
   SNY: "SNY",
   SCHNEIDER: "SBGSY",
   "SU.PA": "SBGSY",
+
+  // Finlandia
+  NOKIA: "NOK",
+  "NOKIA.HE": "NOK",
+  "HEL:NOKIA": "NOK",
+  "HEL: NOKIA": "NOK",
+
+  // Taiwán / Global
+  HTC: "2498.TW",
+  "2498": "2498.TW",
+  "2498.TW": "2498.TW",
+  "TPE: 2498": "2498.TW",
+  "TPE:2498": "2498.TW",
+  "TWSE: 2498": "2498.TW",
+  "TWSE:2498": "2498.TW",
 
   // EE. UU. / Global Tech & Compounders
   APPLE: "AAPL",
@@ -214,35 +255,58 @@ export function resolveTickerFromIndex(raw: RawTickerFile, tickerOrName: string)
   const rawInput = tickerOrName.trim().toUpperCase();
   if (!rawInput) return null;
 
-  const normalizedKey = rawInput.replace(/[\^/_\- .]/g, "");
-  const explicitAlias = GLOBAL_COMPANY_ALIASES[rawInput] ?? GLOBAL_COMPANY_ALIASES[normalizedKey];
+  // Si tiene prefijo de mercado tipo HEL: NOKIA o BME: ITX, se traduce al ticker local estándar
+  let normalizedInput = rawInput;
+  let targetLocalTicker: string | null = null;
+  const prefixMatch = rawInput.match(/^([A-Z]{1,4}):\s*(.+)$/);
+  if (prefixMatch) {
+    const [, exch, sym] = prefixMatch;
+    const cleanSym = sym.trim();
+    const suffix = EXCHANGE_PREFIX_TO_SUFFIX[exch];
+    if (suffix) {
+      targetLocalTicker = cleanSym.endsWith(suffix) ? cleanSym : `${cleanSym}${suffix}`;
+      normalizedInput = targetLocalTicker;
+    }
+  }
+
+  const normalizedKey = normalizedInput.replace(/[\^/_\- .:]/g, "");
+  const explicitAlias =
+    GLOBAL_COMPANY_ALIASES[rawInput] ??
+    GLOBAL_COMPANY_ALIASES[normalizedInput] ??
+    GLOBAL_COMPANY_ALIASES[normalizedKey];
   const aliasResolved =
     explicitAlias ??
-    rawInput;
+    normalizedInput;
 
   // 0. Emisores con CIK prioritario para evitar entidades instrumentales/holdings vacíos
-  const knownOverride = KNOWN_CIK_OVERRIDES[rawInput] ?? KNOWN_CIK_OVERRIDES[aliasResolved];
+  const knownOverride = KNOWN_CIK_OVERRIDES[rawInput] ?? KNOWN_CIK_OVERRIDES[normalizedInput] ?? KNOWN_CIK_OVERRIDES[aliasResolved];
   if (knownOverride) {
-    return { ticker: rawInput, cik: padCik(knownOverride.cik), name: knownOverride.name };
+    return { ticker: targetLocalTicker ?? rawInput, cik: padCik(knownOverride.cik), name: knownOverride.name };
   }
 
   // 1. Coincidencia exacta por ticker resuelto o directo
   for (const entry of Object.values(raw)) {
-    if (entry.ticker.toUpperCase() === aliasResolved || entry.ticker.toUpperCase() === rawInput) {
-      const preserveLocalListing = rawInput.includes(".") && GLOBAL_COMPANY_ALIASES[rawInput] === aliasResolved;
-      return { ticker: preserveLocalListing ? rawInput : entry.ticker, cik: padCik(entry.cik_str), name: entry.title };
+    if (entry.ticker.toUpperCase() === aliasResolved || entry.ticker.toUpperCase() === normalizedInput || entry.ticker.toUpperCase() === rawInput) {
+      const preserveLocalListing =
+        targetLocalTicker !== null ||
+        (normalizedInput.includes(".") && (GLOBAL_COMPANY_ALIASES[normalizedInput] === aliasResolved || GLOBAL_COMPANY_ALIASES[rawInput] === aliasResolved));
+      return {
+        ticker: targetLocalTicker ?? (preserveLocalListing ? normalizedInput : entry.ticker),
+        cik: padCik(entry.cik_str),
+        name: entry.title,
+      };
     }
   }
 
   // 2. Una cotización local puede corresponder al mismo emisor que presenta
   // estados en la SEC (SHOP.TO → SHOP, BHP.AX → BHP, SHEL.L → SHEL). Se
   // conserva el ticker local para precio/divisa y solo se reutiliza el CIK.
-  const localSuffix = LOCAL_MARKET_SUFFIXES.find((suffix) => rawInput.endsWith(suffix));
-  const baseTicker = localSuffix ? rawInput.slice(0, -localSuffix.length) : null;
+  const localSuffix = LOCAL_MARKET_SUFFIXES.find((suffix) => normalizedInput.endsWith(suffix));
+  const baseTicker = localSuffix ? normalizedInput.slice(0, -localSuffix.length) : null;
   if (baseTicker && !explicitAlias) {
     for (const entry of Object.values(raw)) {
       if (entry.ticker.toUpperCase() === baseTicker) {
-        return { ticker: rawInput, cik: padCik(entry.cik_str), name: entry.title };
+        return { ticker: targetLocalTicker ?? normalizedInput, cik: padCik(entry.cik_str), name: entry.title };
       }
     }
   }

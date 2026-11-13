@@ -5,6 +5,8 @@ import { CommandPalette } from "@/components/command-palette";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { WatchlistProvider } from "@/components/watchlist/watchlist-provider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/components/language/language-provider";
 import "./globals.css";
 
 /**
@@ -24,8 +26,6 @@ const inter = Inter({
   weight: ["400", "500", "700"],
 });
 
-import { ThemeProvider } from "@/components/theme-provider";
-
 export const metadata: Metadata = {
   title: { default: "Altius", template: "%s · Altius" },
   description:
@@ -35,12 +35,21 @@ export const metadata: Metadata = {
 const themeInitScript = `
 (function() {
   try {
-    var saved = localStorage.getItem('altius-theme');
-    var isDark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var savedTheme = localStorage.getItem('altius-theme');
+    var isDark = savedTheme === 'dark' || (savedTheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+
+    var savedLang = localStorage.getItem('altius-lang');
+    if (savedLang === 'en') {
+      document.documentElement.lang = 'en';
+      document.documentElement.setAttribute('data-lang', 'en');
+    } else {
+      document.documentElement.lang = 'es';
+      document.documentElement.setAttribute('data-lang', 'es');
     }
   } catch (e) {}
 })();
@@ -58,14 +67,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="bg-void-black text-frost flex min-h-full flex-col selection:bg-iris-blue/30 selection:text-white transition-colors duration-200">
         <ThemeProvider>
-          <WatchlistProvider>
-            <TooltipProvider delayDuration={200}>
-              <SiteHeader />
-              <main className="flex-1">{children}</main>
-              <SiteFooter />
-              <CommandPalette />
-            </TooltipProvider>
-          </WatchlistProvider>
+          <LanguageProvider>
+            <WatchlistProvider>
+              <TooltipProvider delayDuration={200}>
+                <SiteHeader />
+                <main className="flex-1">{children}</main>
+                <SiteFooter />
+                <CommandPalette />
+              </TooltipProvider>
+            </WatchlistProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

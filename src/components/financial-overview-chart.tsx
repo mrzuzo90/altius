@@ -55,7 +55,7 @@ export type OverviewChartPoint = {
   netMargin: number | null;
   operatingMargin: number | null;
   __cidScore: number;
-  [customKey: string]: any;
+  [customKey: string]: string | number | null | undefined;
 };
 
 const HORIZON_OPTIONS: { id: TimeHorizon; label: string; shortLabel: string; count: number | null }[] = [
@@ -785,6 +785,7 @@ export function FinancialOverviewChart({
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "#ffffff", fontWeight: 600, marginBottom: 4 }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   formatter={(value: any, name: any) => {
                     if (name === "__cidScore") {
                       return [`${Number(value).toFixed(1)} / 100`, "Índice Agregado Cid"];

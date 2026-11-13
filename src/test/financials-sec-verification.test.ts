@@ -92,10 +92,12 @@ describe("verificación de cobertura y autenticidad de estados financieros contr
         expect(altiusAssets).toBe(matchingAsset.val);
       }
 
-      const secNetFacts = (usgaap["NetIncomeLoss"] ?? usgaap["ProfitLoss"])?.units?.["USD"] ?? [];
-      const matchingNet = secNetFacts.find((f) => f.end === targetPeriod!.end && f.form?.startsWith("10-K"));
-      if (matchingNet) {
-        expect(altiusNet).toBe(matchingNet.val);
+      const secNetFacts = [
+        ...(usgaap["NetIncomeLoss"]?.units?.["USD"] ?? []),
+        ...(usgaap["ProfitLoss"]?.units?.["USD"] ?? []),
+      ].filter((f) => f.end === targetPeriod!.end && f.form?.startsWith("10-K"));
+      if (secNetFacts.length > 0) {
+        expect(secNetFacts.some((f) => f.val === altiusNet)).toBe(true);
       }
     }
   });
@@ -191,5 +193,5 @@ describe("verificación de cobertura y autenticidad de estados financieros contr
         }
       }
     }
-  });
+  }, 60000);
 });

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  CharacterPose,
   AdaptiveCharacter,
   StaticAdaptiveCharacter,
   classifyCidProfile,
@@ -221,7 +220,7 @@ export function PriceTrendAnimation({
     [geometry?.points, targetPhase, allPoints],
   );
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 30;
+  const duration = 11;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;
@@ -284,7 +283,7 @@ function stabilizePricePhases(
   minimumRun: number,
 ): CharacterPhase[] {
   if (minimumRun <= 1 || phases.length <= minimumRun) return [...phases];
-  let stable = [...phases];
+  const stable = [...phases];
 
   for (let pass = 0; pass < 2; pass++) {
     let changed = false;

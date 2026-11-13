@@ -40,7 +40,10 @@ export async function generateMetadata({ params }: { params: Promise<{ ticker: s
 
 export default async function PerfilPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker: bruto } = await params;
-  const rawQuery = bruto.trim();
+  let rawQuery = bruto.trim();
+  try {
+    rawQuery = decodeURIComponent(rawQuery).trim();
+  } catch {}
 
   // 1. Si es un índice, redirigir a su ficha oficial
   const indexHit = resolveIndexSymbol(rawQuery);
@@ -63,12 +66,16 @@ export default async function PerfilPage({ params }: { params: Promise<{ ticker:
   const ticker = esefCompany?.ticker ?? hit!.ticker;
   const companyName = esefCompany?.name ?? hit!.name;
 
+  if (rawQuery.includes(":") && rawQuery.toUpperCase() !== ticker.toUpperCase()) {
+    redirect(`/ticker/${ticker}`);
+  }
+
   const [secProfile, annualFiling, precios, secBundle, esefBundle, newsResult] = await Promise.all([
     hit ? getCompanyProfile(hit.cik, hit.name, ticker) : Promise.resolve(null),
     hit ? findLatestFiling(hit.cik, ["10-K", "20-F", "40-F"]) : Promise.resolve(null),
     getPriceSeries(ticker),
     hit ? buildStatements(hit.cik, "annual", hit.name, ticker) : Promise.resolve(null),
-    esefCompany ? buildEsefStatements(esefCompany, "annual") : Promise.resolve(null),
+    esefCompany ? buildEsefStatements(esefCompany, "annual").catch(() => null) : Promise.resolve(null),
     getCompanyNews(ticker, companyName, hit?.cik),
   ]);
   const bundle = esefBundle && hasUsableData(esefBundle)

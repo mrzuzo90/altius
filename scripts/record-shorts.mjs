@@ -5,16 +5,53 @@ import { spawn } from "child_process";
 import http from "http";
 
 const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const FFMPEG_PATH = "C:\\Users\\unala\\AppData\\Local\\ms-playwright\\ffmpeg-1013\\ffmpeg-win64.exe";
+
 const ticker = (process.argv[2] || "AAPL").toUpperCase();
 const outputDir = path.resolve(`exports/shorts/${ticker}`);
 const tempVideoDir = path.resolve(`exports/shorts/${ticker}/temp`);
 
 const SCENES = [
-  { id: "revenue", filename: "01-ingresos-10-anos", name: "Gráfico de Ingresos (10 Años + Cid)" },
-  { id: "fcf-margin", filename: "02-margen-fcf-10-anos", name: "Gráfico de Margen FCF (10 Años + Cid)" },
-  { id: "fcf", filename: "03-flujo-caja-libre-10-anos", name: "Flujo de Caja Libre Total (10 Años + Cid)" },
-  { id: "keys", filename: "04-las-6-claves", name: "Las 6 Claves Cuantitativas (Símbolos ✓ / ? / ✕)" },
-  { id: "price", filename: "05-cotizacion-10-anos", name: "Precio de Cotización (10 Años + Cid)" },
+  {
+    id: "revenue",
+    filename: "01-ingresos-10-anos",
+    name: "01. Ingresos (10 Años · Modal Barras Castillo + Cid)",
+    type: "modal",
+    url: (t) => `http://localhost:3000/ticker/${t}/financials?series=revenue`,
+    recordSeconds: 13,
+  },
+  {
+    id: "fcfMargin",
+    filename: "02-margen-fcf-10-anos",
+    name: "02. Margen FCF (10 Años · Modal Barras Castillo + Cid)",
+    type: "modal",
+    url: (t) => `http://localhost:3000/ticker/${t}/financials?series=fcfMargin`,
+    recordSeconds: 13,
+  },
+  {
+    id: "freeCashFlow",
+    filename: "03-flujo-caja-libre-10-anos",
+    name: "03. Flujo de Caja Libre (10 Años · Modal Barras Castillo + Cid)",
+    type: "modal",
+    url: (t) => `http://localhost:3000/ticker/${t}/financials?series=freeCashFlow`,
+    recordSeconds: 13,
+  },
+  {
+    id: "keys",
+    filename: "04-las-6-claves",
+    name: "04. Las 6 Claves Cuantitativas (Símbolos ✓ / ? / ✕)",
+    type: "keys",
+    url: (t) => `http://localhost:3000/ticker/${t}`,
+    recordSeconds: 7,
+  },
+  {
+    id: "price",
+    filename: "05-cotizacion-10-anos",
+    name: "05. Cotización Histórica (10 Años · Curva + Cid)",
+    type: "price",
+    url: (t) => `http://localhost:3000/ticker/${t}`,
+    recordSeconds: 13,
+  },
 ];
 
 function isServerRunning(host = "127.0.0.1", port = 3000) {
@@ -41,11 +78,11 @@ async function checkAnyRunning() {
 
 async function ensureDevServer() {
   if (await checkAnyRunning()) {
-    console.log("✅ Servidor local detectado en http://localhost:3000");
+    console.log("✅ Servidor web detectado en http://localhost:3000");
     return null;
   }
 
-  console.log("🚀 Iniciando servidor de desarrollo Next.js en segundo plano...");
+  console.log("🚀 Iniciando servidor de desarrollo Next.js...");
   let readyFlag = false;
 
   const devProcess = spawn("npm.cmd", ["run", "dev"], {
@@ -62,15 +99,10 @@ async function ensureDevServer() {
     }
   });
 
-  devProcess.stderr.on("data", (data) => {
-    // console.log("STDERR:", data.toString());
-  });
-
   const startTime = Date.now();
   while (Date.now() - startTime < 45000) {
     await new Promise((r) => setTimeout(r, 1000));
     if (readyFlag || (await checkAnyRunning())) {
-      // Esperar 1 segundo adicional para asegurar que las rutas estén montadas
       await new Promise((r) => setTimeout(r, 1500));
       console.log("✅ Servidor Next.js listo en http://localhost:3000");
       return devProcess;
@@ -80,9 +112,42 @@ async function ensureDevServer() {
   throw new Error("No se pudo iniciar el servidor Next.js a tiempo");
 }
 
+function convertToMp4(inputWebm, outputMp4) {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(FFMPEG_PATH)) {
+      resolve(false);
+      return;
+    }
+
+    const proc = spawn(
+      FFMPEG_PATH,
+      [
+        "-y",
+        "-i",
+        inputWebm,
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        "30",
+        "-crf",
+        "18",
+        outputMp4,
+      ],
+      { stdio: "ignore" }
+    );
+
+    proc.on("close", (code) => {
+      resolve(code === 0);
+    });
+    proc.on("error", () => resolve(false));
+  });
+}
+
 async function recordShorts() {
   console.log(`\n======================================================`);
-  console.log(`🎬 MARKETCID STUDIO 9:16 - GENERADOR DE VÍDEO Y CAPTURAS`);
+  console.log(`🎬 MARKETCID · CAPTURA DIRECTA Y VÍDEO 9:16 (REAL APP)`);
   console.log(`Empresa: ${ticker}`);
   console.log(`Destino: ${outputDir}`);
   console.log(`======================================================\n`);
@@ -92,7 +157,7 @@ async function recordShorts() {
 
   const devServer = await ensureDevServer();
 
-  console.log(`🌐 Abriendo navegador Chromium con aceleración GPU (1080x1920)...`);
+  console.log(`🌐 Abriendo navegador Chromium (Viewport 720x1280 @ 1.5x -> 1080x1920 vertical)...`);
   const browser = await chromium.launch({
     executablePath: fs.existsSync(CHROME_PATH) ? CHROME_PATH : undefined,
     headless: true,
@@ -102,7 +167,7 @@ async function recordShorts() {
       "--disable-dev-shm-usage",
       "--hide-scrollbars",
       "--mute-audio",
-      "--window-size=1080,1920",
+      "--window-size=720,1280",
     ],
   });
 
@@ -114,8 +179,8 @@ async function recordShorts() {
       fs.mkdirSync(sceneTempDir, { recursive: true });
 
       const context = await browser.newContext({
-        viewport: { width: 1080, height: 1920 },
-        deviceScaleFactor: 1,
+        viewport: { width: 720, height: 1280 },
+        deviceScaleFactor: 1.5,
         recordVideo: {
           dir: sceneTempDir,
           size: { width: 1080, height: 1920 },
@@ -123,69 +188,90 @@ async function recordShorts() {
       });
 
       const page = await context.newPage();
+      const targetUrl = scene.url(ticker);
 
-      const url = `http://127.0.0.1:3000/studio/${ticker}?scene=${scene.id}&record=true`;
-      await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
+      console.log(`   🔗 Cargando página real: ${targetUrl}`);
+      await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 45000 });
 
-      // Esperar a que el lienzo 9:16 esté renderizado
-      await page.waitForSelector("#short-canvas", { state: "visible", timeout: 15000 });
+      if (scene.type === "modal") {
+        // Esperar a que el diálogo modal se renderice
+        await page.waitForSelector('[role="dialog"]', { state: "visible", timeout: 15000 });
+        // Asegurar que las barras y la animación estén listas
+        await page.waitForTimeout(1000);
+      } else if (scene.type === "keys") {
+        // En la página de perfil, scroll limpio hasta "Las seis claves"
+        await page.waitForTimeout(1500);
+        await page.evaluate(() => {
+          const heading = Array.from(document.querySelectorAll("h2")).find((h) =>
+            h.textContent.includes("Las seis claves")
+          );
+          if (heading) {
+            const section = heading.closest("section");
+            if (section) {
+              const offset = 68; // altura del header sticky
+              const top = section.getBoundingClientRect().top + window.pageYOffset - offset;
+              window.scrollTo({ top, behavior: "instant" });
+            }
+          }
+        });
+        await page.waitForTimeout(500);
+      } else if (scene.type === "price") {
+        // En la cotización histórica, asegurar scroll superior
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+        await page.waitForTimeout(1000);
+      }
 
-      // Tiempo de grabación: 9 segundos para permitir que Cid recorra todo el gráfico (animación de 8s)
-      console.log(`   ⏳ Grabando animación de Cid (9 segundos)...`);
-      await page.waitForTimeout(9000);
+      console.log(`   ⏳ Grabando recorrido de Cid en tiempo real (${scene.recordSeconds}s)...`);
+      await page.waitForTimeout(scene.recordSeconds * 1000);
 
-      // Capturar imagen PNG final de máxima calidad
+      // Capturar imagen PNG de máxima resolución (1080x1920)
       const imgPath = path.join(outputDir, `${scene.filename}.png`);
-      const canvasEl = page.locator("#short-canvas");
-      await canvasEl.screenshot({ path: imgPath });
-      console.log(`   📸 Captura guardada: ${path.relative(process.cwd(), imgPath)}`);
+      await page.screenshot({ path: imgPath });
+      console.log(`   📸 Captura guardada: ${path.relative(process.cwd(), imgPath)} (1080x1920)`);
 
       // Cerrar página y contexto para que Playwright guarde el vídeo WebM
       await page.close();
       await context.close();
 
-      // Mover el vídeo grabado con el nombre final
+      // Mover el vídeo grabado al destino final
       const files = fs.readdirSync(sceneTempDir);
       const webmFile = files.find((f) => f.endsWith(".webm"));
       if (webmFile) {
-        const srcVideo = path.join(sceneTempDir, webmFile);
-        const destVideo = path.join(outputDir, `${scene.filename}.webm`);
-        fs.copyFileSync(srcVideo, destVideo);
-        fs.unlinkSync(srcVideo);
-        console.log(`   🎥 Vídeo 9:16 guardado: ${path.relative(process.cwd(), destVideo)}`);
+        const rawVideoPath = path.join(sceneTempDir, webmFile);
+        const finalWebmPath = path.join(outputDir, `${scene.filename}.webm`);
+        fs.copyFileSync(rawVideoPath, finalWebmPath);
+        console.log(`   🎞️ Vídeo WebM listo: ${path.relative(process.cwd(), finalWebmPath)}`);
+
+        // Convertir también a MP4 para máxima compatibilidad con Filmora
+        const finalMp4Path = path.join(outputDir, `${scene.filename}.mp4`);
+        const ok = await convertToMp4(finalWebmPath, finalMp4Path);
+        if (ok) {
+          console.log(`   🎥 Vídeo MP4 listo:  ${path.relative(process.cwd(), finalMp4Path)}`);
+        }
       }
-      fs.rmdirSync(sceneTempDir);
     }
 
-    // Limpieza de temporal
-    if (fs.existsSync(tempVideoDir)) {
+    // Limpiar temporales
+    try {
       fs.rmSync(tempVideoDir, { recursive: true, force: true });
+    } catch {
+      // Ignorar
     }
 
-    console.log(`\n🎉 ¡COMPLETADO CON ÉXITO!`);
-    console.log(`Todos los clips y capturas están en: ${outputDir}`);
+    console.log(`\n======================================================`);
+    console.log(`🎉 ¡PROCESO COMPLETADO CON ÉXITO PARA ${ticker}!`);
+    console.log(`Todos los vídeos (.webm y .mp4) y fotos (.png) se encuentran en:`);
+    console.log(`${outputDir}`);
+    console.log(`======================================================\n`);
   } finally {
     await browser.close();
     if (devServer) {
-      console.log("🛑 Deteniendo servidor Next.js...");
-      devProcessKill(devServer);
+      devServer.kill();
     }
-  }
-}
-
-function devProcessKill(child) {
-  try {
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/pid", child.pid.toString(), "/f", "/t"]);
-    } else {
-      child.kill("SIGTERM");
-    }
-  } catch (e) {
-    // ignore
   }
 }
 
 recordShorts().catch((err) => {
-  console.error("❌ Error grabando shorts:", err);
+  console.error("❌ Error durante la grabación:", err);
   process.exit(1);
 });

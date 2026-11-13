@@ -57,9 +57,54 @@ export const ESEF_COMPANIES: EsefCompany[] = [
     industry: "Equipos de litografía para fabricar semiconductores",
     aliases: ["ASML.AS", "ASML", "ASML HOLDING"],
   },
+  {
+    ticker: "NOKIA.HE",
+    name: "Nokia Oyj",
+    lei: "549300A0JPRWG1KI7U06",
+    exchange: "Nasdaq Helsinki",
+    country: "Finlandia",
+    sector: "Tecnología",
+    industry: "Equipos de telecomunicaciones y redes",
+    aliases: [
+      "NOKIA.HE",
+      "NOKIA",
+      "HEL:NOKIA",
+      "HEL: NOKIA",
+      "NOK",
+      "NOKIA OYJ",
+    ],
+  },
+  {
+    ticker: "2498.TW",
+    name: "HTC Corporation",
+    lei: "",
+    exchange: "TWSE",
+    country: "Taiwán",
+    sector: "Tecnología",
+    industry: "Electrónica de consumo",
+    aliases: [
+      "2498.TW",
+      "2498",
+      "TPE: 2498",
+      "TPE:2498",
+      "TWSE: 2498",
+      "TWSE:2498",
+      "HTC",
+      "HTC CORP",
+      "HTC CORPORATION",
+    ],
+  },
 ];
 
 export function resolveEsefCompany(query: string): EsefCompany | null {
   const normalized = query.trim().toUpperCase();
-  return ESEF_COMPANIES.find((company) => company.aliases.some((alias) => alias.toUpperCase() === normalized)) ?? null;
+  const normalizedClean = normalized.replace(/\s*:\s*/g, ":");
+  return (
+    ESEF_COMPANIES.find((company) =>
+      company.aliases.some((alias) => {
+        const a = alias.toUpperCase();
+        return a === normalized || a === normalizedClean;
+      }),
+    ) ?? null
+  );
 }
