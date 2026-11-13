@@ -298,8 +298,3 @@
     transform: translateX(-50%);
   }
 }
-
-/* Ocultar footer en MarketCid Studio */
-body:has(#short-canvas) footer {
-  display: none !important;
-}
