@@ -1,17 +1,10 @@
-import { translateToEnglish, type Language } from "./translations";
+import { Language, translateToEnglish } from "./translations";
 
-/**
- * Motor de traducción instantánea del DOM para Altius.
- *
- * Permite cambiar de idioma en 0 milisegundos sin recargar la página,
- * traduciendo Server Components, Client Components, diálogos, tooltips
- * y gráficos dinámicos sin perder reactividad ni romper hidratación.
- */
+const ATTRS_TO_TRANSLATE = ["placeholder", "title", "aria-label", "alt"] as const;
 
 const SKIP_TAGS = new Set([
   "SCRIPT",
   "STYLE",
-  "SVG",
   "CODE",
   "PRE",
   "NOSCRIPT",
@@ -19,205 +12,306 @@ const SKIP_TAGS = new Set([
 ]);
 
 class DomTranslator {
-  private currentLang: Language = "es";
+  private lang: Language = "es";
   private observer: MutationObserver | null = null;
-  private isTranslating = false;
-
-  // Guarda el texto original en español de cada nodo para poder restaurarlo con precisión total
+  private headObserver: MutationObserver | null = null;
   private originalTextMap = new WeakMap<Node, string>();
+  private translatedTextMap = new WeakMap<Node, string>();
   private originalAttrMap = new WeakMap<Element, Record<string, string>>();
+  private translatedAttrMap = new WeakMap<Element, Record<string, string>>();
+  private originalTitle: string | null = null;
+  private lastTranslatedTitle: string | null = null;
   private modifiedNodes = new Set<Node>();
   private modifiedElements = new Set<Element>();
+  private isApplying = false;
 
-  /**
-   * Aplica el idioma al documento inmediatamente
-   */
-  public applyLanguage(lang: Language): void {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+  public applyLanguage(lang: Language) {
+    this.lang = lang;
 
-    this.currentLang = lang;
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
     document.documentElement.lang = lang;
-    document.documentElement.setAttribute("data-lang", lang);
 
     if (lang === "es") {
+      this.stopObserving();
       this.restoreSpanish();
-      this.disconnectObserver();
+      return;
+    }
+
+    this.translateTitle();
+    this.translateTree(document.body);
+    this.startObserving();
+  }
+
+  private translateTitle() {
+    if (typeof document === "undefined") return;
+    const current = document.title;
+    if (!current) return;
+
+    if (this.originalTitle === null || current !== this.lastTranslatedTitle) {
+      this.originalTitle = current;
+    }
+
+    const translated = translateToEnglish(this.originalTitle);
+    if (translated !== this.originalTitle) {
+      this.isApplying = true;
+      document.title = translated;
+      this.lastTranslatedTitle = translated;
+      this.isApplying = false;
     } else {
-      this.translateToEnglish();
-      this.connectObserver();
+      this.lastTranslatedTitle = current;
     }
   }
 
-  public getCurrentLanguage(): Language {
-    return this.currentLang;
-  }
-
-  /**
-   * Recorre el DOM traduciendo al inglés todos los textos reconocidos
-   */
-  private translateToEnglish(): void {
-    if (typeof document === "undefined" || !document.body) return;
-    this.isTranslating = true;
-
-    try {
-      this.walkAndTranslate(document.body);
-    } finally {
-      this.isTranslating = false;
+  private restoreTitle() {
+    if (typeof document === "undefined") return;
+    if (this.originalTitle !== null && document.title === this.lastTranslatedTitle) {
+      this.isApplying = true;
+      document.title = this.originalTitle;
+      this.isApplying = false;
     }
+    this.originalTitle = null;
+    this.lastTranslatedTitle = null;
   }
 
-  /**
-   * Restaura los textos originales en español
-   */
-  private restoreSpanish(): void {
-    this.isTranslating = true;
-
+  private restoreSpanish() {
+    this.isApplying = true;
     try {
-      // 1. Restaurar nodos de texto modificados
+      this.restoreTitle();
+
       for (const node of this.modifiedNodes) {
-        if (node.parentNode && this.originalTextMap.has(node)) {
-          const original = this.originalTextMap.get(node)!;
-          if (node.nodeValue !== original) {
-            node.nodeValue = original;
-          }
+        const original = this.originalTextMap.get(node);
+        if (original !== undefined && node.nodeValue !== original) {
+          node.nodeValue = original;
         }
+        this.originalTextMap.delete(node);
+        this.translatedTextMap.delete(node);
       }
       this.modifiedNodes.clear();
 
-      // 2. Restaurar atributos modificados
       for (const el of this.modifiedElements) {
-        const originalAttrs = this.originalAttrMap.get(el);
-        if (originalAttrs) {
-          for (const [attrName, originalVal] of Object.entries(originalAttrs)) {
-            el.setAttribute(attrName, originalVal);
+        const origAttrs = this.originalAttrMap.get(el);
+        if (origAttrs) {
+          for (const [attr, val] of Object.entries(origAttrs)) {
+            if (el.getAttribute(attr) !== val) {
+              el.setAttribute(attr, val);
+            }
           }
+          this.originalAttrMap.delete(el);
+          this.translatedAttrMap.delete(el);
         }
       }
       this.modifiedElements.clear();
     } finally {
-      this.isTranslating = false;
+      this.isApplying = false;
     }
   }
 
-  /**
-   * Inspecciona recursivamente un elemento y sus hijos
-   */
-  private walkAndTranslate(root: Node): void {
-    if (root.nodeType === Node.ELEMENT_NODE) {
-      const el = root as Element;
-      if (SKIP_TAGS.has(el.tagName) || el.getAttribute("translate") === "no" || el.hasAttribute("data-no-translate")) {
+  private isSkippable(node: Node | null): boolean {
+    let curr: Node | null = node;
+    while (curr) {
+      if (curr.nodeType === Node.ELEMENT_NODE) {
+        const el = curr as Element;
+        if (SKIP_TAGS.has(el.tagName)) return true;
+        if (el.getAttribute("data-no-translate") === "true") return true;
+      }
+      curr = curr.parentNode;
+    }
+    return false;
+  }
+
+  private translateTree(root: Node | null) {
+    if (!root || this.lang !== "en") return;
+    this.isApplying = true;
+    try {
+      if (root.nodeType === Node.TEXT_NODE) {
+        if (!this.isSkippable(root)) {
+          this.translateTextNode(root);
+        }
         return;
       }
 
-      // Traducir atributos comunes
-      this.translateAttributes(el);
-    }
+      if (root.nodeType === Node.ELEMENT_NODE) {
+        const el = root as Element;
+        if (
+          SKIP_TAGS.has(el.tagName) ||
+          el.getAttribute("data-no-translate") === "true"
+        ) {
+          return;
+        }
+        this.translateAttributes(el);
+      }
 
-    if (root.nodeType === Node.TEXT_NODE) {
-      this.translateTextNode(root);
-      return;
-    }
+      const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const el = node as Element;
+              if (
+                SKIP_TAGS.has(el.tagName) ||
+                el.getAttribute("data-no-translate") === "true"
+              ) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return NodeFilter.FILTER_ACCEPT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          },
+        }
+      );
 
-    let child = root.firstChild;
-    while (child) {
-      const next = child.nextSibling;
-      this.walkAndTranslate(child);
-      child = next;
+      let current: Node | null = walker.nextNode();
+      while (current) {
+        if (current.nodeType === Node.TEXT_NODE) {
+          this.translateTextNode(current);
+        } else if (current.nodeType === Node.ELEMENT_NODE) {
+          this.translateAttributes(current as Element);
+        }
+        current = walker.nextNode();
+      }
+    } finally {
+      this.isApplying = false;
     }
   }
 
-  /**
-   * Traduce un nodo de texto individual
-   */
-  private translateTextNode(node: Node): void {
+  private translateTextNode(node: Node) {
     const raw = node.nodeValue;
     if (!raw || !raw.trim()) return;
 
-    // Si no tenemos registrado su texto original en español, lo guardamos ahora
-    if (!this.originalTextMap.has(node)) {
+    const lastTranslated = this.translatedTextMap.get(node);
+    const hasOriginal = this.originalTextMap.has(node);
+
+    // If React or another update replaced the node text, refresh its stored Spanish source
+    if (!hasOriginal || raw !== lastTranslated) {
       this.originalTextMap.set(node, raw);
     }
 
-    const original = this.originalTextMap.get(node) || raw;
-    const translated = translateToEnglish(original);
+    const source = this.originalTextMap.get(node) ?? raw;
+    const translated = translateToEnglish(source);
 
     if (translated !== raw) {
       node.nodeValue = translated;
+      this.translatedTextMap.set(node, translated);
+      this.modifiedNodes.add(node);
+    } else if (translated !== source) {
+      this.translatedTextMap.set(node, translated);
       this.modifiedNodes.add(node);
     }
   }
 
-  /**
-   * Traduce atributos como placeholder, title o aria-label
-   */
-  private translateAttributes(el: Element): void {
-    const attrNames = ["placeholder", "title", "aria-label"];
-    for (const attr of attrNames) {
+  private translateAttributes(el: Element) {
+    for (const attr of ATTRS_TO_TRANSLATE) {
       const val = el.getAttribute(attr);
-      if (val && val.trim()) {
-        let stored = this.originalAttrMap.get(el);
-        if (!stored) {
-          stored = {};
-          this.originalAttrMap.set(el, stored);
-        }
-        if (!(attr in stored)) {
-          stored[attr] = val;
-        }
+      if (!val || !val.trim()) continue;
 
-        const original = stored[attr] || val;
-        const translated = translateToEnglish(original);
-        if (translated !== val) {
-          el.setAttribute(attr, translated);
-          this.modifiedElements.add(el);
-        }
+      let storedOrig = this.originalAttrMap.get(el);
+      if (!storedOrig) {
+        storedOrig = {};
+        this.originalAttrMap.set(el, storedOrig);
+      }
+
+      let storedTrans = this.translatedAttrMap.get(el);
+      if (!storedTrans) {
+        storedTrans = {};
+        this.translatedAttrMap.set(el, storedTrans);
+      }
+
+      if (!(attr in storedOrig) || val !== storedTrans[attr]) {
+        storedOrig[attr] = val;
+      }
+
+      const source = storedOrig[attr];
+      const translated = translateToEnglish(source);
+      if (translated !== val) {
+        el.setAttribute(attr, translated);
+        storedTrans[attr] = translated;
+        this.modifiedElements.add(el);
+      } else if (translated !== source) {
+        storedTrans[attr] = translated;
+        this.modifiedElements.add(el);
       }
     }
   }
 
-  /**
-   * Inicia el MutationObserver para capturar contenido dinámico (tabs, diálogos, gráficos, Cid)
-   */
-  private connectObserver(): void {
-    if (this.observer || typeof MutationObserver === "undefined") return;
+  private startObserving() {
+    if (typeof MutationObserver === "undefined" || !document.body) {
+      return;
+    }
 
-    this.observer = new MutationObserver((mutations) => {
-      if (this.isTranslating || this.currentLang !== "en") return;
+    if (!this.observer) {
+      this.observer = new MutationObserver((mutations) => {
+        if (this.isApplying || this.lang !== "en") return;
 
-      this.isTranslating = true;
-      try {
         for (const mutation of mutations) {
           if (mutation.type === "childList") {
-            for (let i = 0; i < mutation.addedNodes.length; i++) {
-              this.walkAndTranslate(mutation.addedNodes[i]);
-            }
+            mutation.addedNodes.forEach((added) => {
+              this.translateTree(added);
+            });
           } else if (mutation.type === "characterData") {
             const target = mutation.target;
-            // Si el texto cambió desde React (por ejemplo un contador o filtro)
-            if (!this.modifiedNodes.has(target)) {
-              this.translateTextNode(target);
+            if (
+              target.nodeType === Node.TEXT_NODE &&
+              !this.isSkippable(target) &&
+              target.nodeValue !== this.translatedTextMap.get(target)
+            ) {
+              this.isApplying = true;
+              try {
+                this.translateTextNode(target);
+              } finally {
+                this.isApplying = false;
+              }
             }
-          } else if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) {
-            this.translateAttributes(mutation.target as Element);
+          } else if (
+            mutation.type === "attributes" &&
+            mutation.target.nodeType === Node.ELEMENT_NODE
+          ) {
+            const el = mutation.target as Element;
+            if (!this.isSkippable(el)) {
+              this.isApplying = true;
+              try {
+                this.translateAttributes(el);
+              } finally {
+                this.isApplying = false;
+              }
+            }
           }
         }
-      } finally {
-        this.isTranslating = false;
-      }
-    });
+      });
 
-    this.observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["placeholder", "title", "aria-label"],
-    });
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: [...ATTRS_TO_TRANSLATE],
+      });
+    }
+
+    if (!this.headObserver && document.head) {
+      this.headObserver = new MutationObserver(() => {
+        if (this.isApplying || this.lang !== "en") return;
+        this.translateTitle();
+      });
+      this.headObserver.observe(document.head, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
   }
 
-  private disconnectObserver(): void {
+  private stopObserving() {
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
+    }
+    if (this.headObserver) {
+      this.headObserver.disconnect();
+      this.headObserver = null;
     }
   }
 }
