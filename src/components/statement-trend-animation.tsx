@@ -274,7 +274,7 @@ export function StatementTrendAnimation({
   const motionPlan = buildInteractiveMotionPlan(bars);
   const motionPath = motionPlan.path;
   const lastLanding = bars.length > 0 ? landingPoint(bars.at(-1)!) : null;
-  const duration = Math.min(24, Math.max(8, bars.length * 1.05));
+  const duration = Math.min(28, Math.max(12, bars.length * 1.45));
   const motionStyle = { "--motion-duration": `${duration}s` } as CSSProperties;
 
   useEffect(() => {

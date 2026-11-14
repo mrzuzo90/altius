@@ -220,7 +220,7 @@ export function PriceTrendAnimation({
     [geometry?.points, targetPhase, allPoints],
   );
   const lastPoint = geometry?.points.at(-1) ?? null;
-  const duration = 11;
+  const duration = 30;
 
   useEffect(() => {
     if (reducedMotion || !plan.path) return;

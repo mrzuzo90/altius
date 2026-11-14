@@ -492,7 +492,7 @@ export function FinancialOverviewChart({
   const mascot = CID_MASCOTS[finalPhase];
   const firstYear = chartData[0]?.year ?? "";
   const lastYear = chartData.at(-1)?.year ?? "";
-  const duration = Math.min(26, Math.max(12, chartData.length * 1.8));
+  const duration = Math.min(34, Math.max(16, chartData.length * 2.4));
 
   // Disparo de la animación de Cid por el gráfico agregado
   useEffect(() => {

@@ -232,10 +232,92 @@ function translateScaleWord(word: string): string {
   return translateInnerToken(word);
 }
 
+function translateMoneyPhrase(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\bmil millones\b/gi, "billion")
+    .replace(/\bmillones\b/gi, "million")
+    .replace(/\bmiles\b/gi, "thousand");
+}
+
+function translatePercent(raw: string): string {
+  return raw.replace(/\s+%/g, "%").trim();
+}
+
 export const DYNAMIC_PATTERNS: DynamicPattern[] = [
   // =========================================================================
-  // 1. RESEARCH SNAPSHOT (company-research.ts concreteActivity & business copy)
+  // 1. RESEARCH SNAPSHOT (company-research.ts concreteActivity & profitEngine)
   // =========================================================================
+  {
+    pattern: /^Vende y mantiene productos concretos como\s+(.+?)\.\s*Cobra tanto por licencias y suscripciones como por el uso de sus servicios en la nube\.$/i,
+    replace: (_m, names) =>
+      `Sells and supports flagship products like ${toEnglishList(names)}, charging through software licenses, subscriptions, and cloud usage.`,
+  },
+  {
+    pattern: /^Reúne comercio electrónico y tecnología:\s*opera servicios como\s+(.+?),\s*además de su red de tiendas, vendedores y logística\.$/i,
+    replace: (_m, names) =>
+      `Combines online shopping and tech infrastructure: runs services like ${toEnglishList(names)} alongside its store, merchant, and delivery network.`,
+  },
+  {
+    pattern: /^Diseña y vende\s+(.+?),\s*y completa esos productos con aplicaciones, contenidos, almacenamiento y soporte\.$/i,
+    replace: (_m, names) =>
+      `Designs and sells ${toEnglishList(names)}, pairing those devices with apps, digital content, cloud storage, and support.`,
+  },
+  {
+    pattern: /^Su negocio gira alrededor de\s+(.+?):\s*tecnología y equipos que otras empresas usan para fabricar o hacer funcionar sistemas informáticos\.$/i,
+    replace: (_m, names) =>
+      `Centers around ${toEnglishList(names)}—core chips and computing hardware other companies rely on to power their systems.`,
+  },
+  {
+    pattern: /^Fabrica máquinas\s+(.+?)\s+y el software necesario para que los productores de chips dibujen circuitos diminutos sobre obleas de silicio\.$/i,
+    replace: (_m, names) =>
+      `Builds ${toEnglishList(names)} machines and the specialized software chipmakers need to print tiny circuits onto silicon wafers.`,
+  },
+  {
+    pattern: /^Opera productos de uso masivo como\s+(.+?)\.\s*Los usuarios suelen acceder gratis y la empresa monetiza la audiencia y los servicios de pago\.$/i,
+    replace: (_m, names) =>
+      `Runs everyday consumer products like ${toEnglishList(names)}. Most users get them for free while the company earns from ads and paid features.`,
+  },
+  {
+    pattern: /^Desarrolla y vende tratamientos concretos como\s+(.+?),\s*desde la investigación clínica hasta su comercialización\.$/i,
+    replace: (_m, names) =>
+      `Develops and sells treatments like ${toEnglishList(names)}, handling everything from clinical trials to commercial rollout.`,
+  },
+  {
+    pattern: /^Reúne marcas de lujo como\s+(.+?)\.\s*Vende moda, bolsos, perfumes, cosméticos, relojes, joyas, vinos y bebidas de alta gama\.$/i,
+    replace: (_m, names) =>
+      `Owns luxury houses like ${toEnglishList(names)}, selling high-end fashion, leather goods, fragrances, cosmetics, watches, jewelry, and spirits.`,
+  },
+  {
+    pattern: /^Diseña y vende ropa, calzado, accesorios y artículos para el hogar con marcas como\s+(.+?),\s*tanto en tiendas como por internet\.$/i,
+    replace: (_m, names) =>
+      `Designs and sells clothing, shoes, accessories, and homeware under brands like ${toEnglishList(names)}, both in stores and online.`,
+  },
+  {
+    pattern: /^Opera en la actividad que el regulador clasifica como\s+(.+?),\s*dentro del sector\s+(.+?)\.$/i,
+    replace: (_m, industry, sector) =>
+      `Operates in the ${translateInnerToken(industry)} industry within the ${translateInnerToken(sector)} sector.`,
+  },
+  {
+    pattern: /^(.+?)\s+Entre los productos y servicios que el propio informe destaca están\s+(.+?)\.$/i,
+    replace: (_m, fallback, names) =>
+      `${translateToEnglish(fallback)} Key products and services highlighted in its annual report include ${toEnglishList(names)}.`,
+  },
+  {
+    pattern: /^Es la división con más\s+(.+?)\s+entre las\s+(\d+)\s+comparables del último informe:\s*(.+?)(?:,\s*con un margen aproximado del\s+([+\-−]?[\d.,]+\s*%))?(?:\s+en el ejercicio cerrado el\s+([0-9-]+))?\.$/i,
+    replace: (_m, metric, count, money, margin, periodEnd) => {
+      const marginStr = margin && margin !== "undefined" ? ` (roughly a ${translatePercent(margin)} margin)` : "";
+      const dateStr = periodEnd && periodEnd !== "undefined" ? ` for the fiscal year ended ${periodEnd}` : "";
+      return `Its biggest earner among the ${count} divisions reported in the latest filing: ${translateMoneyPhrase(money)} in ${translateInnerToken(metric)}${marginStr}${dateStr}.`;
+    },
+  },
+  {
+    pattern: /^Todas las divisiones comparables presentan pérdidas;\s*(.+?)\s+es la que menos pierde,\s*con\s+(.+?)(?:\s+en el ejercicio cerrado el\s+([0-9-]+))?\.$/i,
+    replace: (_m, name, money, periodEnd) => {
+      const dateStr = periodEnd && periodEnd !== "undefined" ? ` for the fiscal year ended ${periodEnd}` : "";
+      return `Every reported division posted a loss; ${name} had the smallest loss at ${translateMoneyPhrase(money)}${dateStr}.`;
+    },
+  },
   {
     pattern: /^(?:Diseña|Fabrica|Vende|Ofrece|Opera|Desarrolla|Produce|Distribuye|Comercializa)\s+(.+?)\s+y\s+(.+)\.$/i,
     replace: (full, a, b) => {
@@ -280,11 +362,11 @@ export const DYNAMIC_PATTERNS: DynamicPattern[] = [
       `Operates in the ${translateInnerToken(sector)} industry, focusing on ${toEnglishList(focus)}.`,
   },
   {
-    pattern: /^(\d+(?:[.,]\d+)?)%\s+de las ventas vienen de\s+(.+)$/i,
+    pattern: /^(\d+(?:[.,]\d+)?)\s*%\s+de las ventas vienen de\s+(.+)$/i,
     replace: (_m, pct, segment) => `${pct}% of sales come from ${translateInnerToken(segment)}`,
   },
   {
-    pattern: /^El segmento más grande es\s+(.+?)\s*\((\d+(?:[.,]\d+)?)%\)\.?$/i,
+    pattern: /^El segmento más grande es\s+(.+?)\s*\((\d+(?:[.,]\d+)?)\s*%\)\.?$/i,
     replace: (_m, seg, pct) => `Largest segment: ${translateInnerToken(seg)} (${pct}%).`,
   },
 
@@ -321,93 +403,105 @@ export const DYNAMIC_PATTERNS: DynamicPattern[] = [
     replace: (_m, n) => `Based on ${n} fiscal years`,
   },
   {
-    pattern: /^(\d+)\s+ejercicios:\s*(.+)$/i,
-    replace: (_m, n, rest) => `${n} years: ${translateToEnglish(rest)}`,
+    pattern: /^(\d+)\s+ejercicios?:\s*(.+)$/i,
+    replace: (_m, n, rest) => `${n} ${n === "1" ? "year" : "years"}: ${translateToEnglish(rest)}`,
   },
   {
     pattern: /^(\d+)\s*\/\s*(\d+)\s+años positivos$/i,
     replace: (_m, a, b) => `${a}/${b} positive years`,
   },
   {
-    pattern: /^ingresos\s+([+\-−]?[\d.,]+%)\s*·\s*beneficio por acción\s+([+\-−]?[\d.,]+%)$/i,
-    replace: (_m, rev, eps) => `revenue ${rev} · EPS ${eps}`,
+    pattern: /^Beneficio positivo en\s+(\d+)\s+de\s+(\d+)\s+ejercicios;\s*la franquicia gana dinero con regularidad\.?$/i,
+    replace: (_m, a, b) => `Profitable in ${a} out of ${b} years—showing steady, reliable earnings.`,
   },
   {
-    pattern: /^ingresos\s+([+\-−]?[\d.,]+%)$/i,
-    replace: (_m, rev) => `revenue ${rev}`,
+    pattern: /^ingresos\s+([+\-−]?[\d.,]+\s*%)\s*·\s*beneficio por acción\s+([+\-−]?[\d.,]+\s*%)$/i,
+    replace: (_m, rev, eps) => `revenue ${translatePercent(rev)} · EPS ${translatePercent(eps)}`,
   },
   {
-    pattern: /^beneficio por acción\s+([+\-−]?[\d.,]+%)$/i,
-    replace: (_m, eps) => `EPS ${eps}`,
+    pattern: /^ingresos\s+([+\-−]?[\d.,]+\s*%)$/i,
+    replace: (_m, rev) => `revenue ${translatePercent(rev)}`,
   },
   {
-    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE)\s+([+\-−]?[\d.,]+%)\s*·\s*(\d+\/\d+)\s+años positivos$/i,
-    replace: (_m, metric, pct, yrs) => `${translateInnerToken(metric)} ${pct} · ${yrs} positive years`,
+    pattern: /^beneficio por acción\s+([+\-−]?[\d.,]+\s*%)$/i,
+    replace: (_m, eps) => `EPS ${translatePercent(eps)}`,
   },
   {
-    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE)\s+([+\-−]?[\d.,]+%)$/i,
-    replace: (_m, metric, pct) => `${translateInnerToken(metric)} ${pct}`,
+    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE)\s+([+\-−]?[\d.,]+\s*%)\s*·\s*(\d+\/\d+)\s+años positivos$/i,
+    replace: (_m, metric, pct, yrs) =>
+      `${translateInnerToken(metric)} ${translatePercent(pct)} · ${yrs} positive years`,
   },
   {
-    pattern: /^Patrimonio\/activo\s+([\d.,]+%)$/i,
-    replace: (_m, pct) => `Equity / assets ${pct}`,
+    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE)\s+([+\-−]?[\d.,]+\s*%)$/i,
+    replace: (_m, metric, pct) => `${translateInnerToken(metric)} ${translatePercent(pct)}`,
+  },
+  {
+    pattern: /^Patrimonio\/activo\s+([\d.,]+\s*%)$/i,
+    replace: (_m, pct) => `Equity / assets ${translatePercent(pct)}`,
   },
   {
     pattern: /^([\d.,]+x)\s+EBITDA$/i,
     replace: (_m, x) => `${x} EBITDA`,
   },
   {
-    pattern: /^Acciones\s+([+\-−]?[\d.,]+%)\s+anual$/i,
-    replace: (_m, pct) => `Shares ${pct}/yr`,
+    pattern: /^Acciones\s+([+\-−]?[\d.,]+\s*%)\s+anual$/i,
+    replace: (_m, pct) => `Shares ${translatePercent(pct)}/yr`,
   },
   {
-    pattern: /^CFO\/beneficio\s+([\d.,]+%)\s*·\s*FCF positivo\s+(\d+\/\d+)$/i,
-    replace: (_m, pct, yrs) => `Cash/earnings ${pct} · ${yrs} positive FCF years`,
+    pattern: /^CFO\/beneficio\s+([\d.,]+\s*%)\s*·\s*FCF positivo\s+(\d+\/\d+)$/i,
+    replace: (_m, pct, yrs) => `Cash/earnings ${translatePercent(pct)} · ${yrs} positive FCF years`,
   },
   {
-    pattern: /^PER\s+([\d.,]+x)\s*·\s*([+\-−]?[\d.,]+%)\s+vs\s+historia$/i,
-    replace: (_m, pe, diff) => `P/E ${pe} · ${diff} vs. history`,
+    pattern: /^PER\s+([\d.,]+x)\s*·\s*([+\-−]?[\d.,]+\s*%)\s+vs\s+historia$/i,
+    replace: (_m, pe, diff) => `P/E ${pe} · ${translatePercent(diff)} vs. history`,
   },
   {
     pattern: /^PER\s+([\d.,]+x)$/i,
     replace: (_m, pe) => `P/E ${pe}`,
   },
   {
-    pattern: /^(ROIC|ROE|ROE sectorial|Margen neto|Margen operativo)\s+mediano\s+de\s+([+\-−]?[\d.,]+%)\s+durante\s+(\d+)\s+ejercicios(?:\s+\((.+)\))?\.?$/i,
+    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE|Margen neto|Margen operativo)\s+mediano\s+de\s+([+\-−]?[\d.,]+\s*%)\s+durante\s+(\d+)\s+ejercicios?;\s*no depende de un año aislado\.?$/i,
+    replace: (_m, metric, val, yrs) =>
+      `Median ${translateInnerToken(metric)} of ${translatePercent(val)} over ${yrs} ${yrs === "1" ? "fiscal year" : "fiscal years"}—consistent, not a one-year fluke.`,
+  },
+  {
+    pattern: /^(ROIC|ROE sectorial|ROE \(proxy\)|ROE|Margen neto|Margen operativo)\s+mediano\s+de\s+([+\-−]?[\d.,]+\s*%)\s+durante\s+(\d+)\s+ejercicios?(?:\s+\((.+)\))?\.?$/i,
     replace: (_m, metric, val, yrs, tail) => {
-      const tailEn = tail ? ` (${translateToEnglish(tail)})` : "";
-      return `Median ${translateInnerToken(metric)} of ${val} over ${yrs} fiscal years${tailEn}.`;
+      const tailEn = tail && tail !== "undefined" ? ` (${translateToEnglish(tail)})` : "";
+      return `Median ${translateInnerToken(metric)} of ${translatePercent(val)} over ${yrs} ${yrs === "1" ? "fiscal year" : "fiscal years"}${tailEn}.`;
     },
   },
   {
-    pattern: /^Apalancamiento\s+mediano\s+de\s+([+\-−]?[\d.,]+x)\s+y\s+último\s+de\s+([+\-−]?[\d.,]+x)\s+en\s+(\d+)\s+ejercicios\.?$/i,
+    pattern: /^Apalancamiento\s+mediano\s+de\s+([+\-−]?[\d.,]+x)\s+y\s+último\s+de\s+([+\-−]?[\d.,]+x)\s+en\s+(\d+)\s+ejercicios?\.?$/i,
     replace: (_m, med, last, yrs) =>
-      `Median debt leverage of ${med} (most recent: ${last}) across ${yrs} fiscal years.`,
+      `Median debt leverage of ${med} (most recent: ${last}) across ${yrs} ${yrs === "1" ? "fiscal year" : "fiscal years"}.`,
   },
   {
-    pattern: /^Colchón\s+mediano\s+del\s+([\d.,]+%)\s+del\s+activo\s+en\s+(\d+)\s+ejercicios\s*\((.+)\)\.?$/i,
-    replace: (_m, pct, yrs, extra) =>
-      `Equity buffer averages ${pct} of total assets over ${yrs} fiscal years (${translateToEnglish(extra)}).`,
-  },
-  {
-    pattern: /^Colchón\s+mediano\s+del\s+([\d.,]+%)\s+del\s+activo\s+en\s+(\d+)\s+ejercicios\.?$/i,
+    pattern: /^Colchón\s+mediano\s+del\s+([\d.,]+\s*%)\s+del\s+activo\s+en\s+(\d+)\s+ejercicios?;\s*no sustituye CET1 ni solvencia regulatoria\.?$/i,
     replace: (_m, pct, yrs) =>
-      `Equity buffer averages ${pct} of total assets over ${yrs} fiscal years.`,
+      `Equity cushion averages ${translatePercent(pct)} of total assets over ${yrs} ${yrs === "1" ? "year" : "years"} (for context—not a substitute for regulatory CET1 ratios).`,
   },
   {
-    pattern: /^Las acciones diluidas cambian un\s+([+\-−]?[\d.,]+%)\s+anual\s+durante\s+(\d+)\s+ejercicios\.?$/i,
+    pattern: /^Colchón\s+mediano\s+del\s+([\d.,]+\s*%)\s+del\s+activo\s+en\s+(\d+)\s+ejercicios?(?:\s*\((.+)\))?\.?$/i,
+    replace: (_m, pct, yrs, extra) => {
+      const tail = extra && extra !== "undefined" ? ` (${translateToEnglish(extra)})` : "";
+      return `Equity buffer averages ${translatePercent(pct)} of total assets over ${yrs} ${yrs === "1" ? "fiscal year" : "fiscal years"}${tail}.`;
+    },
+  },
+  {
+    pattern: /^Las acciones diluidas cambian un\s+([+\-−]?[\d.,]+\s*%)\s+anual\s+durante\s+(\d+)\s+ejercicios?\.?$/i,
     replace: (_m, pct, yrs) =>
-      `Share count changed by ${pct} a year on average over ${yrs} fiscal years.`,
+      `Share count changed by ${translatePercent(pct)} a year on average over ${yrs} ${yrs === "1" ? "fiscal year" : "fiscal years"}.`,
   },
   {
-    pattern: /^PER actual de\s+([\d.,]+x)\s+frente a mediana histórica de\s+([\d.,]+x):\s*([+\-−]?[\d.,]+%)\s+de diferencia\.?$/i,
+    pattern: /^PER actual de\s+([\d.,]+x)\s+frente a mediana histórica de\s+([\d.,]+x):\s*([+\-−]?[\d.,]+\s*%)\s+de diferencia\.?$/i,
     replace: (_m, cur, med, diff) =>
-      `Current P/E is ${cur} vs. a historical median of ${med} (${diff} difference).`,
+      `Current P/E is ${cur} vs. a historical median of ${med} (${translatePercent(diff)} difference).`,
   },
   {
-    pattern: /^El PER actual es\s+([\d.,]+x)\.\s*Al no haber una historia suficiente\s*(.*)$/i,
+    pattern: /^El PER actual es\s+([\d.,]+x)\.\s*(.*)$/i,
     replace: (_m, cur, rest) =>
-      `Current P/E is ${cur}. ${rest ? translateToEnglish(rest) : "Not enough history yet for a fair historical comparison."}`,
+      `Current P/E is ${cur}. ${rest ? translateToEnglish(rest) : "Not enough history yet for a fair historical comparison."}`.trim(),
   },
   {
     pattern: /^No hay al menos dos ejercicios comparables de\s+(.+?)\.?$/i,

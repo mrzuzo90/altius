@@ -111,6 +111,49 @@ describe("i18n plain-English translation engine", () => {
     expect(translateToEnglish("98 contratos analizados")).toBe("98 contracts analyzed");
   });
 
+  it("translates real live /ticker/AAPL scorecard and snapshot output including spaced percents", () => {
+    expect(translateToEnglish("PER 39.7x · +69 % vs historia")).toBe(
+      "P/E 39.7x · +69% vs. history"
+    );
+    expect(
+      translateToEnglish(
+        "PER actual de 39.7x frente a mediana histórica de 23.5x: +69 % de diferencia."
+      )
+    ).toBe("Current P/E is 39.7x vs. a historical median of 23.5x (+69% difference).");
+    expect(
+      translateToEnglish("ingresos +5.5 % · beneficio por acción +9.9 %")
+    ).toBe("revenue +5.5% · EPS +9.9%");
+    expect(
+      translateToEnglish(
+        "6 ejercicios: negocio y beneficio avanzan juntos por encima del umbral, sin depender de un único salto."
+      )
+    ).toBe(
+      "6 years: sales and EPS are both clearing the 5% bar consistently, without relying on a single lucky year."
+    );
+    expect(translateToEnglish("ROIC 98.3 %")).toBe("ROIC 98.3%");
+    expect(
+      translateToEnglish(
+        "ROIC mediano de 98.3 % durante 5 ejercicios; no depende de un año aislado."
+      )
+    ).toBe(
+      "Median ROIC of 98.3% over 5 fiscal years—consistent, not a one-year fluke."
+    );
+    expect(
+      translateToEnglish(
+        "Diseña y vende iPhone, Mac, iPad, Apple Watch y AirPods, y completa esos productos con aplicaciones, contenidos, almacenamiento y soporte."
+      )
+    ).toBe(
+      "Designs and sells iPhone, Mac, iPad, Apple Watch, and AirPods, pairing those devices with apps, digital content, cloud storage, and support."
+    );
+    expect(
+      translateToEnglish(
+        "Es la división con más beneficio operativo por segmento entre las 5 comparables del último informe: 145 mil millones USD, con un margen aproximado del 38,2 % en el ejercicio cerrado el 2025-09-27."
+      )
+    ).toBe(
+      "Its biggest earner among the 5 divisions reported in the latest filing: 145 billion USD in segment operating profit (roughly a 38,2% margin) for the fiscal year ended 2025-09-27."
+    );
+  });
+
   it("has comprehensive dictionary coverage across all modules", () => {
     expect(Object.keys(FINANCIAL_DICTIONARY).length).toBeGreaterThan(700);
   });

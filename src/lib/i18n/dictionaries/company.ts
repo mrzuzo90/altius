@@ -294,6 +294,20 @@ export const COMPANY_DICTIONARY: Record<string, string> = {
   "PER ≤ su mediana histórica": "P/E ≤ its historical median",
   "PER ≤ 20x (sin historia)": "P/E ≤ 20x (limited history)",
   "Sin PER · pérdidas": "No P/E · unprofitable",
+  "ROE sectorial mediano ≥ 12 %": "Median sector ROE ≥ 12%",
+  "ROE (proxy) mediano ≥ 12 %": "Median ROE (proxy) ≥ 12%",
+  "Patrimonio/activo ≥ 7 %": "Equity / assets ≥ 7%",
+  "Patrimonio/activo ≥ 10 %": "Equity / assets ≥ 10%",
+  "negocio y beneficio avanzan juntos por encima del umbral, sin depender de un único salto.":
+    "sales and EPS are both clearing the 5% bar consistently, without relying on a single lucky year.",
+  "una de las dos series retrocede; ingresos y beneficio por acción no avanzan juntos.":
+    "at least one metric is shrinking—sales and EPS aren't moving up together.",
+  "ambas series se mantienen o crecen, pero alguna todavía no alcanza el 5 % anual.":
+    "both are holding steady or growing, though one hasn't quite cleared the 5%/yr mark yet.",
+  "solo hay una de las dos series comparables; Cid no da el crecimiento por completo.":
+    "only one of the two series has enough comparable history—Cid needs both to call growth complete.",
+  "Al no haber una historia suficiente, se usa una banda absoluta conservadora.":
+    "Without enough history to compare, we use a conservative rule of thumb instead.",
 
   // Metodología popover
   "Método para empresas operativas": "Standard Operating Company Method",
