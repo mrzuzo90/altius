@@ -70,6 +70,14 @@ const COMPANY_PROMINENCE: Record<string, number> = {
   HTC: 25,
   LVMUY: 24,
   MC_PA: 24,
+  IBE_MC: 30,
+  ITX_MC: 30,
+  TEF_MC: 30,
+  IDR_MC: 28,
+  AENA_MC: 28,
+  SAN_MC: 26,
+  BBVA_MC: 26,
+  REP_MC: 24,
   NVO: 23,
   SAP: 22,
   TSM: 21,
@@ -169,7 +177,11 @@ function kindIntentBoost(kind: SearchResultKind, normalizedQuery: string): numbe
 function prominence(candidate: SearchCandidate): number {
   if (candidate.kind !== "company") return 0;
   const key = candidate.symbol.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-  return COMPANY_PROMINENCE[key] ?? 0;
+  const curated = COMPANY_PROMINENCE[key] ?? 0;
+  if (curated > 0) return curated;
+  // Las cotizaciones secundarias extranjeras u OTC nunca deben desplazar a la bolsa de origen.
+  if (candidate.symbol.toUpperCase().endsWith(".MC")) return 10;
+  return 0;
 }
 
 export function scoreSearchCandidate(

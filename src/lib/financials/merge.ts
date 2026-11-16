@@ -163,6 +163,26 @@ export function mergeStatementBundles(
     (st, lt) => st + lt,
   );
   fillDerivedCell(
+    balance,
+    "netDebt",
+    "totalDebt",
+    "Deuda financiera total",
+    "cashAndShortTermInvestments",
+    "Efectivo e inversiones a corto plazo",
+    "Deuda financiera total − Efectivo e inversiones a corto plazo",
+    (debt, cash) => debt - cash,
+  );
+  fillDerivedCell(
+    balance,
+    "netDebt",
+    "totalDebt",
+    "Deuda financiera total",
+    "cash",
+    "Efectivo y equivalentes",
+    "Deuda financiera total − Efectivo y equivalentes",
+    (debt, cash) => debt - cash,
+  );
+  fillDerivedCell(
     cashflow,
     "freeCashFlow",
     "operatingCashFlow",

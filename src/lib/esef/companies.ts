@@ -44,6 +44,7 @@ export const ESEF_COMPANIES: EsefCompany[] = [
       "IBERDROLA",
       "IBERDROLA SA",
       "IBDRY",
+      "1IBE.MI",
     ],
   },
   {
@@ -81,6 +82,8 @@ export const ESEF_COMPANIES: EsefCompany[] = [
       "MC:TEF",
       "TELEFONICA",
       "TELEFONICA SA",
+      "TEFOF",
+      "TELFY",
     ],
   },
   {

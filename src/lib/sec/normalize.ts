@@ -280,6 +280,8 @@ export function normalizeStatement(
   const fuentesQ4 = new Map<string, Map<PeriodKey, FuentesQ4>>();
   const capexConIntangibles = new Map<PeriodKey, { ppe: Resuelto; intang: Resuelto }>();
   const noncurrentLiabilitiesPorPeriodo = new Map<PeriodKey, Resuelto>();
+  const opexComponentesPorPeriodo = new Map<PeriodKey, { emp?: Resuelto; other?: Resuelto; services?: Resuelto; depr?: Resuelto }>();
+  const resueltosDerivados = new Map<string, Map<PeriodKey, { value: number; provenance: Provenance }>>();
   const finPorPeriodo = new Map<PeriodKey, { end: string; fy: number; q: number }>();
 
   for (const linea of lines) {
@@ -291,7 +293,30 @@ export function normalizeStatement(
     // cose entre conceptos sin cortarse cuando la empresa cambia de etiqueta.
     for (const concepto of linea.concepts) {
       for (const [key, r] of recolectar(facts, concepto, linea, freq, ancla, preferredCurrency)) {
-        if (!acumulado.has(key)) acumulado.set(key, r);
+        if (!acumulado.has(key)) {
+          if (concepto === "GastosDeServicios" && r.value < 0) {
+            acumulado.set(key, { ...r, value: Math.abs(r.value), firstValue: Math.abs(r.firstValue) });
+          } else {
+            acumulado.set(key, r);
+          }
+        }
+      }
+    }
+
+    if (linea.id === "operatingExpenses") {
+      const empMap = recolectar(facts, "EmployeeBenefitsExpense", linea, freq, ancla, preferredCurrency);
+      const otherMap = recolectar(facts, "OtherExpenseByNature", linea, freq, ancla, preferredCurrency);
+      const servMap = recolectar(facts, "GastosDeServicios", linea, freq, ancla, preferredCurrency);
+      const deprMap = recolectar(facts, "DepreciationAndAmortisationExpense", linea, freq, ancla, preferredCurrency);
+      const deprAltMap = recolectar(facts, "DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss", linea, freq, ancla, preferredCurrency);
+      const keys = new Set([...empMap.keys(), ...otherMap.keys(), ...servMap.keys()]);
+      for (const key of keys) {
+        opexComponentesPorPeriodo.set(key, {
+          emp: empMap.get(key),
+          other: otherMap.get(key),
+          services: servMap.get(key),
+          depr: deprMap.get(key) ?? deprAltMap.get(key),
+        });
       }
     }
 
@@ -476,6 +501,29 @@ export function normalizeStatement(
         };
       }
 
+      if (value === null && linea.id === "operatingExpenses") {
+        const comp = opexComponentesPorPeriodo.get(p.key);
+        const auxOther = comp?.other ?? comp?.services;
+        if (comp?.emp && auxOther && comp?.depr) {
+          const empVal = Math.abs(comp.emp.value);
+          const otherVal = Math.abs(auxOther.value);
+          const deprVal = Math.abs(comp.depr.value);
+          value = empVal + otherVal + deprVal;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Gastos de personal + Otros gastos de explotación + Amortizaciones",
+            inputs: [
+              { label: "Gastos de personal", value: empVal, source: resueltoAProvenance(comp.emp) },
+              { label: "Otros gastos de explotación", value: otherVal, source: resueltoAProvenance(auxOther) },
+              { label: "Amortizaciones", value: deprVal, source: resueltoAProvenance(comp.depr) },
+            ],
+          };
+          firstReported = undefined;
+        }
+      }
+
       if (value === null && linea.id === "cashAndShortTermInvestments") {
         const cashVal = leer("cash", p.key);
         const stInvVal = leer("shortTermInvestments", p.key);
@@ -492,6 +540,9 @@ export function normalizeStatement(
             ],
           };
           firstReported = undefined;
+          let map = resueltosDerivados.get(linea.id);
+          if (!map) { map = new Map(); resueltosDerivados.set(linea.id, map); }
+          map.set(p.key, { value, provenance });
         }
       }
 
@@ -527,6 +578,39 @@ export function normalizeStatement(
             inputs: [
               { label: "Deuda a corto plazo", value: stDebt, source: leerFuente("shortTermDebt", p.key) },
               { label: "Deuda a largo plazo", value: ltDebt, source: leerFuente("longTermDebt", p.key) },
+            ],
+          };
+          firstReported = undefined;
+          let map = resueltosDerivados.get(linea.id);
+          if (!map) { map = new Map(); resueltosDerivados.set(linea.id, map); }
+          map.set(p.key, { value, provenance });
+        }
+      }
+
+      if (value === null && linea.id === "netDebt") {
+        const tdDeriv = resueltosDerivados.get("totalDebt")?.get(p.key);
+        const tdVal = leer("totalDebt", p.key) ?? tdDeriv?.value ?? null;
+        const tdSrc = leer("totalDebt", p.key) !== null ? leerFuente("totalDebt", p.key) : (tdDeriv?.provenance ?? ABSENT);
+        const csiDeriv = resueltosDerivados.get("cashAndShortTermInvestments")?.get(p.key);
+        const csiVal = leer("cashAndShortTermInvestments", p.key) ?? csiDeriv?.value ?? null;
+        const cashVal = csiVal ?? leer("cash", p.key);
+        const cashSrc =
+          leer("cashAndShortTermInvestments", p.key) !== null
+            ? leerFuente("cashAndShortTermInvestments", p.key)
+            : csiDeriv
+              ? csiDeriv.provenance
+              : leerFuente("cash", p.key);
+        const cashLabel = csiVal !== null ? "Efectivo e inversiones a corto plazo" : "Efectivo y equivalentes";
+        if (tdVal !== null && cashVal !== null) {
+          value = tdVal - cashVal;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: `Deuda financiera total − ${cashLabel}`,
+            inputs: [
+              { label: "Deuda financiera total", value: tdVal, source: tdSrc },
+              { label: cashLabel, value: cashVal, source: cashSrc },
             ],
           };
           firstReported = undefined;

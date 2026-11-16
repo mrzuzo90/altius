@@ -7,6 +7,8 @@ import { applySplitsToStatementBundle } from "@/lib/financials/splits";
 import { supplementAnnualStatements } from "@/lib/financials/yahoo-supplement";
 import { getPriceSeries } from "@/lib/prices";
 import { evaluateQualityScorecard } from "@/lib/sec/quality";
+import { resolveTicker } from "@/lib/sec/tickers";
+import { rankGlobalSearch } from "@/lib/search/ranking";
 import type { StatementBundle } from "@/lib/sec/statements";
 import { CASH_FLOW, INCOME_STATEMENT, BALANCE_SHEET, RATIOS_STATEMENT } from "@/lib/sec/taxonomy";
 import { buildHistoricalPeSeries } from "@/lib/valuation/historical-pe";
@@ -33,6 +35,23 @@ describe("empresas españolas (Bolsa de Madrid / BME)", () => {
     expect(resolveEsefCompany("IDR")?.lei).toBe("95980020140005308793");
     expect(resolveEsefCompany("Aena")?.ticker).toBe("AENA.MC");
     expect(resolveEsefCompany("BME:AENA")?.lei).toBe("959800R7QMXKF0NFMT29");
+  });
+
+  it("posiciona IBE.MC y TEF.MC en primer lugar frente a cotizaciones secundarias y OTC", async () => {
+    const ibeRanked = rankGlobalSearch("Iberdrola", [
+      { id: "sec:1IBE.MI", kind: "company", symbol: "1IBE.MI", name: "Iberdrola, S.A.", href: "/ticker/1IBE.MI", meta: "MIL" },
+      { id: "esef:IBE.MC", kind: "company", symbol: "IBE.MC", name: "Iberdrola, S.A.", aliases: ["IBERDROLA", "IBE"], href: "/ticker/IBE.MC", meta: "BME · España" },
+    ]);
+    expect(ibeRanked[0]?.symbol).toBe("IBE.MC");
+
+    const tefRanked = rankGlobalSearch("Telefónica", [
+      { id: "sec:TEFOF", kind: "company", symbol: "TEFOF", name: "TELEFONICA S A", href: "/ticker/TEFOF", meta: "SEC" },
+      { id: "esef:TEF.MC", kind: "company", symbol: "TEF.MC", name: "Telefónica, S.A.", aliases: ["TELEFONICA", "TEF"], href: "/ticker/TEF.MC", meta: "BME · España" },
+    ]);
+    expect(tefRanked[0]?.symbol).toBe("TEF.MC");
+
+    const tefSec = await resolveTicker("TEF.MC");
+    expect(tefSec?.cik).toBe("0000814052");
   });
 
   it("calcula el flujo de caja libre cuando CFO viene de ESEF y CapEx del suplemento Yahoo", () => {
@@ -296,6 +315,15 @@ describe("empresas españolas (Bolsa de Madrid / BME)", () => {
       if (ticker === "TEF.MC") {
         expect(rowVal(finalBundle, "cashflow", "freeCashFlow", "FY2025")).toBe(4_667e6);
         expect(rowVal(finalBundle, "cashflow", "freeCashFlow", "FY2024")).toBe(6_143e6);
+        for (let y = 2016; y <= 2025; y += 1) {
+          expect(rowVal(finalBundle, "income", "costOfRevenue", `FY${y}`), `TEF costOfRevenue FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "grossProfit", `FY${y}`), `TEF grossProfit FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "operatingExpenses", `FY${y}`), `TEF opex FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "operatingIncome", `FY${y}`), `TEF EBIT FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "pretaxIncome", `FY${y}`), `TEF BAI FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "incomeTax", `FY${y}`), `TEF tax FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "sharesDiluted", `FY${y}`), `TEF shares FY${y}`).not.toBeNull();
+        }
       }
       if (ticker === "IDR.MC") {
         expect(rowVal(finalBundle, "cashflow", "capex", "FY2025")).toBeCloseTo(-137.8e6, -5);
@@ -305,10 +333,29 @@ describe("empresas españolas (Bolsa de Madrid / BME)", () => {
         expect(rowVal(finalBundle, "income", "epsDiluted", "FY2025")).toBeCloseTo(1.42, 2);
         expect(rowVal(finalBundle, "ratios", "epsGrowthYoY", "FY2025")).toBeGreaterThan(5);
         expect(scorecard.items.find((i) => i.id === "perShare")?.valueFormatted).toContain("0.0 %");
+        for (let y = 2016; y <= 2025; y += 1) {
+          expect(rowVal(finalBundle, "income", "operatingIncome", `FY${y}`), `AENA EBIT FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "pretaxIncome", `FY${y}`), `AENA BAI FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "balance", "totalDebt", `FY${y}`), `AENA totalDebt FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "balance", "netDebt", `FY${y}`), `AENA netDebt FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "cashflow", "freeCashFlow", `FY${y}`), `AENA FCF FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "cashflow", "dividends", `FY${y}`), `AENA div FY${y}`).not.toBeNull();
+        }
       }
       if (ticker === "IBE.MC") {
         expect(rowVal(finalBundle, "ratios", "roic", "FY2025")).toBeGreaterThan(0);
         expect(rowVal(finalBundle, "balance", "totalDebt", "FY2025")).toBe(54_090e6);
+        for (let y = 2016; y <= 2025; y += 1) {
+          expect(rowVal(finalBundle, "income", "operatingIncome", `FY${y}`), `IBE EBIT FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "pretaxIncome", `FY${y}`), `IBE BAI FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "incomeTax", `FY${y}`), `IBE tax FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "income", "sharesDiluted", `FY${y}`), `IBE shares FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "balance", "totalDebt", `FY${y}`), `IBE totalDebt FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "balance", "netDebt", `FY${y}`), `IBE netDebt FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "cashflow", "freeCashFlow", `FY${y}`), `IBE FCF FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "cashflow", "dividends", `FY${y}`), `IBE div FY${y}`).not.toBeNull();
+          expect(rowVal(finalBundle, "ratios", "roic", `FY${y}`), `IBE ROIC FY${y}`).not.toBeNull();
+        }
       }
     }
   }, 60000);

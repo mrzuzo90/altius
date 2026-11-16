@@ -59,9 +59,10 @@ const GLOBAL_COMPANY_ALIASES: Record<string, string> = {
   IBE: "IBDRY",
   "IBE.MC": "IBDRY",
   IBDRY: "IBDRY",
-  TELEFONICA: "TEF",
-  "TEF.MC": "TEF",
-  TEF: "TEF",
+  TELEFONICA: "TEFOF",
+  "TEF.MC": "TEFOF",
+  TEF: "TEFOF",
+  TEFOF: "TEFOF",
   REPSOL: "REPYY",
   "REP.MC": "REPYY",
   REPYY: "REPYY",
@@ -248,6 +249,11 @@ export async function resolveTicker(tickerOrName: string): Promise<TickerHit | n
  */
 const KNOWN_CIK_OVERRIDES: Record<string, { cik: string; name: string }> = {
   XOM: { cik: "0000034088", name: "EXXON MOBIL CORP" },
+  TEF: { cik: "0000814052", name: "TELEFONICA, S.A." },
+  "TEF.MC": { cik: "0000814052", name: "TELEFONICA, S.A." },
+  TELEFONICA: { cik: "0000814052", name: "TELEFONICA, S.A." },
+  TEFOF: { cik: "0000814052", name: "TELEFONICA, S.A." },
+  TELFY: { cik: "0000814052", name: "TELEFONICA, S.A." },
 };
 
 /** Variante pura usada para impedir colisiones entre tickers locales y estadounidenses. */
