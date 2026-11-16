@@ -180,7 +180,7 @@ export async function resolveEsefCompanyDynamic(query: string): Promise<EsefComp
 
   const params = new URLSearchParams({
     "filter[entity.legalName]": legalName,
-    "page[size]": "10",
+    "page[size]": "25",
   });
   const gleif = await cachedJson<GleifResponse>(
     `esef:gleif:${normalizedName(legalName)}`,

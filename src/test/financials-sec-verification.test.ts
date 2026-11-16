@@ -177,6 +177,7 @@ describe("verificación de cobertura y autenticidad de estados financieros contr
                   form.startsWith("6-K") ||
                   form.includes("14A") ||
                   form === "ESEF" ||
+                  form === "CNMV" ||
                   form === "YAHOO-ANNUAL";
                 expect(
                   isKnownRegulatoryForm,

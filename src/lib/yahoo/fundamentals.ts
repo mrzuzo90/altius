@@ -48,9 +48,11 @@ const METRICS: MetricMapping[] = [
   { type: "annualBasicEPS", concepts: ["BasicEarningsLossPerShare"], kind: "duration", unit: "perShare", page: "financials" },
   { type: "annualDilutedEPS", concepts: ["DilutedEarningsLossPerShare"], kind: "duration", unit: "perShare", page: "financials" },
   { type: "annualDilutedAverageShares", concepts: ["AdjustedWeightedAverageShares"], kind: "duration", unit: "shares", page: "financials" },
+  { type: "annualBasicAverageShares", concepts: ["WeightedAverageShares"], kind: "duration", unit: "shares", page: "financials" },
 
   { type: "annualCashAndCashEquivalents", concepts: ["CashAndCashEquivalentsAtCarryingValue"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualOtherShortTermInvestments", concepts: ["OtherShortTermInvestments"], kind: "instant", unit: "currency", page: "balance-sheet" },
+  { type: "annualCashCashEquivalentsAndShortTermInvestments", concepts: ["CashCashEquivalentsAndShortTermInvestments"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualAccountsReceivable", concepts: ["AccountsReceivableNetCurrent"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualInventory", concepts: ["InventoryNet"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualCurrentAssets", concepts: ["AssetsCurrent"], kind: "instant", unit: "currency", page: "balance-sheet" },
@@ -62,6 +64,8 @@ const METRICS: MetricMapping[] = [
   { type: "annualCurrentDebt", concepts: ["DebtCurrent"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualCurrentLiabilities", concepts: ["LiabilitiesCurrent"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualLongTermDebt", concepts: ["LongTermDebtNoncurrent"], kind: "instant", unit: "currency", page: "balance-sheet" },
+  { type: "annualTotalDebt", concepts: ["TotalDebt"], kind: "instant", unit: "currency", page: "balance-sheet" },
+  { type: "annualNetDebt", concepts: ["NetDebt"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualTotalLiabilitiesNetMinorityInterest", concepts: ["Liabilities"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualStockholdersEquity", concepts: ["StockholdersEquity"], kind: "instant", unit: "currency", page: "balance-sheet" },
   { type: "annualMinorityInterest", concepts: ["MinorityInterest"], kind: "instant", unit: "currency", page: "balance-sheet" },
@@ -162,7 +166,7 @@ export async function fetchYahooAnnualFacts(
   afterPeriodEnd: string,
 ): Promise<YahooAnnualFacts | null> {
   const cache = getCacheStore();
-  const cacheKey = `yahoo:annual-fundamentals:v2:${company.ticker}`;
+  const cacheKey = `yahoo:annual-fundamentals:v3:${company.ticker}`;
   const cached = await cache.get<CachedYahooResponse>(cacheKey);
   let payload = cached?.payload ?? null;
   let retrievedAt = cached?.retrievedAt ?? new Date().toISOString().slice(0, 10);

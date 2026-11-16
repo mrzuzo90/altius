@@ -20,6 +20,7 @@ import { buildEsefStatements } from "@/lib/esef";
 import { mergeStatementBundles } from "@/lib/financials/merge";
 import { convertPriceSeriesCurrency } from "@/lib/prices/fx";
 import { supplementAnnualStatements } from "@/lib/financials/yahoo-supplement";
+import { applySplitsToStatementBundle } from "@/lib/financials/splits";
 
 export const revalidate = 21600;
 
@@ -65,7 +66,7 @@ export default async function ValuationPage({ params }: { params: Promise<{ tick
   const regulatorBundle = esefBundle && hasUsableData(esefBundle)
     ? mergeStatementBundles(esefBundle, secBundle && hasUsableData(secBundle) ? secBundle : null)
     : secBundle ?? esefBundle!;
-  const bundle = hasUsableData(regulatorBundle)
+  const rawBundle = hasUsableData(regulatorBundle)
     ? await supplementAnnualStatements(regulatorBundle, {
         ticker,
         name: regulatorBundle.profile.name,
@@ -73,6 +74,9 @@ export default async function ValuationPage({ params }: { params: Promise<{ tick
         sector: regulatorBundle.profile.sector,
       })
     : regulatorBundle;
+  const bundle = hasUsableData(rawBundle) && precios.ok && precios.series.splits?.length
+    ? applySplitsToStatementBundle(rawBundle, precios.series.splits)
+    : rawBundle;
 
   if (!hasUsableData(bundle)) {
     return (

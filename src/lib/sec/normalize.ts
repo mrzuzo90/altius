@@ -34,6 +34,8 @@ export type Cell = {
   provenance: Provenance;
   /** Valor y fecha de la primera presentación conocida, para cálculos point-in-time. */
   firstReported?: { value: number; filed: string };
+  /** Marcado cuando el valor por acción o recuento ya se ha normalizado tras splits. */
+  splitAdjusted?: boolean;
 };
 
 export type LineSeries = { line: LineDef; cells: Record<PeriodKey, Cell> };
@@ -164,7 +166,12 @@ function recolectar(
   preferredCurrency?: string,
 ): Map<PeriodKey, Resuelto> {
   const salida = new Map<PeriodKey, Resuelto>();
-  const namespace = ["us-gaap", "ifrs-full", "dei"].find((ns) => facts.facts?.[ns]?.[concepto]);
+  const preferredNamespaces = ["us-gaap", "ifrs-full", "dei"];
+  const allNamespaces = [
+    ...preferredNamespaces,
+    ...Object.keys(facts.facts ?? {}).filter((ns) => !preferredNamespaces.includes(ns)),
+  ];
+  const namespace = allNamespaces.find((ns) => facts.facts?.[ns]?.[concepto]);
   const gaap = namespace ? facts.facts[namespace]?.[concepto] : undefined;
   const hechos = gaap ? factsForLine(gaap, linea, preferredCurrency) : undefined;
   if (!hechos) return salida;
@@ -271,6 +278,8 @@ export function normalizeStatement(
   const derivados = new Map<string, Set<PeriodKey>>();
   /** Los cuatro hechos de origen de cada Q4 derivado, por línea, para su procedencia. */
   const fuentesQ4 = new Map<string, Map<PeriodKey, FuentesQ4>>();
+  const capexConIntangibles = new Map<PeriodKey, { ppe: Resuelto; intang: Resuelto }>();
+  const noncurrentLiabilitiesPorPeriodo = new Map<PeriodKey, Resuelto>();
   const finPorPeriodo = new Map<PeriodKey, { end: string; fy: number; q: number }>();
 
   for (const linea of lines) {
@@ -283,6 +292,38 @@ export function normalizeStatement(
     for (const concepto of linea.concepts) {
       for (const [key, r] of recolectar(facts, concepto, linea, freq, ancla, preferredCurrency)) {
         if (!acumulado.has(key)) acumulado.set(key, r);
+      }
+    }
+
+    if (linea.id === "totalLiabilities") {
+      for (const [key, r] of recolectar(facts, "NoncurrentLiabilities", linea, freq, ancla, preferredCurrency)) {
+        if (!noncurrentLiabilitiesPorPeriodo.has(key)) noncurrentLiabilitiesPorPeriodo.set(key, r);
+      }
+    }
+
+    // Bajo NIIF (ESEF), muchas concesionarias, minoristas y tecnológicas separan la
+    // inversión material (PPE) de la inversión en intangibles/concesiones/software.
+    if (linea.id === "capex") {
+      const intangibles = recolectar(
+        facts,
+        "PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities",
+        linea,
+        freq,
+        ancla,
+        preferredCurrency,
+      );
+      for (const [key, r] of acumulado.entries()) {
+        if (!r.concept.endsWith(":PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities")) continue;
+        const intang = intangibles.get(key);
+        if (!intang) continue;
+        capexConIntangibles.set(key, { ppe: { ...r }, intang });
+        const total = Math.abs(r.value) + Math.abs(intang.value);
+        acumulado.set(key, {
+          ...r,
+          value: total,
+          firstValue: Math.abs(r.firstValue) + Math.abs(intang.firstValue),
+          firstFiled: r.firstFiled >= intang.firstFiled ? r.firstFiled : intang.firstFiled,
+        });
       }
     }
 
@@ -366,6 +407,19 @@ export function normalizeStatement(
       const fq4 = fuentesQ4.get(id)?.get(key);
       if (fq4) return provenanciaQ4(fq4);
     }
+    if (id === "capex") {
+      const combinado = capexConIntangibles.get(key);
+      if (combinado) {
+        return {
+          kind: "derived",
+          formula: "Inversión en inmovilizado material + Inversión en activos intangibles",
+          inputs: [
+            { label: "Inmovilizado material", value: Math.abs(combinado.ppe.value), source: resueltoAProvenance(combinado.ppe) },
+            { label: "Activos intangibles", value: Math.abs(combinado.intang.value), source: resueltoAProvenance(combinado.intang) },
+          ],
+        };
+      }
+    }
     const r = porLinea.get(id)?.get(key);
     return r ? resueltoAProvenance(r) : ABSENT;
   };
@@ -397,6 +451,85 @@ export function normalizeStatement(
           provenance = linea.negate
             ? { ...base, inputs: base.inputs.map((entrada) => ({ ...entrada, value: -entrada.value })) }
             : base;
+        }
+      }
+
+      const capexCombinado = linea.id === "capex" ? capexConIntangibles.get(p.key) : undefined;
+      if (capexCombinado && bruto) {
+        derived = true;
+        concept = undefined;
+        provenance = {
+          kind: "derived",
+          formula: "Inversión en inmovilizado material + Inversión en activos intangibles",
+          inputs: [
+            {
+              label: "Inmovilizado material",
+              value: linea.negate ? -Math.abs(capexCombinado.ppe.value) : Math.abs(capexCombinado.ppe.value),
+              source: resueltoAProvenance(capexCombinado.ppe),
+            },
+            {
+              label: "Activos intangibles",
+              value: linea.negate ? -Math.abs(capexCombinado.intang.value) : Math.abs(capexCombinado.intang.value),
+              source: resueltoAProvenance(capexCombinado.intang),
+            },
+          ],
+        };
+      }
+
+      if (value === null && linea.id === "cashAndShortTermInvestments") {
+        const cashVal = leer("cash", p.key);
+        const stInvVal = leer("shortTermInvestments", p.key);
+        if (cashVal !== null && stInvVal !== null) {
+          value = cashVal + stInvVal;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Efectivo y equivalentes + Inversiones a corto plazo",
+            inputs: [
+              { label: "Efectivo y equivalentes", value: cashVal, source: leerFuente("cash", p.key) },
+              { label: "Inversiones a corto plazo", value: stInvVal, source: leerFuente("shortTermInvestments", p.key) },
+            ],
+          };
+          firstReported = undefined;
+        }
+      }
+
+      if (value === null && linea.id === "totalLiabilities") {
+        const curLiab = leer("currentLiabilities", p.key);
+        const noncur = noncurrentLiabilitiesPorPeriodo.get(p.key);
+        if (curLiab !== null && noncur) {
+          value = curLiab + noncur.value;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Pasivo corriente + Pasivo no corriente",
+            inputs: [
+              { label: "Pasivo corriente", value: curLiab, source: leerFuente("currentLiabilities", p.key) },
+              { label: "Pasivo no corriente", value: noncur.value, source: resueltoAProvenance(noncur) },
+            ],
+          };
+          firstReported = undefined;
+        }
+      }
+
+      if (value === null && linea.id === "totalDebt") {
+        const stDebt = leer("shortTermDebt", p.key);
+        const ltDebt = leer("longTermDebt", p.key);
+        if (stDebt !== null && ltDebt !== null) {
+          value = stDebt + ltDebt;
+          derived = true;
+          concept = undefined;
+          provenance = {
+            kind: "derived",
+            formula: "Deuda a corto plazo + Deuda a largo plazo",
+            inputs: [
+              { label: "Deuda a corto plazo", value: stDebt, source: leerFuente("shortTermDebt", p.key) },
+              { label: "Deuda a largo plazo", value: ltDebt, source: leerFuente("longTermDebt", p.key) },
+            ],
+          };
+          firstReported = undefined;
         }
       }
 
@@ -438,11 +571,11 @@ export function normalizeStatement(
           firstReported = undefined;
         }
       }
-      if (linea.computed === "freeCashFlow") {
+      if (linea.computed === "freeCashFlow" && value === null) {
         const cfo = leer("operatingCashFlow", p.key);
         const capex = leer("capex", p.key);
         if (cfo !== null && capex !== null) {
-          value = cfo - capex;
+          value = cfo - Math.abs(capex);
           derived = true;
           concept = undefined;
           provenance = {
@@ -450,7 +583,7 @@ export function normalizeStatement(
             formula: "Flujo de caja de explotación − Inversión en inmovilizado",
             inputs: [
               { label: "Flujo de caja de explotación", value: cfo, source: leerFuente("operatingCashFlow", p.key) },
-              { label: "Inversión en inmovilizado", value: capex, source: leerFuente("capex", p.key) },
+              { label: "Inversión en inmovilizado", value: Math.abs(capex), source: leerFuente("capex", p.key) },
             ],
           };
           firstReported = undefined;

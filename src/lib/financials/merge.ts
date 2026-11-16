@@ -1,5 +1,6 @@
 import { buildRatiosStatement } from "@/lib/sec/ratios";
-import type { Cell, LineSeries, Period } from "@/lib/sec/normalize";
+import type { Cell, LineSeries, Period, PeriodKey } from "@/lib/sec/normalize";
+import { ABSENT, type Provenance } from "@/lib/sec/provenance";
 import type { StatementBlock, StatementBundle } from "@/lib/sec/statements";
 import type { StatementId } from "@/lib/sec/taxonomy";
 
@@ -42,6 +43,59 @@ function mergeBlock(primary: StatementBlock, backfill: StatementBlock, limit: nu
   return { id: primary.id, label: primary.label, periods, rows };
 }
 
+function rowById(block: StatementBlock | undefined, id: string): LineSeries | undefined {
+  return block?.rows.find((row) => row.line.id === id);
+}
+
+function cellValue(row: LineSeries | undefined, key: PeriodKey): number | null {
+  const val = row?.cells[key]?.value;
+  return val !== null && val !== undefined && Number.isFinite(val) ? val : null;
+}
+
+function cellSource(row: LineSeries | undefined, key: PeriodKey): Provenance {
+  return row?.cells[key]?.provenance ?? ABSENT;
+}
+
+function fillDerivedCell(
+  block: StatementBlock | undefined,
+  targetId: string,
+  firstId: string,
+  firstLabel: string,
+  secondId: string,
+  secondLabel: string,
+  formula: string,
+  compute: (a: number, b: number) => number,
+  normalizeFirst: (a: number) => number = (a) => a,
+  normalizeSecond: (b: number) => number = (b) => b,
+): void {
+  if (!block) return;
+  const targetRow = rowById(block, targetId);
+  const firstRow = rowById(block, firstId);
+  const secondRow = rowById(block, secondId);
+  if (!targetRow || !firstRow || !secondRow) return;
+
+  for (const period of block.periods) {
+    const existing = targetRow.cells[period.key]?.value;
+    if (existing !== null && existing !== undefined && Number.isFinite(existing)) continue;
+    const rawFirst = cellValue(firstRow, period.key);
+    const rawSecond = cellValue(secondRow, period.key);
+    if (rawFirst === null || rawSecond === null) continue;
+
+    targetRow.cells[period.key] = {
+      value: compute(rawFirst, rawSecond),
+      derived: true,
+      provenance: {
+        kind: "derived",
+        formula,
+        inputs: [
+          { label: firstLabel, value: normalizeFirst(rawFirst), source: cellSource(firstRow, period.key) },
+          { label: secondLabel, value: normalizeSecond(rawSecond), source: cellSource(secondRow, period.key) },
+        ],
+      },
+    };
+  }
+}
+
 /**
  * Conserva el regulador local como fuente principal y usa otro repositorio
  * únicamente para cubrir ejercicios/celdas ausentes. Si las divisas difieren,
@@ -67,6 +121,59 @@ export function mergeStatementBundles(
   const balance = baseBlocks.find((block) => block.id === "balance");
   const cashflow = baseBlocks.find((block) => block.id === "cashflow");
   if (!income || !balance || !cashflow) return primary;
+
+  fillDerivedCell(
+    income,
+    "grossProfit",
+    "revenue",
+    "Ingresos",
+    "costOfRevenue",
+    "Coste de ventas",
+    "Ingresos − Coste de ventas",
+    (rev, cogs) => rev - cogs,
+  );
+  fillDerivedCell(
+    income,
+    "operatingIncome",
+    "revenue",
+    "Ingresos",
+    "operatingExpenses",
+    "Total gastos de explotación",
+    "Ingresos − Total gastos de explotación",
+    (rev, opex) => rev - opex,
+  );
+  fillDerivedCell(
+    balance,
+    "cashAndShortTermInvestments",
+    "cash",
+    "Efectivo y equivalentes",
+    "shortTermInvestments",
+    "Inversiones a corto plazo",
+    "Efectivo y equivalentes + Inversiones a corto plazo",
+    (cash, stInv) => cash + stInv,
+  );
+  fillDerivedCell(
+    balance,
+    "totalDebt",
+    "shortTermDebt",
+    "Deuda a corto plazo",
+    "longTermDebt",
+    "Deuda a largo plazo",
+    "Deuda a corto plazo + Deuda a largo plazo",
+    (st, lt) => st + lt,
+  );
+  fillDerivedCell(
+    cashflow,
+    "freeCashFlow",
+    "operatingCashFlow",
+    "Flujo de caja de explotación",
+    "capex",
+    "Inversión en inmovilizado",
+    "Flujo de caja de explotación − Inversión en inmovilizado",
+    (cfo, capex) => cfo - Math.abs(capex),
+    (cfo) => cfo,
+    (capex) => Math.abs(capex),
+  );
 
   const ratios: StatementBlock = {
     id: "ratios",

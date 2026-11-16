@@ -106,10 +106,16 @@ export function buildHistoricalPeSeries(
       .sort()
       .at(-1) ?? null;
     const epsCell = dilutedEps !== null ? epsRow?.cells[period.key] : basicEpsRow?.cells[period.key];
+    const refCell = epsCell ?? (shares !== null ? sharesRow?.cells[period.key] : undefined);
     const earningsKnownAt = directFiled ?? fallbackFiled ?? reportedAt(epsCell, period);
+    const alreadySplitAdjusted =
+      Boolean(refCell?.splitAdjusted) ||
+      (refCell?.provenance.kind === "reported" && refCell.provenance.form === "YAHOO-ANNUAL");
     const eps = rawEps === null
       ? null
-      : adjustPerShareValueForSplits(rawEps, earningsKnownAt, prices?.splits ?? []);
+      : alreadySplitAdjusted
+        ? rawEps
+        : adjustPerShareValueForSplits(rawEps, earningsKnownAt, prices?.splits ?? []);
     const marketPoint = comparableCurrency ? priceAtOrBefore(pricePoints, earningsKnownAt) : null;
     const pe = marketPoint && eps !== null && eps > 0 ? marketPoint.close / eps : null;
 
@@ -154,9 +160,15 @@ export function buildHistoricalPeSeries(
       ? epsRow?.cells[latestPeriod.key]
       : basicEpsRow?.cells[latestPeriod.key]
     : undefined;
+  const latestRefCell = latestCell ?? (latestPeriod && latestShares !== null ? sharesRow?.cells[latestPeriod.key] : undefined);
+  const latestAlreadyAdjusted =
+    Boolean(latestRefCell?.splitAdjusted) ||
+    (latestRefCell?.provenance.kind === "reported" && latestRefCell.provenance.form === "YAHOO-ANNUAL");
   const latestKnownAt = latestPeriod ? reportedAt(latestCell, latestPeriod) : null;
   const latestEps = latestRawEps !== null && latestKnownAt
-    ? adjustPerShareValueForSplits(latestRawEps, latestKnownAt, prices?.splits ?? [])
+    ? latestAlreadyAdjusted
+      ? latestRawEps
+      : adjustPerShareValueForSplits(latestRawEps, latestKnownAt, prices?.splits ?? [])
     : null;
   const currentPrice = comparableCurrency ? pricePoints.at(-1)?.close ?? null : null;
   const currentPe = latestEps !== null && latestEps > 0 && currentPrice !== null

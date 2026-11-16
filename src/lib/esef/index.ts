@@ -7,6 +7,7 @@ import { STATEMENTS, type StatementId } from "@/lib/sec/taxonomy";
 import type { StatementBlock, StatementBundle } from "@/lib/sec/statements";
 import type { CompanyFacts, CompanyProfile, XbrlFact } from "@/lib/sec/types";
 import type { EsefCompany } from "./companies";
+import { cnmvArchiveFactsForCompany } from "./cnmv-history";
 import { fetchYahooAnnualFacts } from "@/lib/yahoo/fundamentals";
 
 const BASE = "https://filings.xbrl.org";
@@ -177,9 +178,11 @@ export async function buildEsefStatements(company: EsefCompany, frequency: Frequ
     filings.length > 0 ? loadEsefReports(company, filings).catch(() => []) : Promise.resolve([]),
     fetchYahooAnnualFacts(company, latestIndexedPeriod),
   ]);
+  const cnmvArchive = cnmvArchiveFactsForCompany(company.ticker);
   const facts = mergeCompanyFacts(company, [
     ...loadedReports.map((report) => report.facts),
     ...(latestBridge ? [latestBridge.facts] : []),
+    ...(cnmvArchive ? [cnmvArchive] : []),
   ]);
   const currency = detectCurrency(facts);
 
@@ -190,6 +193,26 @@ export async function buildEsefStatements(company: EsefCompany, frequency: Frequ
   const income = baseBlocks.find((block) => block.id === "income")!;
   const balance = baseBlocks.find((block) => block.id === "balance")!;
   const cashflow = baseBlocks.find((block) => block.id === "cashflow")!;
+  // Descartar columnas fantasma de apertura IAS 1 (p. ej. FY2018 con solo caja y patrimonio,
+  // sin cuenta de resultados ni flujos).
+  const activeFlowKeys = new Set([
+    ...income.periods.map((period) => period.key),
+    ...cashflow.periods.map((period) => period.key),
+  ]);
+  const balancePeriods = balance.periods.filter((period) => {
+    if (activeFlowKeys.has(period.key)) return true;
+    const populatedRows = balance.rows.filter((row) => row.cells[period.key]?.value !== null && row.cells[period.key]?.value !== undefined).length;
+    return populatedRows >= 4;
+  });
+  if (balancePeriods.length !== balance.periods.length) {
+    const keepKeys = new Set(balancePeriods.map((period) => period.key));
+    balance.periods = balancePeriods;
+    for (const row of balance.rows) {
+      for (const key of Object.keys(row.cells)) {
+        if (!keepKeys.has(key)) delete row.cells[key];
+      }
+    }
+  }
   const ratios: StatementBlock = {
     id: "ratios" as StatementId,
     label: "Ratios y márgenes",

@@ -365,7 +365,11 @@ function splitAdjusted(value: number, knownAt: string, splits: SplitEvent[]): nu
     .reduce((adjusted, split) => adjusted * (split.numerator / split.denominator), value);
 }
 
-function firstReportedValue(statement: NormalizedStatement, lineId: string, key: PeriodKey): { value: number; knownAt: string } | null {
+function firstReportedValue(
+  statement: NormalizedStatement,
+  lineId: string,
+  key: PeriodKey,
+): { value: number; knownAt: string; alreadyAdjusted: boolean } | null {
   const cell = getRow(statement, lineId)?.cells[key];
   const value = cell?.firstReported?.value ?? cell?.value;
   if (value === null || value === undefined || !Number.isFinite(value)) return null;
@@ -373,7 +377,10 @@ function firstReportedValue(statement: NormalizedStatement, lineId: string, key:
     ?? (cell?.provenance.kind === "reported" ? cell.provenance.filed : null)
     ?? statement.periods.find((period) => period.key === key)?.end
     ?? "9999-12-31";
-  return { value, knownAt };
+  const alreadyAdjusted =
+    Boolean(cell?.splitAdjusted) ||
+    (cell?.provenance.kind === "reported" && cell.provenance.form === "YAHOO-ANNUAL");
+  return { value, knownAt, alreadyAdjusted };
 }
 
 function shareObservations(income: NormalizedStatement | undefined, splits: SplitEvent[]): Observation[] {
@@ -384,14 +391,18 @@ function shareObservations(income: NormalizedStatement | undefined, splits: Spli
       return [{
         key: period.key,
         year: period.fiscalYear,
-        value: splitAdjusted(reported.value, reported.knownAt, splits),
+        value: reported.alreadyAdjusted ? reported.value : splitAdjusted(reported.value, reported.knownAt, splits),
       }];
     }
     const earnings = firstReportedValue(income, "netIncome", period.key);
     const eps = firstReportedValue(income, "epsDiluted", period.key) ?? firstReportedValue(income, "epsBasic", period.key);
     const derived = earnings !== null && eps !== null && eps.value !== 0 ? earnings.value / eps.value : null;
     return derived !== null && derived > 0
-      ? [{ key: period.key, year: period.fiscalYear, value: splitAdjusted(derived, eps!.knownAt, splits) }]
+      ? [{
+          key: period.key,
+          year: period.fiscalYear,
+          value: eps!.alreadyAdjusted ? derived : splitAdjusted(derived, eps!.knownAt, splits),
+        }]
       : [];
   }).slice(0, MAX_HISTORY);
 }

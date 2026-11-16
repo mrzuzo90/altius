@@ -13,6 +13,8 @@ import { resolveEsefCompanyDynamic } from "@/lib/esef/resolve";
 import { buildEsefStatements } from "@/lib/esef";
 import { mergeStatementBundles } from "@/lib/financials/merge";
 import { supplementAnnualStatements } from "@/lib/financials/yahoo-supplement";
+import { applySplitsToStatementBundle } from "@/lib/financials/splits";
+import { getPriceSeries } from "@/lib/prices";
 
 export const revalidate = 21600;
 
@@ -55,9 +57,10 @@ export default async function FinancialsPage({
     redirect(`/ticker/${ticker}/financials${freq ? `?freq=${freq}` : ""}`);
   }
 
-  const [secBundle, esefBundle] = await Promise.all([
+  const [secBundle, esefBundle, precios] = await Promise.all([
     hit ? buildStatements(hit.cik, frequency, hit.name, ticker) : Promise.resolve(null),
     esefCompany && frequency === "annual" ? buildEsefStatements(esefCompany, frequency).catch(() => null) : Promise.resolve(null),
+    frequency === "annual" ? getPriceSeries(ticker) : Promise.resolve(null),
   ]);
   let bundle = esefBundle && hasUsableData(esefBundle)
     ? mergeStatementBundles(esefBundle, secBundle && hasUsableData(secBundle) ? secBundle : null)
@@ -70,6 +73,9 @@ export default async function FinancialsPage({
       country: esefCompany?.country ?? bundle.profile.stateOfIncorporation,
       sector: esefCompany?.sector ?? bundle.profile.sector,
     });
+    if (precios?.ok && precios.series.splits?.length) {
+      bundle = applySplitsToStatementBundle(bundle, precios.series.splits);
+    }
   }
 
   return (

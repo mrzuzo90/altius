@@ -28,6 +28,25 @@ export const ESEF_COMPANIES: EsefCompany[] = [
     ],
   },
   {
+    ticker: "IBE.MC",
+    name: "Iberdrola, S.A.",
+    lei: "5QK37QC7NWOJ8D7WVQ45",
+    exchange: "BME",
+    country: "España",
+    sector: "Utilities",
+    industry: "Generación y distribución de energía eléctrica y renovables",
+    aliases: [
+      "IBE.MC",
+      "IBE",
+      "BME:IBE",
+      "BME: IBE",
+      "MC:IBE",
+      "IBERDROLA",
+      "IBERDROLA SA",
+      "IBDRY",
+    ],
+  },
+  {
     ticker: "ITX.MC",
     name: "Industria de Diseño Textil, S.A.",
     lei: "549300TTCXZOGZM2EY83",
@@ -35,7 +54,72 @@ export const ESEF_COMPANIES: EsefCompany[] = [
     country: "España",
     sector: "Consumo discrecional",
     industry: "Distribución minorista de moda y productos textiles",
-    aliases: ["ITX.MC", "ITX", "INDITEX", "IDEXY"],
+    aliases: [
+      "ITX.MC",
+      "ITX",
+      "BME:ITX",
+      "BME: ITX",
+      "MC:ITX",
+      "INDITEX",
+      "INDUSTRIA DE DISENO TEXTIL",
+      "IDEXY",
+    ],
+  },
+  {
+    ticker: "TEF.MC",
+    name: "Telefónica, S.A.",
+    lei: "549300EEJH4FEPDBBR25",
+    exchange: "BME",
+    country: "España",
+    sector: "Telecomunicaciones",
+    industry: "Operador integrado de telecomunicaciones fijas, móviles y fibra",
+    aliases: [
+      "TEF.MC",
+      "TEF",
+      "BME:TEF",
+      "BME: TEF",
+      "MC:TEF",
+      "TELEFONICA",
+      "TELEFONICA SA",
+    ],
+  },
+  {
+    ticker: "IDR.MC",
+    name: "Indra Sistemas, S.A.",
+    lei: "95980020140005308793",
+    exchange: "BME",
+    country: "España",
+    sector: "Tecnología",
+    industry: "Tecnologías de la información, defensa, tráfico aéreo y movilidad",
+    aliases: [
+      "IDR.MC",
+      "IDR",
+      "BME:IDR",
+      "BME: IDR",
+      "MC:IDR",
+      "INDRA",
+      "INDRA SISTEMAS",
+      "ISMAY",
+    ],
+  },
+  {
+    ticker: "AENA.MC",
+    name: "Aena S.M.E., S.A.",
+    lei: "959800R7QMXKF0NFMT29",
+    exchange: "BME",
+    country: "España",
+    sector: "Industriales",
+    industry: "Gestión y operación de infraestructuras aeroportuarias",
+    aliases: [
+      "AENA.MC",
+      "AENA",
+      "BME:AENA",
+      "BME: AENA",
+      "MC:AENA",
+      "AENA SME",
+      "AENA AEROPUERTOS",
+      "ANYYY",
+    ],
   },
   {
     ticker: "SAN.MC",
@@ -96,13 +180,17 @@ export const ESEF_COMPANIES: EsefCompany[] = [
   },
 ];
 
+function stripDiacritics(value: string): string {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
+
 export function resolveEsefCompany(query: string): EsefCompany | null {
-  const normalized = query.trim().toUpperCase();
+  const normalized = stripDiacritics(query.trim()).toUpperCase();
   const normalizedClean = normalized.replace(/\s*:\s*/g, ":");
   return (
     ESEF_COMPANIES.find((company) =>
       company.aliases.some((alias) => {
-        const a = alias.toUpperCase();
+        const a = stripDiacritics(alias).toUpperCase();
         return a === normalized || a === normalizedClean;
       }),
     ) ?? null
